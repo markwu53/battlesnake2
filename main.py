@@ -1,3 +1,8 @@
+import logging
+logging.getLogger("uvicorn").disabled = True
+logging.getLogger("uvicorn.error").disabled = True
+logging.getLogger("uvicorn.access").disabled = True
+
 # main.py
 import os
 from fastapi import FastAPI
