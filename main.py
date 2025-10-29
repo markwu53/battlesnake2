@@ -1,24 +1,28 @@
-from fastapi import FastAPI
-from snake import info, start, move, end
+# main.py
 import os
+from fastapi import FastAPI
+from snake import info, start, move, end   # your existing functions
 
 app = FastAPI(title="Battlesnake Webhook Handler")
 
 @app.get("/")
-async def info_endpoint():
+def info_endpoint():
+    # info() probably doesn't need a body — call it directly
     return info()
 
 @app.post("/start")
-async def start_endpoint():
-    return start()
+def start_endpoint(game_state: dict):
+    # FastAPI will parse JSON body into a dict
+    return start(game_state)
 
 @app.post("/move")
-async def move_endpoint():
-    return move()
+def move_endpoint(game_state: dict):
+    return move(game_state)
 
 @app.post("/end")
-async def end_endpoint():
-    return end()
+def end_endpoint(game_state: dict):
+    return end(game_state)
+
 
 if __name__ == "__main__":
     import uvicorn
