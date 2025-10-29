@@ -6,7 +6,7 @@ import decision_flow
 # and controls your Battlesnake's appearance
 # TIP: If you open your Battlesnake URL in a browser you should see this data
 def info() -> typing.Dict:
-    print("INFO")
+    #print("INFO")
 
     return {
         "apiversion": "1",
