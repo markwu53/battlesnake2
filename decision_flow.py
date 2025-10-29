@@ -189,6 +189,8 @@ def main(game_state, log=True, log_db=False):
             #cond(len(g.others) == 1 and g.me.length <= g.other.length)(chase_my_tail_body),
             (cond(g.me.length <= 15)(avoid_single_move)),
             (cond(g.me.length >= 10)(prefer_less_split)),
+
+            #sometime this can create type 2 collision situation
             (cond(g.me.length <= 16)(prefer_away_border)),
 
             (split_choice_2),
