@@ -1,41 +1,54 @@
-import logging
-logging.getLogger("uvicorn").disabled = True
-logging.getLogger("uvicorn.error").disabled = True
-logging.getLogger("uvicorn.access").disabled = True
-
-# main.py
 import os
-from fastapi import FastAPI
-from snake import info, start, move, end   # your existing functions
+import json
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from urllib.parse import urlparse
+from snake import info, start, move, end  # your existing functions
 
-app = FastAPI(title="Battlesnake Webhook Handler")
+class BattlesnakeHandler(BaseHTTPRequestHandler):
+    def _set_headers(self):
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
 
-@app.get("/")
-def info_endpoint():
-    # info() probably doesn't need a body — call it directly
-    return info()
+    def do_GET(self):
+        path = urlparse(self.path).path
+        if path == "/":
+            self._set_headers()
+            response = info()
+        else:
+            self.send_error(404, "Not Found")
+            return
 
-@app.post("/start")
-def start_endpoint(game_state: dict):
-    # FastAPI will parse JSON body into a dict
-    return start(game_state)
+        self.wfile.write(json.dumps(response).encode("utf-8"))
 
-@app.post("/move")
-def move_endpoint(game_state: dict):
-    return move(game_state)
+    def do_POST(self):
+        path = urlparse(self.path).path
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        try:
+            game_state = json.loads(body) if body else {}
+        except json.JSONDecodeError:
+            game_state = {}
 
-@app.post("/end")
-def end_endpoint(game_state: dict):
-    return end(game_state)
+        if path == "/start":
+            response = start(game_state)
+        elif path == "/move":
+            response = move(game_state)
+        elif path == "/end":
+            response = end(game_state)
+        else:
+            self.send_error(404, "Not Found")
+            return
 
+        self._set_headers()
+        self.wfile.write(json.dumps(response).encode("utf-8"))
+
+    def log_message(self, format, *args):
+        # Disable default access logs
+        return
 
 if __name__ == "__main__":
-    import uvicorn
     port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(
-        app, 
-        host="0.0.0.0", 
-        port=port,
-        access_log=False,
-        log_level="critical",
-        )
+    server = HTTPServer(("0.0.0.0", port), BattlesnakeHandler)
+    print(f"Server running on port {port}")
+    server.serve_forever()
