@@ -109,7 +109,8 @@ def main(game_state, log=True, log_db=False):
             general_confront_kill_oppotunity,
 
 
-            partial_cut_oppotunity,
+            #this seems not effective
+            #partial_cut_oppotunity,
 
             #(cond(g.me.length >= 12)(split_choice)),
             (cond(len(g.others) == 1)(split_choice)),
