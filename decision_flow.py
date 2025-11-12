@@ -624,14 +624,12 @@ def main(game_state, log=True, log_db=False):
 
     def get_food(moves):
         #food_near = [f for f in g.food if distance_pq(f, g.me.head) <= 8 and distance_to_border(f) != (0,0)]
-        food_near = [f for f in g.food if f in g.me.territory and distance_to_border(f) != (0,0)]
+        food_good = [f for f in g.food if f in g.me.territory]
+        if len(g.others) != 1:
+            if g.me.length <= 15:
+                food_good = [f for f in food_good if distance_to_border(f) != (0,0)]
 
-        food_good = [f for f in food_near 
-                     if path_connected(f, g.me.head) 
-                     and all([path_distance_pq(f, g.me.head) < path_distance_pq(f, snake.head) if snake.length >= g.me.length 
-                     else path_distance_pq(f, g.me.head) <= path_distance_pq(f, snake.head)
-                              for snake in g.others])]
-        food_good = [f for f in food_good if not corner_danger_food(f)]
+        #food_good = [f for f in food_good if not corner_danger_food(f)]
         if len(food_good) == 0:
             return
 
@@ -3349,6 +3347,7 @@ if __name__ == "__main__":
     log = {'id': 'a3a78d3f-bf5a-47c6-a4ae-986fb159fe54', 'turn': 35, 'me': {'name': 'mark_snake', 'health': 69, 'length': 4, 'body': [(8, 9), (8, 8), (8, 7), (8, 6)], 'id': 'gs_qQwxYTyxkCRbgbphFcpfY7TY'}, 'others': [{'name': 'Frank The Tank', 'health': 73, 'length': 5, 'body': [(4, 9), (3, 9), (3, 8), (4, 8), (5, 8)], 'id': 'gs_MKD93HC9w6hvkS3jR39rbWvY'}, {'name': 'ich heisse marvin', 'health': 84, 'length': 7, 'body': [(1, 6), (2, 6), (3, 6), (3, 5), (3, 4), (3, 3), (2, 3)], 'id': 'gs_fGymXcF4ySXDrx6RcH39JfkH'}, {'name': 'mark_snake_test GREEN', 'health': 67, 'length': 4, 'body': [(6, 3), (6, 2), (7, 2), (8, 2)], 'id': 'gs_hkQ3BF7fkSmTpvxpt6QcpqTS'}], 'food': [(0, 10), (4, 10), (8, 10)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'killer near prefer away border', 'split2 choose my tail', 'split2 choose my tail'], 'next_coord': (9, 9), 'next_move': 'right', 'time': '0.093s'}
     log = {'id': 'cb8c9e40-feb9-4acb-887d-8ae0793c38e1', 'turn': 177, 'me': {'name': 'mark_snake', 'health': 62, 'length': 15, 'body': [(9, 6), (9, 7), (9, 8), (8, 8), (7, 8), (7, 9), (6, 9), (5, 9), (4, 9), (3, 9), (2, 9), (1, 9), (0, 9), (0, 8), (1, 8)], 'id': 'gs_TXGCkDgJcGpf3q7rbpqP4KCQ'}, 'others': [{'name': 'Frank The Tank', 'health': 90, 'length': 22, 'body': [(6, 5), (6, 6), (7, 6), (7, 7), (6, 7), (5, 7), (4, 7), (3, 7), (3, 6), (3, 5), (2, 5), (2, 6), (2, 7), (1, 7), (1, 6), (1, 5), (1, 4), (0, 4), (0, 3), (0, 2), (0, 1), (0, 0)], 'id': 'gs_CMcpP8ywPFxkKKwdg8B3fpbd'}], 'food': [(10, 10), (3, 3), (1, 1)], 'module': 'decision_flow - github', 'decision_path': ['1v1'], 'next_coord': (8, 6), 'next_move': 'left', 'time': '0.026s'}
     log = {'id': '4cdad57f-ec32-413e-8685-2a7225edd790', 'turn': 76, 'me': {'name': 'mark_snake', 'health': 83, 'length': 9, 'body': [(1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (5, 2), (6, 2), (6, 3), (7, 3)], 'id': 'gs_GgM774GyJ6qKDWMyRgGpJp99'}, 'others': [{'name': 'Snakeformatika', 'health': 93, 'length': 10, 'body': [(5, 3), (5, 4), (5, 5), (6, 5), (7, 5), (7, 6), (7, 7), (7, 8), (8, 8), (8, 9)], 'id': 'gs_RCHBQvdpw7RD4BbQQB4Xfy6H'}, {'name': 'pforsythe-battlesnake', 'health': 91, 'length': 9, 'body': [(2, 0), (3, 0), (4, 0), (5, 0), (6, 0), (7, 0), (7, 1), (8, 1), (8, 2)], 'id': 'gs_xvrRhHVWGfQJTTCKftqgktkS'}, {'name': 'Darktooth', 'health': 65, 'length': 7, 'body': [(2, 8), (2, 7), (2, 6), (2, 5), (1, 5), (1, 4), (1, 3)], 'id': 'gs_GSpHpdF76fWmtHJSYMGBjhWG'}], 'food': [(0, 10), (8, 4), (4, 6)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('Snakeformatika', 1, (4, 3)), ('pforsythe-battlesnake', 3, (0, 0))]", 'forming trap'], 'next_coord': (1, 2), 'next_move': 'up', 'time': '0.004s'}
+    log = {'id': '053aba1b-5acf-4dcc-9129-081a1772538f', 'turn': 89, 'me': {'name': 'mark_snake', 'health': 87, 'length': 7, 'body': [(1, 10), (1, 9), (2, 9), (2, 8), (2, 7), (3, 7), (4, 7)], 'id': 'gs_q9cJPJJQ4wbqRvcJxvy8Bw6T'}, 'others': [{'name': 'Snakeformatika', 'health': 59, 'length': 9, 'body': [(8, 9), (7, 9), (6, 9), (5, 9), (5, 10), (6, 10), (7, 10), (8, 10), (9, 10)], 'id': 'gs_dQR9BWVwP4pXVFp87SCCmC4c'}, {'name': 'Lancer', 'health': 84, 'length': 6, 'body': [(6, 7), (7, 7), (8, 7), (8, 6), (8, 5), (8, 4)], 'id': 'gs_CWrrdTjv9ThYVPrMhF8jtwB7'}, {'name': 'Jeremy', 'health': 98, 'length': 15, 'body': [(1, 4), (1, 3), (0, 3), (0, 2), (0, 1), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (5, 2), (5, 3), (4, 3), (3, 3), (3, 2)], 'id': 'gs_VfTKMbwdBfGKFFBkDy7QxhmC'}], 'food': [(4, 10)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'partial cut Jeremy [(0, 8)]'], 'next_coord': (0, 10), 'next_move': 'left', 'time': '0.023s'}
 
 
 
