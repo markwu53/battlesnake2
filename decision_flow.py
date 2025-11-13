@@ -2113,13 +2113,14 @@ def main(game_state, log=True, log_db=False):
         for snake in g.vulnerables:
             g.target_snake = snake
             if snake.dead:
-                g.decision_path.append("vulnerable target evolve dead")
-                #return [g.me.next.head]
-                return
-            if g.me.length <= snake.length:
+                if g.me.next is not None:
+                    next_move = g.me.next.head
+                    if next_move in moves:
+                        g.decision_path.append(f"vulnerable target evolve dead [{snake.name}]")
+                        return [next_move]
+            elif g.me.length <= snake.length:
                 g.decision_path.append("vulnerable but I'm short")
-                return
-            if g.me.length > snake.length:
+            elif g.me.length > snake.length:
                 result = par([
                     attack_vulnerables_equal_distance,
                     (attack_vulnerables_distance_2),
@@ -3348,6 +3349,7 @@ if __name__ == "__main__":
     log = {'id': 'cb8c9e40-feb9-4acb-887d-8ae0793c38e1', 'turn': 177, 'me': {'name': 'mark_snake', 'health': 62, 'length': 15, 'body': [(9, 6), (9, 7), (9, 8), (8, 8), (7, 8), (7, 9), (6, 9), (5, 9), (4, 9), (3, 9), (2, 9), (1, 9), (0, 9), (0, 8), (1, 8)], 'id': 'gs_TXGCkDgJcGpf3q7rbpqP4KCQ'}, 'others': [{'name': 'Frank The Tank', 'health': 90, 'length': 22, 'body': [(6, 5), (6, 6), (7, 6), (7, 7), (6, 7), (5, 7), (4, 7), (3, 7), (3, 6), (3, 5), (2, 5), (2, 6), (2, 7), (1, 7), (1, 6), (1, 5), (1, 4), (0, 4), (0, 3), (0, 2), (0, 1), (0, 0)], 'id': 'gs_CMcpP8ywPFxkKKwdg8B3fpbd'}], 'food': [(10, 10), (3, 3), (1, 1)], 'module': 'decision_flow - github', 'decision_path': ['1v1'], 'next_coord': (8, 6), 'next_move': 'left', 'time': '0.026s'}
     log = {'id': '4cdad57f-ec32-413e-8685-2a7225edd790', 'turn': 76, 'me': {'name': 'mark_snake', 'health': 83, 'length': 9, 'body': [(1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (5, 2), (6, 2), (6, 3), (7, 3)], 'id': 'gs_GgM774GyJ6qKDWMyRgGpJp99'}, 'others': [{'name': 'Snakeformatika', 'health': 93, 'length': 10, 'body': [(5, 3), (5, 4), (5, 5), (6, 5), (7, 5), (7, 6), (7, 7), (7, 8), (8, 8), (8, 9)], 'id': 'gs_RCHBQvdpw7RD4BbQQB4Xfy6H'}, {'name': 'pforsythe-battlesnake', 'health': 91, 'length': 9, 'body': [(2, 0), (3, 0), (4, 0), (5, 0), (6, 0), (7, 0), (7, 1), (8, 1), (8, 2)], 'id': 'gs_xvrRhHVWGfQJTTCKftqgktkS'}, {'name': 'Darktooth', 'health': 65, 'length': 7, 'body': [(2, 8), (2, 7), (2, 6), (2, 5), (1, 5), (1, 4), (1, 3)], 'id': 'gs_GSpHpdF76fWmtHJSYMGBjhWG'}], 'food': [(0, 10), (8, 4), (4, 6)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('Snakeformatika', 1, (4, 3)), ('pforsythe-battlesnake', 3, (0, 0))]", 'forming trap'], 'next_coord': (1, 2), 'next_move': 'up', 'time': '0.004s'}
     log = {'id': '053aba1b-5acf-4dcc-9129-081a1772538f', 'turn': 89, 'me': {'name': 'mark_snake', 'health': 87, 'length': 7, 'body': [(1, 10), (1, 9), (2, 9), (2, 8), (2, 7), (3, 7), (4, 7)], 'id': 'gs_q9cJPJJQ4wbqRvcJxvy8Bw6T'}, 'others': [{'name': 'Snakeformatika', 'health': 59, 'length': 9, 'body': [(8, 9), (7, 9), (6, 9), (5, 9), (5, 10), (6, 10), (7, 10), (8, 10), (9, 10)], 'id': 'gs_dQR9BWVwP4pXVFp87SCCmC4c'}, {'name': 'Lancer', 'health': 84, 'length': 6, 'body': [(6, 7), (7, 7), (8, 7), (8, 6), (8, 5), (8, 4)], 'id': 'gs_CWrrdTjv9ThYVPrMhF8jtwB7'}, {'name': 'Jeremy', 'health': 98, 'length': 15, 'body': [(1, 4), (1, 3), (0, 3), (0, 2), (0, 1), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (5, 2), (5, 3), (4, 3), (3, 3), (3, 2)], 'id': 'gs_VfTKMbwdBfGKFFBkDy7QxhmC'}], 'food': [(4, 10)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'partial cut Jeremy [(0, 8)]'], 'next_coord': (0, 10), 'next_move': 'left', 'time': '0.023s'}
+    log = {'id': 'f81e822a-5cf7-44d9-a7b2-88e8f2b2f461', 'turn': 56, 'me': {'name': 'mark_snake', 'health': 46, 'length': 4, 'body': [(1, 3), (2, 3), (2, 2), (3, 2)], 'id': 'gs_v6Kp7MDD8FfXbvTKxvprHgqV'}, 'others': [{'name': 'SmartyRat', 'health': 81, 'length': 5, 'body': [(1, 5), (2, 5), (3, 5), (4, 5), (5, 5)], 'id': 'gs_DxXT3VkWY6wvWqFydgDYQbbP'}, {'name': 'Game of Chicken', 'health': 92, 'length': 7, 'body': [(2, 4), (3, 4), (4, 4), (5, 4), (6, 4), (7, 4), (8, 4)], 'id': 'gs_xtDJVwhmV7pqFcBtd748GTSD'}, {'name': 'Copy of snake2_v3_FINAL_final(1)', 'health': 88, 'length': 11, 'body': [(3, 3), (4, 3), (5, 3), (6, 3), (6, 2), (7, 2), (8, 2), (9, 2), (10, 2), (10, 1), (10, 0)], 'id': 'gs_ryHv49DxtSjGDD7SPx3QS9BT'}], 'food': [(2, 8), (4, 8)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('Game of Chicken', 3, (0, 4)), ('Copy of snake2_v3_FINAL_final(1)', 1, (3, 2))]", 'type 2 collision take avoid point', 'vulnerable target evolve dead'], 'next_coord': (1, 2), 'next_move': 'down', 'time': '0.024s'}
 
 
 
