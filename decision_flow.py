@@ -76,7 +76,6 @@ def main(game_state, log=True, log_db=False):
             (split_avoid_confinement),
 
             (type_1_collision),
- 
 
             #looks not useful, disable it
             #(cond(g.me.length >= 7)(avoid_serious_cut_danger)),
