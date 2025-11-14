@@ -161,7 +161,6 @@ def main(game_state, log=True, log_db=False):
 
             (cond(g.me.length <= 6)(killer_near_prefer_away_border)),
 
-
             #try to reproduce this effect earlier when I'm longer than local target
             cond(len(g.others) > 1 and g.me.length >= 10)(local_chasing),
 
@@ -195,6 +194,7 @@ def main(game_state, log=True, log_db=False):
             (cond(g.me.length <= 16)(prefer_away_border)),
 
             (split_choice_2),
+
 
             avoid_equal_collision,
             (avoid_single_move),
@@ -286,14 +286,6 @@ def main(game_state, log=True, log_db=False):
             g.decision_path.append("avoid next step suppressed")
             return moves
 
-    def chase_to_the_end(moves):
-        if distance_vector_abs(g.me.head, g.other.head) != (1,1): return
-        if not is_adjacent(g.me.head, g.other.neck): return
-        moves = [a for a in moves if is_adjacent(a, g.other.head)]
-        if len(moves) != 0:
-            g.decision_path.append("chase to the end")
-            return moves
-
     def gain_territory(moves):
         #len(g.others) == 1 and g.me.length > 20
         other_ngroup = move_connected_group(g.other.allowed_moves)
@@ -370,16 +362,6 @@ def main(game_state, log=True, log_db=False):
             g.decision_path.append("border go up")
             return goup
 
-    def avoid_serious_cut_danger(moves):
-        #serious cut danger consideration is to done before kill oppotunity
-        #it must be very serious
-        #so serious that we abort the kill oppotunity
-        #I'll define it as territory is less than or equal to 2
-        ngroup = move_connected_group(moves)
-        if ngroup == 1: return
-        return prefer_not(serious_cut_danger_a)(moves)
-        #return prefer(no_cut_danger_a(strict=False))(moves)
-
     def coming_to_each_other(snake: Snake, snake2: Snake):
         if distance_pq(snake.head, snake2.head) != path_distance_pq(snake.head, snake2.head): return False
         return coming_to(snake, snake2.head) and coming_to(snake2, snake.head)
@@ -414,29 +396,10 @@ def main(game_state, log=True, log_db=False):
         new_territory = list(set([p for p in territory if p not in lost] + gain))
         return new_territory
 
-    def move_close_to_open_space2(moves):
-        if len(moves) != 3: return
-        ngroup = move_connected_group(moves)
-        if ngroup != 1: return
-        c = take_first([a for a in moves if is_straight(a)])
-        a,b = [a for a in moves if a != c]
-        territory = g.me.territory
-        occupied = complement(territory) + [c]
-        if path_connected(a,b, occupied): return
-        g.decision_path.append("move close to open space")
-        return prefer_by_score(lambda a: len(path_connected_set(a, occupied)))([a,b])
-
     def is_connected_piece_terminal(a, piece):
         if len(piece) == 1: return True
         nabors = [b for b in piece if b != a and (is_adjacent(a, b) or distance_vector_abs(a, b) == (1,1))]
         return len(nabors) == 1
-
-    def cosine_angle(s1, s2, s3):
-        #s1, s2, s3 are sides length
-        #find angle between s1 and s2
-        if s1 == 0 or s2 == 0: return 0
-        cos_angle = (s1**2 + s2**2 - s3**2) / (2 * s1 * s2)
-        return cos_angle
 
     def shorter_direct_connect(moves):
         #used in 1v1 and shorter
@@ -478,45 +441,6 @@ def main(game_state, log=True, log_db=False):
             g.decision_path.append(f"move close to open space {target_terminal} via {preferred_v}")
             return terminal_moves
 
-        """
-        length_other_head_to_terminal = math.sqrt((x1 - g.other.head[0])**2 + (y1 - g.other.head[1])**2)
-        length_other_head_to_v1 = math.sqrt((v1[0] - g.other.head[0])**2 + (v1[1] - g.other.head[1])**2)
-        length_other_head_to_v2 = math.sqrt((v2[0] - g.other.head[0])**2 + (v2[1] - g.other.head[1])**2)
-        length_terminal_to_v1 = math.sqrt((x1 - v1[0])**2 + (y1 - v1[1])**2)
-        length_terminal_to_v2 = math.sqrt((x1 - v2[0])**2 + (y1 - v2[1])**2)
-
-        if abs(length_other_head_to_v1 - (length_other_head_to_terminal + length_terminal_to_v1)) < 0.1:
-            v2_moves = shortest_path_move(g.me.head, v2)
-            terminal_moves = [a for a in terminal_moves if a in v2_moves]
-            if len(terminal_moves) != 0:
-                g.decision_path.append(f"move close to open space {target_terminal} via v2")
-                return terminal_moves
-        elif abs(length_other_head_to_v2 - (length_other_head_to_terminal + length_terminal_to_v2)) < 0.1:
-            v1_moves = shortest_path_move(g.me.head, v1)
-            terminal_moves = [a for a in terminal_moves if a in v1_moves]
-            if len(terminal_moves) != 0:
-                g.decision_path.append(f"move close to open space {target_terminal} via v1")
-                return terminal_moves
-        else:
-            #prefer v to terminal that is more perpendicular to other head to terminal line
-            cos1 = cosine_angle(length_other_head_to_terminal, length_terminal_to_v1, length_other_head_to_v1)
-            cos2 = cosine_angle(length_other_head_to_terminal, length_terminal_to_v2, length_other_head_to_v2)
-            cos1 = abs(cos1)
-            cos2 = abs(cos2)
-            if cos1 < cos2:
-                v1_moves = shortest_path_move(g.me.head, v1)
-                terminal_moves = [a for a in terminal_moves if a in v1_moves]
-                if len(terminal_moves) != 0:
-                    g.decision_path.append(f"move close to open space {target_terminal} via v1 prefer")
-                    return terminal_moves
-            else:
-                v2_moves = shortest_path_move(g.me.head, v2)
-                terminal_moves = [a for a in terminal_moves if a in v2_moves]
-                if len(terminal_moves) != 0:
-                    g.decision_path.append(f"move close to open space {target_terminal} via v2 prefer")
-                    return terminal_moves
-        """
-
     def move_close_to_open_space(moves):
         killers = [snake for snake in g.others if snake.length > g.me.length and path_distance_pq(snake.head, g.me.head) <= 6]
         if len(killers) == 0: return
@@ -540,20 +464,6 @@ def main(game_state, log=True, log_db=False):
         if len(terminal_moves) != 0:
             g.decision_path.append(f"move close to open space {target_terminal}")
             return terminal_moves
-
-    def prefer_open_space(moves):
-        aset = path_connected_set(g.me.head)
-        killers = [snake for snake in g.others if snake.length > g.me.length]
-        nonkillers = [snake for snake in g.others if snake.length <= g.me.length]
-        aset = [a for a in aset 
-        if all([path_distance_pq(a, g.me.head) < path_distance_pq(a, snake.head) for snake in killers])
-        #and all([path_distance_pq(a, g.me.head) <= path_distance_pq(a, snake.head) for snake in nonkillers])
-        ]
-        nset = len(aset)
-        center = int(round(sum([x for x,y in aset])/nset, 0)), int(round(sum([y for x,y in aset])/nset, 0))
-        if distance_pq(center, g.me.head) >= 2:
-            g.decision_path.append(f"go to open space {center}")
-            return prefer_by_rank(lambda a: distance_pq(a, center))(moves)
 
     def killer_near_prefer_away_border(moves):
         killers = [snake for snake in g.others if snake.length > g.me.length 
@@ -726,30 +636,6 @@ def main(game_state, log=True, log_db=False):
                     return food_move
                 g.decision_path.append("chase my tail")
                 return moves
-    
-    def chase_my_tail_body2(moves):
-        chase_points = [(i,c, p, path_distance_pq(g.me.head, p), g.me.length-i-1) 
-                        for i,c in enumerate(g.me.body) 
-                        if c != g.me.head and c != g.me.tail
-                        and not on_border(c)
-                        and path_connected(g.me.head, c)
-                        for p in adj_cells(c) if p in g.me.territory
-                        ]
-        chase_points = [info for info in chase_points for i,c,p,d,t in [info] if (d-t) <= 1]
-        if len(chase_points) == 0: return
-
-        i,c,p,d,t = take_first(prefer_by_score(lambda a: (a[3]-a[4]))(chase_points))
-
-        if abs(d-t) <= 1:
-            tail_move = shortest_path_move(g.me.head, p)
-            moves = [a for a in moves if a in tail_move]
-            if len(moves) != 0:
-                g.decision_path.append(f"chase my tail via body {c} direct")
-                return moves
-        detour_move = [a for a in moves if a not in shortest_path_move(g.me.head, p)]
-        if len(detour_move) != 0:
-            g.decision_path.append(f"chase my tail via body {c} detour")
-            return detour_move
 
     def chase_my_tail_body(moves):
         chase_points = [(i,c, p, path_distance_pq(g.me.head, p), g.me.length-i-1) 
@@ -775,10 +661,6 @@ def main(game_state, log=True, log_db=False):
             chase_my_tail_2,
             chase_my_tail_body,
         ])(moves)
-        # return par([
-        #     cond(g.me.health < 50)(food1),
-        #     tail_move(g.me.tail),
-        # ])(moves)
 
     def food1(moves):
         tail_moves = shortest_path_move(g.me.head, g.me.tail)
@@ -791,16 +673,6 @@ def main(game_state, log=True, log_db=False):
             if len(food_tail_connect) != 0:
                 g.decision_path.append("detour get food1")
                 return food_tail_connect
-
-    def tail_move(tail):
-        def fn(moves):
-            tail_moves = shortest_path_move(g.me.head, tail)
-            if len(tail_moves) != 0:
-                moves = [a for a in moves if a in tail_moves]
-                if len(moves) != 0:
-                    g.decision_path.append(f"chase tail {tail}")
-                    return moves
-        return fn
 
     def local_chasing(moves):
         snakes = [snake for snake in g.others if path_distance_pq(snake.head, g.me.head) <= 6
@@ -820,23 +692,6 @@ def main(game_state, log=True, log_db=False):
                 g.decision_path.append("local push")
                 return push_move
 
-        def chase_old(moves):
-            if path_distance_pq(g.me.head, target.tail) > 8: return
-
-            if is_adjacent(g.me.head, target.tail):
-                #don't follow too close
-                tail_move = [a for a in moves if path_connected(a, target.tail)]
-                if len(tail_move) != 0:
-                    g.decision_path.append("local chase detour")
-                    return tail_move
-            else:
-                if path_distance_pq(g.me.head, target.tail) < path_distance_pq(target.head, target.tail):
-                    tail_move = shortest_path_move(g.me.head, target.tail)
-                    tail_move = [a for a in moves if a in tail_move]
-                    if len(tail_move) != 0:
-                        g.decision_path.append("local chase")
-                        return tail_move
-
         def chase(moves):
             g.target_snake = target
             return chase_target_tail(moves)
@@ -855,18 +710,6 @@ def main(game_state, log=True, log_db=False):
             if len(tail_move) != 0:
                 g.decision_path.append("chase other tail detour")
                 return tail_move
-            """
-            path_2 = grow_path(target.head, 2)[2]
-            if any([len([f for f in path if f in g.food]) >= 1 for path in path_2]):
-                tail_move = [a for a in moves if path_connected(a, target.tail) and distance_vector_abs(a, target.tail) == (1,1)]
-                if len(tail_move) != 0:
-                    g.decision_path.append("chase other tail detour")
-                    return tail_move
-            else:
-                if target.tail in moves:
-                    g.decision_path.append("chase other tail direct")
-                    return [target.tail]
-            """
 
     def distance_2_chasing(moves):
         target = g.target_snake
@@ -914,27 +757,12 @@ def main(game_state, log=True, log_db=False):
                 g.decision_path.append(f"chase other tail via {c}")
                 return moves
 
-    def chase_single_move_length(moves):
-        #unfinished
-        ngroup = move_connected_group(moves)
-        if ngroup == 1: return
-        chase_move = [a for a in moves if path_connected(a, g.other.tail)]
-        if len(chase_move) != 1: return
-        chase_move = take_first(chase_move)
-        occupied = complement(g.me.territory)
-        aset = path_connected_set(chase_move, occupied)
-        aset_trimmed = trim_aset(aset, chase_move)
-
     def chase_target_tail(moves):
         return par([
             adjacent_chasing,
             (distance_2_chasing),
             (body_chasing),
         ])(moves)
-
-    def chase_other_tail(moves):
-        g.target_snake = g.other
-        return chase_target_tail(moves)
 
     def confront_push_4(moves):
         snakes = [snake for snake in g.others 
@@ -1059,49 +887,6 @@ def main(game_state, log=True, log_db=False):
                     center_push,
                 ])(moves)
     
-    def push(moves):
-        return par([
-            push_2,
-            (push_4),
-        ])(moves)
-
-    def equal_push(moves):
-        if g.me.length != g.other.length: return
-        if distance_pq(g.me.head, g.other.head) != path_distance_pq(g.me.head, g.other.head): return
-        if not coming_to_each_other(g.me, g.other): return
-
-        def distance_rank(p):
-            x,y = p
-            return x**2 + y**2
-
-        avoids = [a for a in moves if a in g.other.allowed_moves]
-        push_move = [a for a in moves if a not in avoids]
-        if len(push_move) != 0:
-            g.decision_path.append("equal push")
-            #return prefer_by_rank(lambda a: distance_rank(distance_vector_abs(a, g.other.head)))(push_move)
-            return prefer_by_score(lambda a: len(new_territory(a)))(push_move)
-
-    def shorter_push(moves):
-        if g.me.length >= g.other.length: return
-        if distance_pq(g.me.head, g.other.head) != path_distance_pq(g.me.head, g.other.head): return
-        #if not coming_to_each_other(g.me, g.other): return
-
-        def distance_rank(p):
-            x,y = p
-            return x**2 + y**2
-
-        if any([
-            sum(distance_to_border(g.me.head)) > sum(distance_to_border(g.other.head)),
-            min(distance_vector_abs(g.me.head, g.other.head)) == 0 and get_adjacent_dir(g.me.neck, g.me.head) != get_adjacent_dir(g.other.neck, g.other.head)
-        ]):
-            avoids = [a for a in moves if a in g.other.allowed_moves or any([distance_vector_abs(a,b) == (1,1) for b in g.other.allowed_moves])]
-            push_move = [a for a in moves if a not in avoids]
-            if len(push_move) != 0:
-                g.decision_path.append("short push")
-                #return prefer_by_rank(lambda a: distance_rank(distance_vector_abs(a, g.other.head)))(push_move)
-                return prefer_by_score(lambda a: len(new_territory(a)))(push_move)
-
-
     def collision_score(a, consider_equal=True):
         killers = [snake for snake in g.others if snake.length > g.me.length if distance_pq(snake.head, g.me.head) <= 8]
         nonkillers = [snake for snake in g.others if snake.length == g.me.length if distance_pq(snake.head, g.me.head) <= 8]
@@ -1216,43 +1001,6 @@ def main(game_state, log=True, log_db=False):
             config_11,
             config_10,
         ])(moves)
-
-    def collision_wayout_11(avoid):
-
-        cut_set = [p for a in g.me.territory for p in adj_cells(a) if p not in g.me.territory and p in g.me.head_space]
-        cut_set = sorted(list(set(cut_set)))
-
-        #has wayout
-        if not cut_set_connected(cut_set): return True
-        if cut_set_dim(cut_set) >= 2: return True
-
-        #check wayout
-        #consider this later
-        #in type-2 collision case, you don't have the full g.me.territory to wiggle
-
-        if any([snake.tail in g.me.territory for snake in g.snakes]):
-            return True
-
-        aset = sorted(list(set(g.me.territory)))
-
-        adjacent_indexes = [i
-                for i,c in enumerate(g.me.body)
-                for p in adj_cells(c) if p in g.me.territory
-                ]
-
-        if len(adjacent_indexes) == 0: return False
-
-        max_index = max(adjacent_indexes)
-        wayout_point = g.me.body[max_index]
-        wayout_length = g.me.length - max_index - 1
-        if len(cut_set) >= 5 and len(cut_set) >= len(aset) * 0.4:
-            if wayout_length <= len(cut_set):
-                return False
-        oset = trim_aset(aset, g.me.head, wayout_point)
-        if wayout_length <= len(oset): 
-            return True
-
-        return False
 
     def type_2_collision_equal_length(moves):
         nonkillers = [snake for snake in g.others if snake.length == g.me.length and distance_vector_abs(g.me.head, snake.head) == (1,1)]
@@ -1518,39 +1266,6 @@ def main(game_state, log=True, log_db=False):
                 g.decision_path.append("split2 choose more space")
                 return moves
  
-    def split_prefer_diagonal_cut_set(moves):
-        ngroup = move_connected_group(moves)
-        if ngroup != 2: return
-        ok_set = []
-        occupied = complement(g.me.territory)
-        for a in moves:
-            aset = path_connected_set(a, occupied)
-            cut_set = [q for p in aset for q in adj_cells(p) if q not in g.occupied_cells[0] and q not in aset]
-            if len(cut_set) == 0: continue
-            cut_set = sorted(cut_set)
-            x0, y0 = cut_set[0]
-            x1, y1 = cut_set[-1]
-            dx = abs(x0-x1)
-            dy = abs(y0-y1)
-            dd = abs(dx-dy)
-            if len(cut_set) >= 3 and dd <= 1:
-                ok_set.append(a)
-        if len(ok_set) != 0:
-            return ok_set
-
-    def avoid_static_confinement(moves):
-        ok_set = []
-        occupied = complement(g.me.head_space)
-        occupied2 = complement(g.me.territory)
-        for a in moves:
-            aset = path_connected_set(a, occupied)
-            aset2 = path_connected_set(a, occupied2)
-            if len(aset) != len(aset2):
-                #not a static confinement
-                ok_set.append(a)
-        if len(ok_set) != 0:
-            return ok_set
-
     def split_avoid_preliminary_trap(moves):
         ngroup = move_connected_group(moves)
         if ngroup != 2: return
@@ -1579,21 +1294,6 @@ def main(game_state, log=True, log_db=False):
             if get_adjacent_dir(c, b) == get_adjacent_dir(target.neck, target.head):
                 return True
         return False
-
-    def collision_take_risk(moves):
-        if len(g.me.allowed_moves) != 3:
-            return
-        snakes = [snake for snake in g.others if distance_vector_abs(snake.head, g.me.head) == (1,1) and snake.length > g.me.length]
-        if len(snakes) != 1:
-            return
-        snake = take_first(snakes)
-        collision = [a for a in g.me.allowed_moves if a in snake.allowed_moves]
-        if len(collision) != 2:
-            return
-        avoid_point = take_first([a for a in g.me.allowed_moves if a not in collision])
-        risk = [a for a in moves if a in collision and distance_vector_abs(a, avoid_point) != (1,1)]
-        g.decision_path.append("take risk")
-        return risk
 
     def has_wayout(a):
         occupied = complement(g.me.territory)
@@ -3362,6 +3062,10 @@ if __name__ == "__main__":
     log = {'id': '2f2243ad-9910-47b2-aa24-e474178a458f', 'turn': 97, 'me': {'name': 'mark_snake', 'health': 100, 'length': 13, 'body': [(4, 3), (4, 4), (4, 5), (4, 6), (4, 7), (4, 8), (3, 8), (2, 8), (2, 9), (2, 10), (1, 10), (1, 9), (1, 9)], 'id': 'gs_jY6mvvy6JggmR9QdvhWpYSH7'}, 'others': [{'name': 'Kakemonsteret-v2', 'health': 72, 'length': 15, 'body': [(9, 0), (9, 1), (9, 2), (8, 2), (8, 1), (8, 0), (7, 0), (7, 1), (7, 2), (6, 2), (5, 2), (4, 2), (4, 1), (3, 1), (2, 1)], 'id': 'gs_PWCQqWSRbprdgQWrFKY3PQ3B'}, {'name': 'Snaky  McSnakeface', 'health': 94, 'length': 10, 'body': [(6, 5), (6, 4), (7, 4), (8, 4), (9, 4), (10, 4), (10, 3), (9, 3), (8, 3), (7, 3)], 'id': 'gs_vV3G8xqQp9wfw376tcTtRPGV'}, {'name': 'soma-mini v1[standard]', 'health': 55, 'length': 5, 'body': [(7, 8), (8, 8), (9, 8), (9, 7), (9, 6)], 'id': 'gs_wyH3hWJPbFYTDxMMYPp4MJR3'}], 'food': [(10, 10)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('Kakemonsteret-v2', 4, (10, 3))]", "vulnerable but I'm short", 'chase other tail direct'], 'next_coord': (5, 3), 'next_move': 'right', 'time': '0.011s'}
     log = {'id': 'b77cdec5-550f-4f8e-acfc-8a9d35c856d1', 'turn': 67, 'me': {'name': 'mark_snake', 'health': 100, 'length': 10, 'body': [(0, 3), (0, 4), (0, 5), (1, 5), (1, 6), (1, 7), (2, 7), (2, 6), (2, 5), (2, 5)], 'id': 'gs_jhhH3VrKCPCxRfkD4V7Sj7RK'}, 'others': [{'name': 'go-st', 'health': 50, 'length': 5, 'body': [(7, 2), (7, 1), (8, 1), (8, 2), (8, 3)], 'id': 'gs_XCQqrRgTTGTQ6SbyQRCFtw9b'}, {'name': 'ich heisse marvin', 'health': 91, 'length': 9, 'body': [(2, 1), (2, 0), (3, 0), (4, 0), (4, 1), (4, 2), (4, 3), (3, 3), (2, 3)], 'id': 'gs_bw6Gp7qdFSTrDWmGWGKDMBbS'}, {'name': 'Gregory Megory', 'health': 90, 'length': 9, 'body': [(5, 4), (5, 5), (6, 5), (6, 6), (6, 7), (5, 7), (4, 7), (4, 8), (5, 8)], 'id': 'gs_f34mBTjyPt9tjtfxbjFvVk9C'}], 'food': [(0, 1)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'get food (0, 1)'], 'next_coord': (0, 2), 'next_move': 'down', 'time': '0.041s'}
     log = {'id': 'db60efc6-9d88-4c4b-bc52-6801100771f2', 'turn': 216, 'me': {'name': 'mark_snake', 'health': 94, 'length': 22, 'body': [(3, 3), (3, 2), (2, 2), (1, 2), (0, 2), (0, 1), (0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0), (5, 1), (6, 1), (7, 1), (8, 1), (9, 1), (10, 1), (10, 2), (10, 3), (9, 3), (8, 3)], 'id': 'gs_7WdMt73rR9vTwPVwhKMq7BcQ'}, 'others': [{'name': 'Game of Chicken', 'health': 75, 'length': 17, 'body': [(2, 6), (3, 6), (3, 5), (4, 5), (4, 6), (4, 7), (4, 8), (4, 9), (3, 9), (2, 9), (1, 9), (0, 9), (0, 8), (0, 7), (0, 6), (0, 5), (0, 4)], 'id': 'gs_P7R3BPFqkS6ghQv4SCtd3jM3'}, {'name': 'soma-mini v1[standard]', 'health': 69, 'length': 11, 'body': [(6, 2), (6, 3), (5, 3), (5, 4), (5, 5), (5, 6), (5, 7), (5, 8), (5, 9), (5, 10), (6, 10)], 'id': 'gs_6KdRHBt3XJcrJS34rCCd8bQY'}], 'food': [(10, 4)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'avoid next step confinement [(4, 3)]'], 'next_coord': (3, 4), 'next_move': 'up', 'time': '0.013s'}
+    log = {'id': '2280eb80-9942-4f18-9835-7499c41a61c1', 'turn': 102, 'me': {'name': 'mark_snake', 'health': 98, 'length': 9, 'body': [(8, 8), (9, 8), (9, 9), (8, 9), (7, 9), (6, 9), (5, 9), (4, 9), (3, 9)], 'id': 'gs_HbKTKvBj4MGwgv6vv8JSbxXX'}, 'others': [{'name': 'snakey_wakey', 'health': 100, 'length': 11, 'body': [(2, 2), (2, 3), (1, 3), (1, 4), (1, 5), (1, 6), (2, 6), (3, 6), (4, 6), (4, 7), (4, 7)], 'id': 'gs_CgKyPhjSWGY83YX88kcvybbX'}, {'name': 'Game of Chicken', 'health': 59, 'length': 10, 'body': [(6, 6), (5, 6), (5, 5), (6, 5), (6, 4), (5, 4), (4, 4), (4, 3), (5, 3), (6, 3)], 'id': 'gs_xmwwmRSTWyKXHxWj4dWkkgjH'}, {'name': 'go-st', 'health': 43, 'length': 8, 'body': [(9, 5), (9, 6), (8, 6), (8, 5), (8, 4), (8, 3), (8, 2), (8, 1)], 'id': 'gs_6JWYYYGMGbJDWvkpP3xHTjt3'}], 'food': [(5, 1), (5, 2)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'avoid two step collision'], 'next_coord': (8, 7), 'next_move': 'down', 'time': '0.006s'}
+    log = {'id': '2280eb80-9942-4f18-9835-7499c41a61c1', 'turn': 101, 'me': {'name': 'mark_snake', 'health': 99, 'length': 9, 'body': [(9, 8), (9, 9), (8, 9), (7, 9), (6, 9), (5, 9), (4, 9), (3, 9), (3, 8)], 'id': 'gs_HbKTKvBj4MGwgv6vv8JSbxXX'}, 'others': [{'name': 'snakey_wakey', 'health': 100, 'length': 10, 'body': [(2, 3), (1, 3), (1, 4), (1, 5), (1, 6), (2, 6), (3, 6), (4, 6), (4, 7), (4, 7)], 'id': 'gs_CgKyPhjSWGY83YX88kcvybbX'}, {'name': 'Game of Chicken', 'health': 60, 'length': 10, 'body': [(5, 6), (5, 5), (6, 5), (6, 4), (5, 4), (4, 4), (4, 3), (5, 3), (6, 3), (7, 3)], 'id': 'gs_xmwwmRSTWyKXHxWj4dWkkgjH'}, {'name': 'go-st', 'health': 44, 'length': 8, 'body': [(9, 6), (8, 6), (8, 5), (8, 4), (8, 3), (8, 2), (8, 1), (7, 1)], 'id': 'gs_6JWYYYGMGbJDWvkpP3xHTjt3'}], 'food': [(5, 1), (2, 2), (5, 2)], 'module': 'decision_flow - github', 'decision_path': ['1vn'], 'next_coord': (8, 8), 'next_move': 'left', 'time': '0.036s'}
+    log = {'id': 'a518b4bd-be61-4ffd-a6d5-744a0bae0bc7', 'turn': 134, 'me': {'name': 'mark_snake', 'health': 95, 'length': 13, 'body': [(4, 6), (4, 7), (4, 8), (3, 8), (2, 8), (2, 9), (2, 10), (1, 10), (1, 9), (0, 9), (0, 8), (0, 7), (0, 6)], 'id': 'gs_SHyf7TdHvdTSF6G8c4r6dTV6'}, 'others': [{'name': 'snakey_wakey', 'health': 97, 'length': 14, 'body': [(5, 7), (5, 8), (5, 9), (6, 9), (6, 8), (7, 8), (7, 7), (7, 6), (6, 6), (6, 5), (6, 4), (5, 4), (4, 4), (4, 5)], 'id': 'gs_kBphSRXhMPVMpdqyrQkwhGJB'}, {'name': 'rustiger', 'health': 62, 'length': 11, 'body': [(1, 3), (2, 3), (3, 3), (3, 2), (4, 2), (5, 2), (6, 2), (7, 2), (8, 2), (9, 2), (10, 2)], 'id': 'gs_SmDBwpHqMT96hGS6XSgQbycX'}], 'food': [(5, 1)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'avoid single collision [(5, 6)]', 'type 2 collision take avoid point', 'move close to open space (0, 6)'], 'next_coord': (3, 6), 'next_move': 'left', 'time': '0.025s'}
+    log = {'id': 'a518b4bd-be61-4ffd-a6d5-744a0bae0bc7', 'turn': 135, 'me': {'name': 'mark_snake', 'health': 94, 'length': 13, 'body': [(3, 6), (4, 6), (4, 7), (4, 8), (3, 8), (2, 8), (2, 9), (2, 10), (1, 10), (1, 9), (0, 9), (0, 8), (0, 7)], 'id': 'gs_SHyf7TdHvdTSF6G8c4r6dTV6'}, 'others': [{'name': 'snakey_wakey', 'health': 96, 'length': 14, 'body': [(5, 6), (5, 7), (5, 8), (5, 9), (6, 9), (6, 8), (7, 8), (7, 7), (7, 6), (6, 6), (6, 5), (6, 4), (5, 4), (4, 4)], 'id': 'gs_kBphSRXhMPVMpdqyrQkwhGJB'}, {'name': 'rustiger', 'health': 61, 'length': 11, 'body': [(1, 4), (1, 3), (2, 3), (3, 3), (3, 2), (4, 2), (5, 2), (6, 2), (7, 2), (8, 2), (9, 2)], 'id': 'gs_SmDBwpHqMT96hGS6XSgQbycX'}], 'food': [(5, 1)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('snakey_wakey', 1, (5, 5))]", "vulnerable but I'm short", 'local push'], 'next_coord': (3, 5), 'next_move': 'down', 'time': '0.023s'}
 
 
 
