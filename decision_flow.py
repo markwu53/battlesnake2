@@ -163,7 +163,7 @@ def main(game_state, log=True, log_db=False):
 
 
             #try to reproduce this effect earlier when I'm longer than local target
-            cond(len(g.others) > 1 and g.me.length >= 12)(local_chasing),
+            cond(len(g.others) > 1 and g.me.length >= 10)(local_chasing),
 
             #cond(g.me.length >= 35)(chase_my_tail),
             avoid_next_step_suppressed,
@@ -791,7 +791,7 @@ def main(game_state, log=True, log_db=False):
         return fn
 
     def local_chasing(moves):
-        snakes = [snake for snake in g.others if distance_pq(snake.head, g.me.head) <= 6
+        snakes = [snake for snake in g.others if path_distance_pq(snake.head, g.me.head) <= 6
                   and snake.length < g.me.length
                   and min(distance_to_border(snake.head)) <= 2
                   ]
@@ -804,6 +804,7 @@ def main(game_state, log=True, log_db=False):
             if not coming_to_each_other(g.me, target): return
             push_move = [a for a in moves if distance_pq(a, target.head) < distance_pq(g.me.head, target.head)]
             if len(push_move) != 0:
+                push_move = prefer_by_score(lambda a: sum(distance_to_border(a)))(push_move)
                 g.decision_path.append("local push")
                 return push_move
 
@@ -831,7 +832,7 @@ def main(game_state, log=True, log_db=False):
         #push or chase
         return par([
             push,
-            chase,
+            (chase),
         ])(moves)
 
     def adjacent_chasing(moves):
@@ -3347,6 +3348,7 @@ if __name__ == "__main__":
     log = {'id': '81284e3f-38f3-455d-ab98-8a1f06d4f994', 'turn': 98, 'me': {'name': 'mark_snake', 'health': 66, 'length': 6, 'body': [(7, 9), (6, 9), (6, 10), (7, 10), (8, 10), (8, 9)], 'id': 'gs_PwWm4mXbxBKWkXdBtT6YrHwD'}, 'others': [{'name': 'Game of Chicken', 'health': 97, 'length': 15, 'body': [(10, 8), (10, 9), (10, 10), (9, 10), (9, 9), (9, 8), (9, 7), (9, 6), (8, 6), (8, 7), (8, 8), (7, 8), (6, 8), (6, 7), (6, 6)], 'id': 'gs_WX3wFXr4mxB39jk7XcXmBJHP'}, {'name': 'go-st', 'health': 94, 'length': 10, 'body': [(6, 2), (7, 2), (8, 2), (9, 2), (9, 1), (9, 0), (8, 0), (8, 1), (7, 1), (6, 1)], 'id': 'gs_MhjktrkBjmtWHByhJRTCBMmF'}, {'name': 'Gregory Megory', 'health': 100, 'length': 9, 'body': [(3, 7), (4, 7), (4, 6), (4, 5), (4, 4), (3, 4), (3, 5), (3, 6), (3, 6)], 'id': 'gs_cWg8hDSTr9fW9MqYSxbCrKYS'}], 'food': [(1, 2), (0, 4), (3, 8)], 'module': 'decision_flow - github', 'decision_path': ['1vn'], 'next_coord': (8, 9), 'next_move': 'right', 'time': '0.000s'}
     log = {'id': '81284e3f-38f3-455d-ab98-8a1f06d4f994', 'turn': 99, 'me': {'name': 'mark_snake', 'health': 65, 'length': 6, 'body': [(8,9), (7, 9), (6, 9), (6, 10), (7, 10), (8, 10)], 'id': 'gs_PwWm4mXbxBKWkXdBtT6YrHwD'}, 'others': [{'name': 'Game of Chicken', 'health': 97, 'length': 15, 'body': [(10,7), (10, 8), (10, 9), (10, 10), (9, 10), (9, 9), (9, 8), (9, 7), (9, 6), (8, 6), (8, 7), (8, 8), (7, 8), (6, 8), (6, 7)], 'id': 'gs_WX3wFXr4mxB39jk7XcXmBJHP'}, {'name': 'go-st', 'health': 94, 'length': 10, 'body': [(5,2), (6, 2), (7, 2), (8, 2), (9, 2), (9, 1), (9, 0), (8, 0), (8, 1), (7, 1)], 'id': 'gs_MhjktrkBjmtWHByhJRTCBMmF'}, {'name': 'Gregory Megory', 'health': 100, 'length': 10, 'body': [(3,8), (3, 7), (4, 7), (4, 6), (4, 5), (4, 4), (3, 4), (3, 5), (3, 6), (3, 6)], 'id': 'gs_cWg8hDSTr9fW9MqYSxbCrKYS'}], 'food': [(1, 2), (0, 4), (3, 8)], 'module': 'decision_flow - github', 'decision_path': ['1vn'], 'next_coord': (8, 9), 'next_move': 'right', 'time': '0.000s'}
     log = {'id': '2f2243ad-9910-47b2-aa24-e474178a458f', 'turn': 97, 'me': {'name': 'mark_snake', 'health': 100, 'length': 13, 'body': [(4, 3), (4, 4), (4, 5), (4, 6), (4, 7), (4, 8), (3, 8), (2, 8), (2, 9), (2, 10), (1, 10), (1, 9), (1, 9)], 'id': 'gs_jY6mvvy6JggmR9QdvhWpYSH7'}, 'others': [{'name': 'Kakemonsteret-v2', 'health': 72, 'length': 15, 'body': [(9, 0), (9, 1), (9, 2), (8, 2), (8, 1), (8, 0), (7, 0), (7, 1), (7, 2), (6, 2), (5, 2), (4, 2), (4, 1), (3, 1), (2, 1)], 'id': 'gs_PWCQqWSRbprdgQWrFKY3PQ3B'}, {'name': 'Snaky  McSnakeface', 'health': 94, 'length': 10, 'body': [(6, 5), (6, 4), (7, 4), (8, 4), (9, 4), (10, 4), (10, 3), (9, 3), (8, 3), (7, 3)], 'id': 'gs_vV3G8xqQp9wfw376tcTtRPGV'}, {'name': 'soma-mini v1[standard]', 'health': 55, 'length': 5, 'body': [(7, 8), (8, 8), (9, 8), (9, 7), (9, 6)], 'id': 'gs_wyH3hWJPbFYTDxMMYPp4MJR3'}], 'food': [(10, 10)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('Kakemonsteret-v2', 4, (10, 3))]", "vulnerable but I'm short", 'chase other tail direct'], 'next_coord': (5, 3), 'next_move': 'right', 'time': '0.011s'}
+    log = {'id': 'b77cdec5-550f-4f8e-acfc-8a9d35c856d1', 'turn': 67, 'me': {'name': 'mark_snake', 'health': 100, 'length': 10, 'body': [(0, 3), (0, 4), (0, 5), (1, 5), (1, 6), (1, 7), (2, 7), (2, 6), (2, 5), (2, 5)], 'id': 'gs_jhhH3VrKCPCxRfkD4V7Sj7RK'}, 'others': [{'name': 'go-st', 'health': 50, 'length': 5, 'body': [(7, 2), (7, 1), (8, 1), (8, 2), (8, 3)], 'id': 'gs_XCQqrRgTTGTQ6SbyQRCFtw9b'}, {'name': 'ich heisse marvin', 'health': 91, 'length': 9, 'body': [(2, 1), (2, 0), (3, 0), (4, 0), (4, 1), (4, 2), (4, 3), (3, 3), (2, 3)], 'id': 'gs_bw6Gp7qdFSTrDWmGWGKDMBbS'}, {'name': 'Gregory Megory', 'health': 90, 'length': 9, 'body': [(5, 4), (5, 5), (6, 5), (6, 6), (6, 7), (5, 7), (4, 7), (4, 8), (5, 8)], 'id': 'gs_f34mBTjyPt9tjtfxbjFvVk9C'}], 'food': [(0, 1)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'get food (0, 1)'], 'next_coord': (0, 2), 'next_move': 'down', 'time': '0.041s'}
 
 
 
