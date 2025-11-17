@@ -127,7 +127,8 @@ def main(game_state, log=True, log_db=False):
             (wayout),
 
             cond(len(g.others) == 1 and g.me.length > g.other.length)(longer_push),
-            cond(len(g.others) == 1 and g.me.length > g.other.length)(longer_push_territory),
+            #try disable this
+            #cond(len(g.others) == 1 and g.me.length > g.other.length)(longer_push_territory),
             cond(len(g.others) == 1 and g.me.length > g.other.length)(chase_my_tail),
 
             (cond(g.me.length > 8)(avoid_next_step_confinement)),
