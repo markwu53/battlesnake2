@@ -1727,6 +1727,13 @@ def main(game_state, log=True, log_db=False):
         #good - the resulting cut space is small enough so that the target will likely die
         
         cut_set = g.target_snake.cut_set
+        if len(cut_set) == 1:
+            cut_point = take_first(cut_set)
+            if is_adjacent(g.me.head, cut_point):
+                if cut_point in moves:
+                    g.decision_path.append("go cut direct")
+                    return [cut_point]
+
         target = g.target_snake
 
         rects = []
@@ -3079,6 +3086,7 @@ if __name__ == "__main__":
     log = {'id': '754dc9a4-69d5-4bab-9be1-36fe95e09dd1', 'turn': 232, 'me': {'name': 'mark_snake', 'health': 73, 'length': 19, 'body': [(10, 6), (10, 5), (9, 5), (9, 4), (10, 4), (10, 3), (9, 3), (8, 3), (7, 3), (7, 4), (8, 4), (8, 5), (7, 5), (6, 5), (5, 5), (5, 6), (5, 7), (5, 8), (5, 9)], 'id': 'gs_7Mdr8GJVvSFMMbYVr4YyyHk4'}, 'others': [{'name': 'go-st', 'health': 48, 'length': 18, 'body': [(10, 8), (10, 9), (10, 10), (9, 10), (8, 10), (7, 10), (6, 10), (6, 9), (6, 8), (7, 8), (7, 9), (8, 9), (9, 9), (9, 8), (9, 7), (8, 7), (7, 7), (6, 7)], 'id': 'gs_cbYf7VcgqRvMvGT7RyYfbhS4'}], 'food': [(7, 1), (4, 7), (6, 1), (1, 6), (0, 2), (4, 9), (3, 9)], 'module': 'decision_flow - github', 'decision_path': ['1v1', "vulnerable snakes: [('go-st', 2, (10, 7))]", 'avoid next step no move [(10, 7)]'], 'next_coord': (9, 6), 'next_move': 'left', 'time': '0.000s'}
     log = {'id': '754dc9a4-69d5-4bab-9be1-36fe95e09dd1', 'turn': 16, 'me': {'name': 'mark_snake', 'health': 99, 'length': 6, 'body': [(4, 10), (4, 9), (4, 8), (4, 7), (3, 7), (2, 7)], 'id': 'gs_7Mdr8GJVvSFMMbYVr4YyyHk4'}, 'others': [{'name': 'SmartyRat', 'health': 94, 'length': 4, 'body': [(3, 3), (3, 2), (2, 2), (2, 1)], 'id': 'gs_KWxcvPP69fc3WkBQ7RjD6FdG'}, {'name': 'go-st', 'health': 86, 'length': 4, 'body': [(7, 9), (7, 8), (8, 8), (8, 7)], 'id': 'gs_cbYf7VcgqRvMvGT7RyYfbhS4'}, {'name': 'Gregory Megory', 'health': 94, 'length': 5, 'body': [(8, 4), (7, 4), (7, 5), (7, 6), (6, 6)], 'id': 'gs_pHk4XKCFqfccBQ7V9GKQkTmd'}], 'food': [(9, 3), (5, 10)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'avoid next step suppressed'], 'next_coord': (3, 10), 'next_move': 'left', 'time': '0.014s'}
     log = {'id': '754dc9a4-69d5-4bab-9be1-36fe95e09dd1', 'turn': 22, 'me': {'name': 'mark_snake', 'health': 93, 'length': 6, 'body': [(4, 10), (4, 9), (4, 8), (3, 8), (3, 9), (3, 10)], 'id': 'gs_7Mdr8GJVvSFMMbYVr4YyyHk4'}, 'others': [{'name': 'SmartyRat', 'health': 88, 'length': 4, 'body': [(2, 4), (2, 3), (3, 3), (4, 3)], 'id': 'gs_KWxcvPP69fc3WkBQ7RjD6FdG'}, {'name': 'go-st', 'health': 80, 'length': 4, 'body': [(8, 8), (7, 8), (7, 7), (8, 7)], 'id': 'gs_cbYf7VcgqRvMvGT7RyYfbhS4'}, {'name': 'Gregory Megory', 'health': 96, 'length': 6, 'body': [(7, 5), (7, 4), (7, 3), (8, 3), (9, 3), (9, 4)], 'id': 'gs_pHk4XKCFqfccBQ7V9GKQkTmd'}], 'food': [(5, 10)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'split2 choose my tail'], 'next_coord': (3, 10), 'next_move': 'left', 'time': '0.013s'}
+    log = {'id': 'febc96a4-0757-4aa8-a036-2fa72606b9f2', 'turn': 197, 'me': {'name': 'mark_snake', 'health': 69, 'length': 14, 'body': [(6, 9), (6, 8), (6, 7), (6, 6), (6, 5), (6, 4), (5, 4), (4, 4), (3, 4), (2, 4), (1, 4), (1, 3), (1, 2), (1, 1)], 'id': 'gs_kP6qwkRtHDJYjX69pqKm7mvJ'}, 'others': [{'name': 'Game of Chicken', 'health': 96, 'length': 13, 'body': [(7, 10), (7, 9), (8, 9), (9, 9), (10, 9), (10, 8), (10, 7), (10, 6), (10, 5), (10, 4), (10, 3), (10, 2), (10, 1)], 'id': 'gs_rkhqQMPvX6pVv3StCcmbDcpB'}], 'food': [(5, 5), (2, 5)], 'module': 'decision_flow - github', 'decision_path': ['1v1', 'preliminary cut kill target: Game of Chicken', 'get food (5, 5)'], 'next_coord': (5, 9), 'next_move': 'left', 'time': '0.011s'}
 
 
 
