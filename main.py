@@ -40,6 +40,7 @@ class BattlesnakeHandler(BaseHTTPRequestHandler):
             self.send_error(404, "Not Found")
             return
 
+
         self._set_headers()
         self.wfile.write(json.dumps(response).encode("utf-8"))
 
