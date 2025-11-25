@@ -177,6 +177,7 @@ def main(game_state, log=True, log_db=False):
 
             split_choice_2,
 
+
             (cond(g.me.length <= 12)(multi_step_collision)),
 
             cond(len(g.others) == 1 and g.me.length < g.other.length)(shorter_goto_territory_border),
