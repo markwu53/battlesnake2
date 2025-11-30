@@ -1408,28 +1408,6 @@ def main(game_state, log=True, log_db=False):
             return True
         return False
 
-    def check_wayout(moves):
-        ok_set = []
-
-        for a in moves:
-            if has_wayout(a):
-                ok_set.append(a)
-        if len(ok_set) != 0:
-            return ok_set
-        g.decision_path.append("split fail wayout check")
-
-    def check_confinement(moves):
-        ok_set = [a for a in moves if no_cut_danger_a(strict=True)(a)]
-        if len(ok_set) != 0:
-            return ok_set
-        g.decision_path.append("split fail confinement check")
-
-    def check_confinement_again(moves):
-        ok_set = [a for a in moves if no_cut_danger_a(strict=False)(a)]
-        if len(ok_set) != 0:
-            return ok_set
-        g.decision_path.append("split fail confinement check")
-
     def combined_wayout(a):
         if no_cut_danger_a(strict=True)(a):
             return True
