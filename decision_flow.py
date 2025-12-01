@@ -1921,15 +1921,16 @@ def main(game_state, log=True, log_db=False):
             elif g.me.length <= snake.length:
                 g.decision_path.append("vulnerable but I'm short")
             elif g.me.length > snake.length:
-                result = par([
+                result = (par([
                     attack_vulnerables_equal_distance,
+                    attack_vulnerables_equal_distance_2,
                     (attack_vulnerables_distance_2),
                     attack_vulnerables_path_distance_2,
                     #disable this
                     #(attack_vulnerables_distance_4),
                     (attack_vulnerables_distance_excess),
                     (attack_vulnerables_negative_distance),
-                ])(moves)
+                ]))(moves)
                 if result is not None:
                     return result
 
@@ -1965,6 +1966,15 @@ def main(game_state, log=True, log_db=False):
             if len(attack_move) != 0:
                 g.decision_path.append("attack vulnerables less or equal distance")
                 return attack_move
+
+    def attack_vulnerables_equal_distance_2(moves):
+        snake = g.target_snake
+        snake2: Snake = snake.vulnerable_emerge
+        if distance_pq(g.me.head, snake2.head) <= snake.vulnerable_steps:
+            move_near = [a for a in moves if distance_pq(a, snake2.head) < distance_pq(g.me.head, snake2.head)]
+            if len(move_near) != 0:
+                g.decision_path.append("attack vulnerables less or equal distance 2")
+                return move_near
 
     def attack_vulnerables_path_distance_2(moves):
         snake = g.target_snake
@@ -3133,7 +3143,7 @@ if __name__ == "__main__":
     log = {'id': 'd9335754-7471-4b92-a35a-7eba2e1455c5', 'turn': 99, 'me': {'name': 'mark_snake', 'health': 71, 'length': 11, 'body': [(9, 8), (9, 7), (9, 6), (8, 6), (8, 7), (8, 8), (7, 8), (7, 9), (6, 9), (5, 9), (5, 10)], 'id': 'gs_dTKfTm8DhXPCtgGgwvm8vrGd'}, 'others': [{'name': 'Kakemonsteret-v2', 'health': 40, 'length': 7, 'body': [(10, 3), (10, 4), (10, 5), (9, 5), (9, 4), (9, 3), (9, 2)], 'id': 'gs_XHVkFmrxWCjkvBbVdPkfhHkX'}, {'name': 'Copy of snake2_v3_FINAL_final(1)', 'health': 97, 'length': 13, 'body': [(3, 10), (2, 10), (1, 10), (0, 10), (0, 9), (0, 8), (0, 7), (1, 7), (1, 6), (2, 6), (3, 6), (4, 6), (4, 5)], 'id': 'gs_D6VWpqGDMwVhyqB667x3hXxV'}, {'name': 'Red Yarn', 'health': 51, 'length': 6, 'body': [(5, 4), (4, 4), (4, 3), (4, 2), (5, 2), (5, 3)], 'id': 'gs_Jf449fCbf4BTCDRQJQ9J3Mf6'}], 'food': [(8, 9), (7, 0)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('Kakemonsteret-v2', 1, (10, 2))]", 'try wayout', 'meander'], 'next_coord': (10, 8), 'next_move': 'right', 'time': '0.015s'}
     log = {'id': 'f43dcec4-f0a9-4e4a-abb7-73b9d312e2b9', 'turn': 92, 'me': {'name': 'mark_snake', 'health': 86, 'length': 6, 'body': [(8, 8), (8, 9), (7, 9), (6, 9), (6, 8), (5, 8)], 'id': 'gs_pSPCQ9wfqb7mwjGcbqrwM8k9'}, 'others': [{'name': 'Lancer', 'health': 96, 'length': 11, 'body': [(10, 6), (10, 5), (10, 4), (10, 3), (9, 3), (9, 4), (8, 4), (7, 4), (7, 5), (7, 6), (7, 7)], 'id': 'gs_g64Tw7rqPJR4gBQRFWGSX4p7'}, {'name': 'CrystalSnake1', 'health': 96, 'length': 11, 'body': [(6, 4), (6, 3), (7, 3), (7, 2), (7, 1), (6, 1), (5, 1), (4, 1), (3, 1), (3, 0), (2, 0)], 'id': 'gs_MQJdPgVXHPHV7rWPhDgGTrq3'}, {'name': 'Cutiee ', 'health': 98, 'length': 9, 'body': [(3, 5), (4, 5), (4, 6), (5, 6), (5, 5), (5, 4), (5, 3), (5, 2), (4, 2)], 'id': 'gs_SKDDcVk3hKMDT3pKCX3wQHVV'}], 'food': [(8, 0)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('CrystalSnake1', 2, (6, 6))]", 'make forming trap'], 'next_coord': (9, 8), 'next_move': 'right', 'time': '0.006s'}
     log = {'id': '22ed8905-1ea7-4f37-a805-654c134bdb67', 'turn': 169, 'me': {'name': 'mark_snake', 'health': 87, 'length': 14, 'body': [(10, 1), (9, 1), (8, 1), (7, 1), (6, 1), (5, 1), (5, 2), (6, 2), (7, 2), (8, 2), (9, 2), (9, 3), (10, 3), (10, 2)], 'id': 'gs_RFCqh8wVFwBJdKjm9gb7fY6T'}, 'others': [{'name': 'go-st', 'health': 81, 'length': 10, 'body': [(2, 3), (1, 3), (1, 2), (2, 2), (2, 1), (3, 1), (4, 1), (4, 2), (3, 2), (3, 3)], 'id': 'gs_MMWmWfyVC6SqG8JD4vHcK4GS'}, {'name': 'Gregory Megory', 'health': 97, 'length': 12, 'body': [(7, 4), (7, 5), (8, 5), (8, 6), (7, 6), (6, 6), (6, 5), (5, 5), (4, 5), (4, 4), (5, 4), (5, 3)], 'id': 'gs_XVy8M4YDtMhCTGD6xJ6QDKyG'}, {'name': 'Cutiee ', 'health': 92, 'length': 18, 'body': [(1, 4), (1, 5), (2, 5), (2, 4), (3, 4), (3, 5), (3, 6), (4, 6), (4, 7), (5, 7), (6, 7), (7, 7), (8, 7), (8, 8), (7, 8), (6, 8), (5, 8), (5, 9)], 'id': 'gs_WBtQBygF77WbXb9vwWwg9WCR'}], 'food': [(0, 4), (1, 7), (9, 8)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('go-st', 1, (3, 3)), ('Cutiee ', 1, (0, 4))]", 'split choice'], 'next_coord': (10, 0), 'next_move': 'down', 'time': '0.008s'}
-
+    log = {'id': '6e8cbd57-c797-4b0d-9390-964cdb3d1904', 'turn': 92, 'me': {'name': 'mark_snake', 'health': 96, 'length': 9, 'body': [(8, 6), (8, 7), (8, 8), (8, 9), (8, 10), (7, 10), (7, 9), (7, 8), (6, 8)], 'id': 'gs_G4CBgbqwpyMqQ4v4ym8vfHvT'}, 'others': [{'name': 'go-st', 'health': 88, 'length': 8, 'body': [(5, 7), (5, 6), (4, 6), (3, 6), (2, 6), (2, 5), (2, 4), (2, 3)], 'id': 'gs_WPMBKBXMGrmGqFHJypyDKrKX'}, {'name': 'Gregory Megory', 'health': 64, 'length': 8, 'body': [(9, 3), (8, 3), (7, 3), (6, 3), (5, 3), (5, 2), (4, 2), (4, 3)], 'id': 'gs_6WxCVhSDVkSFbFChyTbdTF4D'}, {'name': 'soma-mini v1[standard]', 'health': 96, 'length': 6, 'body': [(10, 10), (10, 9), (10, 8), (9, 8), (9, 7), (9, 6)], 'id': 'gs_8jb6rpWhhF64VBjvG4GfMBWV'}], 'food': [(0, 0), (10, 4)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('soma-mini v1[standard]', 3, (9, 8))]"], 'next_coord': (8, 5), 'next_move': 'down', 'time': '0.040s'}
 
 
     game_state = init_from_log(log)
