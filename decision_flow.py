@@ -86,13 +86,15 @@ def main(game_state, log=True, log_db=False):
             (collision_cut_oppotunity),
 
             (suppressed_chasing_kill_oppotunity),
-            (trap_kill_oppotunity),
 
             (prefer_not(entering_danger(suppressed_chasing_kill_situation))),
             (prefer_not(entering_danger(border_confront_kill_situation))),
 
             (make_forming_trap),
+
             (type_2_collision),
+
+            (trap_kill_oppotunity),
 
             avoid_border_type_1_collision,
 
@@ -3147,6 +3149,7 @@ if __name__ == "__main__":
     log = {'id': '22ee3381-839e-44aa-928e-3383038c36f8', 'turn': 156, 'me': {'name': 'mark_snake', 'health': 98, 'length': 10, 'body': [(2, 2), (1, 2), (0, 2), (0, 3), (1, 3), (2, 3), (2, 4), (3, 4), (3, 5), (3, 6)], 'id': 'gs_tbMmwRxWBQhcG8V94fW3ptgY'}, 'others': [{'name': 'go-st', 'health': 66, 'length': 9, 'body': [(3, 7), (3, 8), (3, 9), (4, 9), (5, 9), (5, 10), (6, 10), (7, 10), (8, 10)], 'id': 'gs_khqTQBBgGYXDHBwMmw9tmtDD'}, {'name': 'ich heisse marvin', 'health': 63, 'length': 12, 'body': [(7, 7), (6, 7), (6, 8), (5, 8), (5, 7), (5, 6), (6, 6), (7, 6), (8, 6), (9, 6), (9, 7), (8, 7)], 'id': 'gs_VSjYDwhFqXFV48bxQ3C6XfWS'}, {'name': 'Cutiee ', 'health': 97, 'length': 15, 'body': [(6, 2), (7, 2), (8, 2), (9, 2), (9, 3), (9, 4), (9, 5), (8, 5), (8, 4), (7, 4), (7, 5), (6, 5), (5, 5), (5, 4), (6, 4)], 'id': 'gs_fHMhKSFJFWF3CbGhfmhq4dTc'}], 'food': [(10, 6), (2, 0)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'get food (2, 0)'], 'next_coord': (2, 1), 'next_move': 'down', 'time': '0.040s'}
     log = {'id': 'b8a3cc32-e76b-4ec9-8136-561dc8ac978d', 'turn': 127, 'me': {'name': 'mark_snake', 'health': 95, 'length': 11, 'body': [(8, 5), (9, 5), (9, 6), (9, 7), (9, 8), (8, 8), (7, 8), (7, 9), (8, 9), (8, 10), (7, 10)], 'id': 'gs_gGwbg6FWph6Fyv6p4SHMvJQf'}, 'others': [{'name': 'mini snake', 'health': 84, 'length': 9, 'body': [(5, 10), (4, 10), (4, 9), (4, 8), (4, 7), (5, 7), (6, 7), (7, 7), (8, 7)], 'id': 'gs_jVqSBb3QHy7DSSpyKtTJ4KFD'}, {'name': 'go-st', 'health': 81, 'length': 9, 'body': [(1, 8), (1, 9), (2, 9), (2, 8), (2, 7), (2, 6), (1, 6), (1, 5), (1, 4)], 'id': 'gs_WCgfVkWgbbGGfbSfCS7bFm66'}, {'name': 'Cutiee ', 'health': 75, 'length': 12, 'body': [(7, 4), (6, 4), (5, 4), (5, 3), (5, 2), (5, 1), (6, 1), (7, 1), (8, 1), (9, 1), (9, 2), (8, 2)], 'id': 'gs_dpj87DSXg39bmgtQKSBpJvxW'}], 'food': [(7, 5)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'collision type 2 take avoid point'], 'next_coord': (8, 6), 'next_move': 'up', 'time': '0.008s'}
     log = {'id': '175f8c12-2d89-4536-996a-6c6ee646b069', 'turn': 91, 'me': {'name': 'mark_snake', 'health': 99, 'length': 13, 'body': [(6, 5), (6, 6), (7, 6), (8, 6), (9, 6), (9, 5), (9, 4), (9, 3), (9, 2), (9, 1), (8, 1), (8, 2), (8, 3)], 'id': 'gs_wd34BrvRCbSKtD6DxSp8TP7b'}, 'others': [{'name': 'Gregory Megory', 'health': 72, 'length': 7, 'body': [(2, 9), (3, 9), (4, 9), (5, 9), (6, 9), (6, 10), (5, 10)], 'id': 'gs_CtTf4yfhvF3Dd4JwS37rMHW3'}, {'name': 'soma-mini v1[standard]', 'health': 72, 'length': 5, 'body': [(6, 3), (6, 2), (6, 1), (5, 1), (4, 1)], 'id': 'gs_Wr8qP8rfPYGmmkBbYG3GffFR'}, {'name': 'Red Yarn', 'health': 79, 'length': 10, 'body': [(1, 2), (2, 2), (2, 3), (2, 4), (3, 4), (4, 4), (5, 4), (5, 5), (5, 6), (4, 6)], 'id': 'gs_9J39P4xFMS8mfwmT3Bxg7mdR'}], 'food': [(10, 0), (0, 2), (2, 10)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'longer confront push'], 'next_coord': (6, 4), 'next_move': 'down', 'time': '0.023s'}
+    log = {'id': '3b864dde-2b9b-453d-9652-ba978669935a', 'turn': 46, 'me': {'name': 'mark_snake', 'health': 66, 'length': 6, 'body': [(1, 7), (1, 6), (1, 5), (2, 5), (3, 5), (4, 5)], 'id': 'gs_HKCj4CCJCKhSCvDpSGwtwSpR'}, 'others': [{'name': 'Copy of snake2_v3_FINAL_final(1)', 'health': 91, 'length': 9, 'body': [(7, 1), (7, 0), (6, 0), (5, 0), (4, 0), (4, 1), (4, 2), (5, 2), (6, 2)], 'id': 'gs_xD9h7gBv889BTyjvf4fWC8t4'}, {'name': 'Gregory Megory', 'health': 98, 'length': 7, 'body': [(0, 8), (0, 9), (0, 10), (1, 10), (2, 10), (3, 10), (3, 9)], 'id': 'gs_q33vJFR3WTmpmRjF9YTtk8yX'}, {'name': 'soma-mini v1[standard]', 'health': 88, 'length': 6, 'body': [(0, 6), (0, 5), (0, 4), (0, 3), (0, 2), (1, 2)], 'id': 'gs_PMFDphBGxRwWYrhKYSy9YKk7'}], 'food': [(2, 0)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('soma-mini v1[standard]', 2, (0, 7))]", 'preserve trap kill soma-mini v1[standard]'], 'next_coord': (1, 8), 'next_move': 'up', 'time': '0.001s'}
 
 
     game_state = init_from_log(log)
