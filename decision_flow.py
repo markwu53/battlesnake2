@@ -201,12 +201,13 @@ def main(game_state, log=True, log_db=False):
             cond(len(g.others) == 1 and g.me.length < g.other.length)(border_go_up),
             #cond(len(g.others) == 1 and g.me.length <= g.other.length)(chase_my_tail_body),
             (cond(g.me.length <= 15)(avoid_single_move)),
-            (cond(g.me.length >= 10)(prefer_less_split)),
 
             avoid_confined_with_killer,
 
             #sometime this can create type 2 collision situation
             (cond(g.me.length <= 16)(prefer_away_border)),
+
+            (cond(g.me.length >= 10)(prefer_less_split)),
 
             (split_choice_2),
 
@@ -548,20 +549,6 @@ def main(game_state, log=True, log_db=False):
                 g.decision_path.append("avoid next step single move")
                 return moves
 
-    def prefer_less_split_old(moves):
-        def next_ngroup(a):
-            me2 = possible_next_state(g.me, a)
-            ngroup = move_connected_group(me2.allowed_moves, g.occupied_cells[0]+[a])
-            if ngroup is None:
-                return 999
-            return ngroup
-        splits = [a for a in moves if next_ngroup(a) > 1 and not any([a != snake.tail for snake in g.snakes])]
-        if len(splits) != 0:
-            moves = [a for a in moves if a not in splits]
-            if len(moves) != 0:
-                g.decision_path.append("prefer less split")
-                return moves
-
     def prefer_less_split(moves):
         def next_ngroup(a):
             me2 = possible_next_state(g.me, a)
@@ -573,17 +560,6 @@ def main(game_state, log=True, log_db=False):
         if len(less_split) < len(moves):
             g.decision_path.append("prefer less split")
             return less_split
-
-    def corner_danger_food(f):
-        if g.me.length >= 15:
-            return False
-        if not at_corner(f):
-            return False
-        if sum(distance_to_border(f)) <= 1:
-            if distance_pq(f, g.me.head) <= 8:
-                if len([snake for snake in g.others if distance_pq(snake.head, f) <= 8 and snake.length >= g.me.length+2]) != 0:
-                    return True
-        return False
 
     def get_food(moves):
 
@@ -3222,6 +3198,7 @@ if __name__ == "__main__":
     log = {'id': '752cbb4b-510c-4398-8ac2-fe4cfc2ef6bb', 'turn': 102, 'me': {'name': 'mark_snake', 'health': 94, 'length': 15, 'body': [(1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (2, 10), (2, 9), (2, 8), (3, 8), (3, 9), (3, 10), (4, 10), (5, 10), (6, 10)], 'id': 'gs_YBbm4RQw4VFjwJbSDDpC3vHc'}, 'others': [{'name': 'Frank The Tank', 'health': 41, 'length': 10, 'body': [(2, 4), (3, 4), (3, 5), (3, 6), (4, 6), (4, 5), (5, 5), (6, 5), (7, 5), (7, 4)], 'id': 'gs_KpSktTbFSykxHyKQmRdB6c6V'}, {'name': 'soma-mini v1[standard]', 'health': 91, 'length': 5, 'body': [(5, 3), (5, 2), (5, 1), (6, 1), (6, 2)], 'id': 'gs_SJkTg8cbgd8vHyP4t4tpHxpc'}], 'food': [(0, 5)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'next to food'], 'next_coord': (0, 5), 'next_move': 'left', 'time': '0.060s'}
     log = {'id': '73cafbfd-5fd9-44ad-84e8-837200dfb378', 'turn': 92, 'me': {'name': 'mark_snake', 'health': 91, 'length': 7, 'body': [(9, 3), (10, 3), (10, 4), (10, 5), (10, 6), (9, 6), (9, 5)], 'id': 'gs_dxP4ygWBJMQj8QYVrBYYDdmS'}, 'others': [{'name': 'Game of Chicken', 'health': 83, 'length': 12, 'body': [(8, 4), (8, 5), (7, 5), (6, 5), (6, 4), (5, 4), (5, 5), (4, 5), (3, 5), (3, 4), (3, 3), (3, 2)], 'id': 'gs_4j8YBDTKp6SmDQDdYWHqFbyJ'}, {'name': 'go-st', 'health': 96, 'length': 10, 'body': [(6, 0), (7, 0), (8, 0), (9, 0), (10, 0), (10, 1), (9, 1), (8, 1), (7, 1), (7, 2)], 'id': 'gs_HwhVWmmdDgxkXWkY6DCRvTCQ'}, {'name': 'ich heisse marvin', 'health': 100, 'length': 10, 'body': [(5, 9), (6, 9), (7, 9), (7, 8), (8, 8), (8, 7), (7, 7), (7, 6), (6, 6), (6, 6)], 'id': 'gs_k7gMtbWJjPVmBkyxYxcrHbJ3'}], 'food': [(0, 10)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'collision type 2 take avoid point'], 'next_coord': (9, 2), 'next_move': 'down', 'time': '0.011s'}
     log = {'id': 'fc0fcd7a-c8b1-4d1d-85f6-5f3a44340cd4', 'turn': 47, 'me': {'name': 'mark_snake', 'health': 57, 'length': 4, 'body': [(6, 1), (6, 2), (7, 2), (8, 2)], 'id': 'gs_dvfW6GMC3SCVSQ3r4JM9TBdS'}, 'others': [{'name': 'Game of Chicken', 'health': 68, 'length': 5, 'body': [(6, 3), (6, 4), (7, 4), (7, 5), (6, 5)], 'id': 'gs_FBHtDCJFmd7fYfyJJky9RqKK'}, {'name': '@~~~~@', 'health': 55, 'length': 4, 'body': [(4, 5), (4, 4), (3, 4), (2, 4)], 'id': 'gs_yPpwkbH3PbmBJRMP8DvVDYhH'}, {'name': 'Cutiee ', 'health': 94, 'length': 9, 'body': [(5, 2), (4, 2), (3, 2), (2, 2), (1, 2), (1, 1), (1, 0), (0, 0), (0, 1)], 'id': 'gs_kjDPpTwxWjP4FWRJffG4tgHb'}], 'food': [(6, 9)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'avoid single collision [(5, 1)]', 'enemy chasing go middle'], 'next_coord': (6, 0), 'next_move': 'down', 'time': '0.007s'}
+    log = {'id': '8a6881f7-f9e1-47c0-9253-c41f95b278cf', 'turn': 137, 'me': {'name': 'mark_snake', 'health': 60, 'length': 10, 'body': [(7, 0), (8, 0), (9, 0), (9, 1), (9, 2), (9, 3), (8, 3), (8, 2), (8, 1), (7, 1)], 'id': 'gs_kB6WVMv7gQrGShTQwdJxpDRK'}, 'others': [{'name': 'Game of Chicken', 'health': 98, 'length': 10, 'body': [(1, 6), (1, 7), (2, 7), (2, 8), (1, 8), (1, 9), (2, 9), (3, 9), (4, 9), (5, 9)], 'id': 'gs_mRCq3BYtFcWRg8JFgQGVrQ4Q'}, {'name': 'ich heisse marvin', 'health': 96, 'length': 12, 'body': [(3, 8), (3, 7), (4, 7), (5, 7), (5, 6), (6, 6), (6, 7), (7, 7), (8, 7), (9, 7), (9, 6), (10, 6)], 'id': 'gs_rT8jwJ74bJw3hkXD8bHFxH64'}, {'name': 'Gregory Megory', 'health': 87, 'length': 13, 'body': [(4, 5), (3, 5), (3, 4), (3, 3), (3, 2), (4, 2), (5, 2), (6, 2), (6, 3), (6, 4), (5, 4), (5, 3), (4, 3)], 'id': 'gs_kVckf9KBTWQ9qHR4x6Wr43tJ'}], 'food': [(7, 10), (4, 1)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('ich heisse marvin', 1, (4, 8))]", "vulnerable but I'm short", 'get food (4, 1)', 'prefer less split'], 'next_coord': (6, 0), 'next_move': 'left', 'time': '0.030s'}
 
 
     game_state = init_from_log(log)
