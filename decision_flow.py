@@ -1266,6 +1266,7 @@ def main(game_state, log=True, log_db=False):
 
         g.decision_path.append("collision type 2 no decision")
 
+
     def avoid_confined_with_killer(moves):
         occupied = g.occupied_cells[1]+[a for a in g.me.allowed_moves if a not in moves]
         def is_confined(a):
