@@ -1199,12 +1199,6 @@ def main(game_state, log=True, log_db=False):
         aset = sorted(list(set(g.me.territory)))
         #aset = path_connected_set(avoid, g.occupied_cells[1])
 
-        """
-        if len(aset) <= 2:
-            g.decision_path.append("collision type 2 take risk")
-            return [collision]
-        """
-
         if len(aset) >= g.me.length:
             g.decision_path.append("collision type 2 take avoid point")
             return [avoid]
@@ -1257,6 +1251,10 @@ def main(game_state, log=True, log_db=False):
             if len(oset) < wayout_length:
                 g.decision_path.append("collision type 2 take risk")
                 return [collision]
+
+        if len(aset) <= 2:
+            g.decision_path.append("collision type 2 take risk")
+            return [collision]
 
         if len(g.others) > 1 and len(oset) >= 2:
             g.decision_path.append("collision type 2 take avoid point")
@@ -3218,6 +3216,7 @@ if __name__ == "__main__":
     log = {'id': '95119c88-381c-413b-a07c-65d5255896ee', 'turn': 119, 'me': {'name': 'mark_snake', 'health': 66, 'length': 12, 'body': [(1, 2), (2, 2), (2, 3), (2, 4), (2, 5), (2, 6), (2, 7), (2, 8), (2, 9), (3, 9), (4, 9), (4, 8)], 'id': 'gs_DRrYVfwHHP6Y7YYXHJ8qGBSP'}, 'others': [{'name': 'Snakeformatika', 'health': 83, 'length': 9, 'body': [(9, 8), (9, 7), (8, 7), (7, 7), (6, 7), (5, 7), (5, 8), (5, 9), (5, 10)], 'id': 'gs_cGFSbmfqpGXQrhJSdp7cjQvd'}, {'name': '#!/bin/shnake', 'health': 97, 'length': 8, 'body': [(0, 1), (0, 0), (1, 0), (2, 0), (3, 0), (3, 1), (4, 1), (5, 1)], 'id': 'gs_qY4cbKKBb6Jp7TDmM4X7grV6'}], 'food': [(0, 3), (8, 6), (5, 6), (6, 2), (3, 4)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'cut case collision 2', 'reverse orientation chasing'], 'next_coord': (1, 1), 'next_move': 'down', 'time': '0.017s'}
     log = {'id': 'adb90799-14d5-48fb-99fc-cccc97f821bf', 'turn': 187, 'me': {'name': 'mark_snake', 'health': 36, 'length': 16, 'body': [(7, 4), (6, 4), (5, 4), (5, 5), (6, 5), (6, 6), (5, 6), (4, 6), (4, 5), (4, 4), (4, 3), (3, 3), (2, 3), (1, 3), (0, 3), (0, 2)], 'id': 'gs_Y48pFWRcQXqfJVKBvDjCvkV9'}, 'others': [{'name': 'Game of Chicken', 'health': 87, 'length': 13, 'body': [(10, 9), (10, 10), (9, 10), (8, 10), (8, 9), (9, 9), (9, 8), (9, 7), (9, 6), (9, 5), (9, 4), (9, 3), (8, 3)], 'id': 'gs_GgBHmY9fK4W67c3QkBHKrhp9'}, {'name': '@~~~~@', 'health': 98, 'length': 17, 'body': [(2, 9), (2, 8), (2, 7), (2, 6), (1, 6), (1, 5), (1, 4), (2, 4), (2, 5), (3, 5), (3, 6), (3, 7), (3, 8), (4, 8), (5, 8), (6, 8), (7, 8)], 'id': 'gs_WRPWvqb8YkFWdM473X8jCHKB'}], 'food': [(9, 2), (3, 2)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('Game of Chicken', 4, (10, 5))]", 'preliminary cut kill target: Game of Chicken', 'attack vulnerables less or equal distance 2', 'get food (9, 2)'], 'next_coord': (8, 4), 'next_move': 'right', 'time': '0.015s'}
     log = {'id': '752cbb4b-510c-4398-8ac2-fe4cfc2ef6bb', 'turn': 102, 'me': {'name': 'mark_snake', 'health': 94, 'length': 15, 'body': [(1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (2, 10), (2, 9), (2, 8), (3, 8), (3, 9), (3, 10), (4, 10), (5, 10), (6, 10)], 'id': 'gs_YBbm4RQw4VFjwJbSDDpC3vHc'}, 'others': [{'name': 'Frank The Tank', 'health': 41, 'length': 10, 'body': [(2, 4), (3, 4), (3, 5), (3, 6), (4, 6), (4, 5), (5, 5), (6, 5), (7, 5), (7, 4)], 'id': 'gs_KpSktTbFSykxHyKQmRdB6c6V'}, {'name': 'soma-mini v1[standard]', 'health': 91, 'length': 5, 'body': [(5, 3), (5, 2), (5, 1), (6, 1), (6, 2)], 'id': 'gs_SJkTg8cbgd8vHyP4t4tpHxpc'}], 'food': [(0, 5)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'next to food'], 'next_coord': (0, 5), 'next_move': 'left', 'time': '0.060s'}
+    log = {'id': '73cafbfd-5fd9-44ad-84e8-837200dfb378', 'turn': 92, 'me': {'name': 'mark_snake', 'health': 91, 'length': 7, 'body': [(9, 3), (10, 3), (10, 4), (10, 5), (10, 6), (9, 6), (9, 5)], 'id': 'gs_dxP4ygWBJMQj8QYVrBYYDdmS'}, 'others': [{'name': 'Game of Chicken', 'health': 83, 'length': 12, 'body': [(8, 4), (8, 5), (7, 5), (6, 5), (6, 4), (5, 4), (5, 5), (4, 5), (3, 5), (3, 4), (3, 3), (3, 2)], 'id': 'gs_4j8YBDTKp6SmDQDdYWHqFbyJ'}, {'name': 'go-st', 'health': 96, 'length': 10, 'body': [(6, 0), (7, 0), (8, 0), (9, 0), (10, 0), (10, 1), (9, 1), (8, 1), (7, 1), (7, 2)], 'id': 'gs_HwhVWmmdDgxkXWkY6DCRvTCQ'}, {'name': 'ich heisse marvin', 'health': 100, 'length': 10, 'body': [(5, 9), (6, 9), (7, 9), (7, 8), (8, 8), (8, 7), (7, 7), (7, 6), (6, 6), (6, 6)], 'id': 'gs_k7gMtbWJjPVmBkyxYxcrHbJ3'}], 'food': [(0, 10)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'collision type 2 take avoid point'], 'next_coord': (9, 2), 'next_move': 'down', 'time': '0.011s'}
 
 
     game_state = init_from_log(log)
