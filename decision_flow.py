@@ -1674,13 +1674,17 @@ def main(game_state, log=True, log_db=False):
             max_index = max(adjacent_indexes)
             wayout_length = snake.length - max_index - 1
             wayout_point = snake.body[max_index]
-            wayout_choices.append((snake, max_index, wayout_length, wayout_point))
-        if len(wayout_choices) == 0:
-            return
-        min_wayout_length = min([wayout_length for a,b, wayout_length, c in wayout_choices])
-        choice = [(a,b, wayout_length, c) for a,b, wayout_length, c in wayout_choices if wayout_length == min_wayout_length]
-        a,b,wayout_length, wayout_point = take_first(choice)
+            trimmed_aset = trim_aset(territory, g.me.head, wayout_point)
+            enough = len(trimmed_aset) - wayout_length
+            wayout_choices.append((snake, max_index, wayout_length, wayout_point, enough))
+        if len(wayout_choices) == 0: return
+        enough_choices = [item for item in wayout_choices for a,b,c,d,e in [item] if e >= 0]
+        if len(enough_choices) == 0: return
+        min_wayout_length = min([wayout_length for a,b, wayout_length, c, enough in enough_choices])
+        choice = [(a,b, wayout_length, c, enough) for a,b, wayout_length, c, enough in enough_choices if wayout_length == min_wayout_length]
+        snake,b,wayout_length, wayout_point, enough = take_first(choice)
         g.me.wayout_length = wayout_length
+        g.decision_path.append(f"wayout on {snake.name}")
         return wayout_point
 
     def has_wayout_on_myself2(aset, a):
@@ -3208,6 +3212,7 @@ if __name__ == "__main__":
     log = {'id': 'b6e381b8-9337-4a1c-af8d-0ff18973e223', 'turn': 68, 'me': {'name': 'mark_snake', 'health': 62, 'length': 7, 'body': [(4, 2), (5, 2), (6, 2), (7, 2), (8, 2), (8, 3), (8, 4)], 'id': 'gs_DW94Cv8vKcrKYVdX8rKBKTjM'}, 'others': [{'name': 'Geriatric Jagwire', 'health': 72, 'length': 7, 'body': [(3, 3), (2, 3), (2, 4), (2, 5), (1, 5), (1, 4), (1, 3)], 'id': 'gs_DdQf4qwbvhPB8h69QHFThVYP'}, {'name': 'Game of Chicken', 'health': 83, 'length': 11, 'body': [(5, 3), (6, 3), (7, 3), (7, 4), (6, 4), (5, 4), (4, 4), (3, 4), (3, 5), (4, 5), (5, 5)], 'id': 'gs_b6yhCwGcgmfvvHQwCfcM6KhM'}, {'name': 'ich heisse marvin', 'health': 38, 'length': 5, 'body': [(1, 9), (1, 8), (2, 8), (3, 8), (3, 7)], 'id': 'gs_8d3KtmrGHWrkSgvCX43HkhVY'}], 'food': [(0, 0), (8, 9)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('Game of Chicken', 2, (4, 3))]", 'enemy chasing go middle'], 'next_coord': (3, 2), 'next_move': 'left', 'time': '0.005s'}
     log = {'id': 'a54d0148-305e-49ce-ab46-86d9acdbf5a4', 'turn': 230, 'me': {'name': 'mark_snake', 'health': 94, 'length': 14, 'body': [(9, 5), (10, 5), (10, 6), (10, 7), (10, 8), (10, 9), (10, 10), (9, 10), (9, 9), (9, 8), (8, 8), (7, 8), (6, 8), (5, 8)], 'id': 'gs_Cbqgm6qSBdHDCddvKD3S44WC'}, 'others': [{'name': 'mini snake', 'health': 88, 'length': 17, 'body': [(7, 3), (6, 3), (5, 3), (4, 3), (4, 2), (3, 2), (3, 3), (3, 4), (4, 4), (4, 5), (3, 5), (3, 6), (3, 7), (4, 7), (4, 6), (5, 6), (6, 6)], 'id': 'gs_JjRfkp8chRfm9GbHwhDbtwy6'}], 'food': [(10, 4), (5, 1)], 'module': 'decision_flow - github', 'decision_path': ['1v1'], 'next_coord': (9, 4), 'next_move': 'down', 'time': '0.032s'}
     log = {'id': '2fbdb4c5-422e-4d3b-b499-d13449afde53', 'turn': 145, 'me': {'name': 'mark_snake', 'health': 90, 'length': 9, 'body': [(1, 2), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (5, 2), (4, 2), (3, 2)], 'id': 'gs_PPC9FkxFx7Cyh9r4KSx4JQ3b'}, 'others': [{'name': 'Sandworm', 'health': 68, 'length': 13, 'body': [(2, 3), (3, 3), (4, 3), (4, 4), (4, 5), (4, 6), (5, 6), (5, 7), (6, 7), (7, 7), (8, 7), (9, 7), (9, 8)], 'id': 'gs_fYTJxcSRFhMj6bJy9jbvG3kH'}, {'name': 'mini snake', 'health': 84, 'length': 10, 'body': [(7, 0), (6, 0), (6, 1), (7, 1), (7, 2), (6, 2), (6, 3), (6, 4), (6, 5), (6, 6)], 'id': 'gs_m83VXTSy4VmyYbJCDHVyk9X4'}, {'name': 'ich heisse marvin', 'health': 86, 'length': 9, 'body': [(10, 7), (10, 6), (9, 6), (9, 5), (9, 4), (9, 3), (9, 2), (9, 1), (10, 1)], 'id': 'gs_vyk3rRjYvkM4MFWXgkWHk9jT'}], 'food': [(0, 0), (3, 5)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('mini snake', 1, (8, 0)), ('ich heisse marvin', 1, (10, 8))]", 'collision type 2 take risk', "vulnerable but I'm short", "vulnerable but I'm short", 'multi-step collision [((2, 2), 1), ((1, 3), 1)]', 'too close to corner - take risk', 'multi-step collision [((2, 2), 1), ((1, 3), 1)]', 'too close to corner - take risk', 'avoid next step single move'], 'next_coord': (1, 3), 'next_move': 'up', 'time': '0.024s'}
+    log = {'id': 'e7daac7f-f791-45af-84d3-05ed65222bd1', 'turn': 98, 'me': {'name': 'mark_snake', 'health': 98, 'length': 9, 'body': [(4, 4), (4, 5), (5, 5), (5, 4), (5, 3), (6, 3), (7, 3), (7, 4), (7, 5)], 'id': 'gs_RDgCqgSTgCyhPdPB8bQqTMd4'}, 'others': [{'name': 'Game of Chicken', 'health': 48, 'length': 7, 'body': [(2, 4), (2, 5), (2, 6), (1, 6), (1, 7), (1, 8), (1, 9)], 'id': 'gs_vkbrckhhtT397F46gdh9Ych7'}, {'name': 'ich heisse marvin', 'health': 93, 'length': 7, 'body': [(2, 2), (3, 2), (4, 2), (4, 1), (4, 0), (5, 0), (6, 0)], 'id': 'gs_JPv8FQGHdMQYjhd97yQ7fqhQ'}, {'name': 'Red Yarn', 'health': 93, 'length': 14, 'body': [(7, 7), (7, 8), (7, 9), (6, 9), (5, 9), (4, 9), (3, 9), (3, 8), (3, 7), (3, 6), (4, 6), (5, 6), (5, 7), (5, 8)], 'id': 'gs_fhvjhxq6FpfxcDScVRrbS9TP'}], 'food': [(0, 1)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'try wayout', 'meander'], 'next_coord': (3, 4), 'next_move': 'left', 'time': '0.022s'}
 
 
     game_state = init_from_log(log)
