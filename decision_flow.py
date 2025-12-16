@@ -1780,7 +1780,7 @@ def main(game_state, log=True, log_db=False):
 
     def avoid_next_step_no_move(moves):
         no_move_0 = [a for a in moves if len([p for p in adj_cells(a) if p not in g.occupied_cells[1]]) == 0]
-        no_move_food = [a for a in moves if a in g.food and len([p for p in adj_cells(a) if p not in g.occupied_cells[0]]) == 0]
+        no_move_food = [a for a in moves if a in g.food and len([p for p in adj_cells(a) if p not in g.occupied_cells[1]+[g.me.body[-2]]]) == 0]
         no_move = no_move_0 + no_move_food
         if len(no_move) != 0:
             g.decision_path.append(f"avoid next step no move {no_move}")
