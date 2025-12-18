@@ -80,6 +80,7 @@ def main(game_state, log=True, log_db=False):
 
             (type_1_collision),
 
+            avoid_two_snake_trap_config_11,
             (collision_cut_oppotunity),
 
             (suppressed_chasing_kill_oppotunity),
@@ -125,7 +126,7 @@ def main(game_state, log=True, log_db=False):
             #cond(len(g.others) == 1 and g.me.length > g.other.length)(chase_my_tail),
 
             (cond(g.me.length > 8)(avoid_next_step_confinement)),
-            avoid_two_snake_trap,
+            avoid_two_snake_trap_config_10,
             #(cond(10 <= g.me.length < 12)(split_choice)),
             #cond(7 <= g.me.length <= 9)(collision_take_risk),
 
@@ -983,46 +984,43 @@ def main(game_state, log=True, log_db=False):
         return sum(distv) <= 2
 
     def avoid_two_snake_trap(moves):
-        def config_11(moves):
-            snakes = [snake for snake in g.others if distance_vector_abs(snake.head, g.me.head) == (1,1)]
-            if len(snakes) != 2:
-                return
-            snake1, snake2 = snakes
-            if distance_vector_abs(snake1.head, snake2.head) not in [(0,2), (2,0)]:
-                return
-            danger = [a for a in moves if a in snake1.allowed_moves and a in snake2.allowed_moves]
-            if len(danger) == 0:
-                return
-            danger = take_first(danger)
-            if all([any([get_adjacent_dir(snake.head, a) == get_adjacent_dir(g.me.head, danger) for a in snake.allowed_moves]) for snake in snakes]):
-                moves = [a for a in moves if a != danger]
-                if len(moves) != 0:
-                    g.decision_path.append("avoid two-snake trap")
-                    return moves
+        pass
 
-        def config_10(moves):
-            if len(g.me.allowed_moves) != 3: return
-            snakes = [snake for snake in g.others if distance_vector_abs(snake.head, g.me.head) == (1,1)]
-            if len(snakes) != 1: return
-            one = take_first(snakes)
-            snakes = [snake for snake in g.others if distance_vector_abs(snake.head, g.me.head) in [(0,2), (2,0)]]
-            if len(snakes) != 1: return
-            two = take_first(snakes)
-            if two.length <= g.me.length: return
-            if distance_vector_abs(one.head, two.head) not in [(1,3), (3,1)]: return
-            single_collision = ([a for a in moves if is_adjacent(a, two.head)])
-            if len(single_collision) != 1: return
-            single_collision = take_first(single_collision)
-            type_2_collision = [a for a in moves if is_adjacent(a, one.head)]
-            if len(type_2_collision) != 2: return
-            avoid = take_first([a for a in type_2_collision if distance_vector_abs(a, single_collision) != (1,1)])
-            g.decision_path.append("avoid two-snake trap")
-            return [avoid]
+    def avoid_two_snake_trap_config_11(moves):
+        snakes = [snake for snake in g.others if distance_vector_abs(snake.head, g.me.head) == (1,1)]
+        if len(snakes) != 2:
+            return
+        snake1, snake2 = snakes
+        if distance_vector_abs(snake1.head, snake2.head) not in [(0,2), (2,0)]:
+            return
+        danger = [a for a in moves if a in snake1.allowed_moves and a in snake2.allowed_moves]
+        if len(danger) == 0:
+            return
+        danger = take_first(danger)
+        if all([any([get_adjacent_dir(snake.head, a) == get_adjacent_dir(g.me.head, danger) for a in snake.allowed_moves]) for snake in snakes]):
+            moves = [a for a in moves if a != danger]
+            if len(moves) != 0:
+                g.decision_path.append("avoid two-snake trap")
+                return moves
 
-        return par([
-            config_11,
-            config_10,
-        ])(moves)
+    def avoid_two_snake_trap_config_10(moves):
+        if len(g.me.allowed_moves) != 3: return
+        snakes = [snake for snake in g.others if distance_vector_abs(snake.head, g.me.head) == (1,1)]
+        if len(snakes) != 1: return
+        one = take_first(snakes)
+        snakes = [snake for snake in g.others if distance_vector_abs(snake.head, g.me.head) in [(0,2), (2,0)]]
+        if len(snakes) != 1: return
+        two = take_first(snakes)
+        if two.length <= g.me.length: return
+        if distance_vector_abs(one.head, two.head) not in [(1,3), (3,1)]: return
+        single_collision = ([a for a in moves if is_adjacent(a, two.head)])
+        if len(single_collision) != 1: return
+        single_collision = take_first(single_collision)
+        type_2_collision = [a for a in moves if is_adjacent(a, one.head)]
+        if len(type_2_collision) != 2: return
+        avoid = take_first([a for a in type_2_collision if distance_vector_abs(a, single_collision) != (1,1)])
+        g.decision_path.append("avoid two-snake trap")
+        return [avoid]
 
     def type_2_collision_equal_length(moves):
         nonkillers = [snake for snake in g.others if snake.length == g.me.length and distance_vector_abs(g.me.head, snake.head) == (1,1)]
@@ -3207,6 +3205,7 @@ if __name__ == "__main__":
     log = {'id': '3bc7d40d-1fa4-4a76-a7c2-8db56eebb484', 'turn': 110, 'me': {'name': 'mark_snake', 'health': 63, 'length': 6, 'body': [(1, 3), (1, 4), (1, 5), (2, 5), (2, 4), (2, 3)], 'id': 'gs_GXcQ93BhChjYCFJYK6KcGwCB'}, 'others': [{'name': 'Kakemonsteret-v2', 'health': 71, 'length': 8, 'body': [(2, 2), (2, 1), (2, 0), (3, 0), (3, 1), (3, 2), (4, 2), (4, 1)], 'id': 'gs_hJvQRmpd99S7XMykdmHm7xbJ'}, {'name': 'Copy of snake2_v3_FINAL_final(1)', 'health': 85, 'length': 11, 'body': [(1, 7), (1, 6), (2, 6), (3, 6), (3, 7), (3, 8), (3, 9), (3, 10), (2, 10), (2, 9), (2, 8)], 'id': 'gs_TcPC8pQkDj8DPVJHrJYRHwm7'}, {'name': 'Red Yarn', 'health': 98, 'length': 13, 'body': [(10, 8), (10, 9), (10, 10), (9, 10), (9, 9), (8, 9), (7, 9), (6, 9), (5, 9), (4, 9), (4, 8), (4, 7), (5, 7)], 'id': 'gs_xrDCWgTtQx9KD3WVcBRwYJtR'}], 'food': [(0, 0)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'collision type 2 take risk'], 'next_coord': (2, 3), 'next_move': 'right', 'time': '0.006s'}
     log = {'id': '903b643b-7a1c-450b-b91c-b743d059214d', 'turn': 114, 'me': {'name': 'mark_snake', 'health': 98, 'length': 10, 'body': [(1, 3), (1, 2), (0, 2), (0, 1), (1, 1), (1, 0), (2, 0), (2, 1), (2, 2), (2, 3)], 'id': 'gs_dFBXvdGkVPMJ3JxPmFJYcvk4'}, 'others': [{'name': 'mini snake', 'health': 72, 'length': 7, 'body': [(2, 6), (3, 6), (3, 7), (4, 7), (5, 7), (5, 8), (6, 8)], 'id': 'gs_pSB4KPKkTdKdSPcPbV3yHYy4'}, {'name': 'Natterlie', 'health': 40, 'length': 11, 'body': [(2, 4), (3, 4), (4, 4), (5, 4), (5, 3), (5, 2), (5, 1), (6, 1), (7, 1), (8, 1), (9, 1)], 'id': 'gs_rx7PFQDwSmbgwPpt6gRbpkwC'}, {'name': 'Gregory Megory', 'health': 100, 'length': 12, 'body': [(7, 7), (6, 7), (6, 6), (7, 6), (7, 5), (7, 4), (6, 4), (6, 5), (5, 5), (5, 6), (4, 6), (4, 6)], 'id': 'gs_9QSbFWYByWKqvfj7TqdpTwj6'}], 'food': [(8, 9), (9, 9)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'take risk so that killer can no longer chase'], 'next_coord': (2, 3), 'next_move': 'right', 'time': '0.008s'}
     log = {'id': '4e62fc8f-f354-41e2-a2df-7789517d3d31', 'turn': 69, 'me': {'name': 'mark_snake', 'health': 92, 'length': 7, 'body': [(1, 8), (1, 7), (2, 7), (3, 7), (3, 6), (2, 6), (1, 6)], 'id': 'gs_cpJJDxyQ6hxxPbmm9P6VFCr8'}, 'others': [{'name': '@~~~~@', 'health': 84, 'length': 9, 'body': [(4, 3), (3, 3), (3, 4), (3, 5), (4, 5), (5, 5), (6, 5), (6, 4), (5, 4)], 'id': 'gs_qQrGdpRb6GSkgK8KDFYhpgvD'}, {'name': 'poc', 'health': 97, 'length': 9, 'body': [(0, 9), (0, 10), (1, 10), (2, 10), (3, 10), (4, 10), (4, 9), (4, 8), (4, 7)], 'id': 'gs_CDGBdwXXP7yDh8VvWdkvbk3d'}, {'name': 'Spaceheater', 'health': 100, 'length': 9, 'body': [(8, 1), (9, 1), (9, 2), (9, 3), (9, 4), (9, 5), (8, 5), (7, 5), (7, 5)], 'id': 'gs_36yvbRb38WCRhYDJjb4h4VPS'}], 'food': [(8, 6)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'collision type 2 take risk'], 'next_coord': (0, 8), 'next_move': 'left', 'time': '0.019s'}
+    log = {'id': '58089073-2d90-4b73-914f-94fa95a7799e', 'turn': 96, 'me': {'name': 'mark_snake', 'health': 80, 'length': 12, 'body': [(3, 3), (3, 4), (3, 5), (3, 6), (3, 7), (3, 8), (3, 9), (3, 10), (4, 10), (4, 9), (4, 8), (4, 7)], 'id': 'gs_cdBKyBVqXRqkDhRr9CDSW93T'}, 'others': [{'name': 'SmartyRat', 'health': 37, 'length': 6, 'body': [(9, 5), (9, 6), (9, 7), (8, 7), (8, 6), (7, 6)], 'id': 'gs_BgTFXWt6gFx9HVpJPGqcKrj7'}, {'name': 'Przze v2', 'health': 99, 'length': 9, 'body': [(4, 2), (5, 2), (6, 2), (7, 2), (7, 1), (8, 1), (8, 0), (9, 0), (10, 0)], 'id': 'gs_fG6K9xmWH4XQx8xTVv7cy7k7'}, {'name': 'go-st', 'health': 80, 'length': 7, 'body': [(2, 2), (2, 3), (2, 4), (2, 5), (1, 5), (0, 5), (0, 6)], 'id': 'gs_MShCRVcq6BcRD6SgcxtSxv8Y'}], 'food': [(10, 7), (3, 0)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'preliminary cut kill target: Przze v2', 'try collision cut kill (3, 2)'], 'next_coord': (3, 2), 'next_move': 'down', 'time': '0.004s'}
 
 
     game_state = init_from_log(log)
