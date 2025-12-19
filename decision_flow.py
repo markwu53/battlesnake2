@@ -406,10 +406,24 @@ def main(game_state, log=True, log_db=False):
     def longer_push_territory(moves):
         if not path_connected(g.other.head, g.me.head): return
         push_move = prefer_by_score(lambda a: len(new_territory(a)))(moves)
+        print(moves, push_move)
         other_move = [a for a in moves if a not in push_move]
         if len(other_move) != 0:
             g.decision_path.append("1v1 longer push territory")
             return push_move
+
+    def largest_territory_component(territory):
+        if len(territory) == 0: return []
+        occupied = complement(territory)
+        pieces = []
+        rest = territory
+        while len(rest) > 0:
+            a = take_first(rest)
+            piece = path_connected_set(a, occupied)
+            piece = sorted(list(piece))
+            pieces.append(piece)
+            rest = [p for p in rest if p not in piece]
+        return max(pieces, key=len)
 
     def longer_push(moves):
         #assume 1v1
@@ -420,8 +434,8 @@ def main(game_state, log=True, log_db=False):
  
         g.decision_path.append("1v1 longer push")
         return par([
-            push_2,
-            prefer_by_score(lambda a: len(new_territory(a))),
+            (push_2),
+            (prefer_by_score(lambda a: len(new_territory(a)))),
         ])(moves)
 
     def new_territory(a):
@@ -431,7 +445,9 @@ def main(game_state, log=True, log_db=False):
         gain = [q for p in territory_border if path_distance_pq(a, p) < path_distance_pq(g.me.head, p)
                 for q in adj_cells(p) if q not in territory and q not in g.occupied_cells[0] and q != g.me.head]
         new_territory = list(set([p for p in territory if p not in lost] + gain))
-        return new_territory
+        new_territory = [p for p in new_territory if p != a]
+        largest_component = largest_territory_component(new_territory)
+        return largest_component
 
     def is_connected_piece_terminal(a, piece):
         if len(piece) == 1: return True
@@ -3221,6 +3237,8 @@ if __name__ == "__main__":
     log = {'id': 'f21e6f87-83bb-4c64-b0d2-0f2282ef9b8a', 'turn': 13, 'me': {'name': 'mark_snake', 'health': 91, 'length': 4, 'body': [(5, 6), (4, 6), (3, 6), (2, 6)], 'id': 'gs_q4WJw9V3HmccPK4B8jjgXxY3'}, 'others': [{'name': 'Raptor', 'health': 89, 'length': 4, 'body': [(8, 3), (7, 3), (6, 3), (5, 3)], 'id': 'gs_7My36BxDmCrk83rPcC3dJWgF'}, {'name': 'zlipadeedoodah', 'health': 97, 'length': 5, 'body': [(7, 4), (7, 5), (6, 5), (5, 5), (4, 5)], 'id': 'gs_Kgdx9jQrS9xY7HHg68S8Xr8G'}, {'name': 'Jeremy', 'health': 89, 'length': 4, 'body': [(7, 8), (7, 7), (6, 7), (5, 7)], 'id': 'gs_BTkKXy9VKktkcpXqcjxGvH43'}], 'food': [(8, 6), (7, 9)], 'module': 'decision_flow - github', 'decision_path': ['1vn'], 'next_coord': (6, 6), 'next_move': 'right', 'time': '0.019s'}
     log = {'id': '2f7a204b-1a30-471e-8bdd-f25b0b791fa1', 'turn': 51, 'me': {'name': 'mark_snake', 'health': 92, 'length': 8, 'body': [(3, 4), (3, 5), (4, 5), (5, 5), (6, 5), (7, 5), (8, 5), (9, 5)], 'id': 'gs_8M9r8bRMrWyVtydjfcqW7rc6'}, 'others': [{'name': 'Sandworm', 'health': 78, 'length': 5, 'body': [(6, 7), (6, 8), (6, 9), (5, 9), (4, 9)], 'id': 'gs_tghb3dmtWkS6x379KM8WhYJG'}, {'name': 'mini snake', 'health': 58, 'length': 5, 'body': [(2, 7), (2, 6), (2, 5), (1, 5), (1, 6)], 'id': 'gs_JhS7p8MWYSKkTkhhkVybFjxS'}, {'name': '@~~~~@', 'health': 66, 'length': 6, 'body': [(2, 3), (3, 3), (4, 3), (5, 3), (5, 4), (6, 4)], 'id': 'gs_f7hgX3YkSbGQXSTpPYd6Y7Gd'}], 'food': [(10, 0), (2, 2)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'split2 choose spacious 1.5'], 'next_coord': (4, 4), 'next_move': 'right', 'time': '0.019s'}
     log = {'id': '81f1eb1b-8d89-4371-b1b1-6642d4c83cd9', 'turn': 140, 'me': {'name': 'mark_snake', 'health': 78, 'length': 17, 'body': [(1, 7), (1, 8), (2, 8), (3, 8), (3, 7), (3, 6), (3, 5), (3, 4), (4, 4), (4, 3), (5, 3), (5, 2), (5, 1), (5, 0), (6, 0), (7, 0), (8, 0)], 'id': 'gs_b83hcphy6rCmQw4bmKDCk6W7'}, 'others': [{'name': 'Default Distributed Denial of Snake', 'health': 99, 'length': 12, 'body': [(0, 2), (0, 1), (1, 1), (2, 1), (3, 1), (3, 2), (2, 2), (2, 3), (2, 4), (2, 5), (1, 5), (1, 6)], 'id': 'gs_WqkJtx9JDJTwwgw6QTrkTmV7'}], 'food': [(9, 1)], 'module': 'decision_flow - github', 'decision_path': ['1v1', '1v1 longer push', 'get food (9, 1)'], 'next_coord': (0, 7), 'next_move': 'left', 'time': '0.028s'}
+    log = {'id': 'd5355b3f-a9be-4f00-9a3c-30bd2c4607f2', 'turn': 407, 'me': {'name': 'mark_snake', 'health': 90, 'length': 28, 'body': [(1, 8), (1, 7), (1, 6), (1, 5), (0, 5), (0, 4), (0, 3), (0, 2), (0, 1), (0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0), (7, 0), (8, 0), (9, 0), (10, 0), (10, 1), (9, 1), (8, 1), (7, 1), (7, 2), (6, 2), (5, 2), (4, 2)], 'id': 'gs_8qVWhtSCTXRBRqB94P3M3PXV'}, 'others': [{'name': 'ich heisse marvin', 'health': 83, 'length': 17, 'body': [(9, 8), (9, 7), (8, 7), (8, 8), (7, 8), (7, 7), (6, 7), (5, 7), (4, 7), (3, 7), (2, 7), (2, 6), (3, 6), (3, 5), (4, 5), (5, 5), (6, 5)], 'id': 'gs_JFVw3tM4tScjbkWr33pgbFKB'}], 'food': [(10, 10), (10, 7), (6, 8), (8, 6), (3, 3), (10, 6), (7, 6)], 'module': 'decision_flow - github', 'decision_path': ['1v1', '1v1 longer push territory'], 'next_coord': (2, 8), 'next_move': 'right', 'time': '0.024s'}
+    log = {'id': 'd5355b3f-a9be-4f00-9a3c-30bd2c4607f2', 'turn': 403, 'me': {'name': 'mark_snake', 'health': 94, 'length': 28, 'body': [(0, 5), (0, 4), (0, 3), (0, 2), (0, 1), (0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0), (7, 0), (8, 0), (9, 0), (10, 0), (10, 1), (9, 1), (8, 1), (7, 1), (7, 2), (6, 2), (5, 2), (4, 2), (3, 2), (2, 2), (2, 3), (2, 4)], 'id': 'gs_8qVWhtSCTXRBRqB94P3M3PXV'}, 'others': [{'name': 'ich heisse marvin', 'health': 87, 'length': 17, 'body': [(7, 8), (7, 7), (6, 7), (5, 7), (4, 7), (3, 7), (2, 7), (2, 6), (3, 6), (3, 5), (4, 5), (5, 5), (6, 5), (7, 5), (8, 5), (9, 5), (10, 5)], 'id': 'gs_JFVw3tM4tScjbkWr33pgbFKB'}], 'food': [(10, 10), (10, 7), (6, 8), (8, 6), (3, 3), (10, 6)], 'module': 'decision_flow - github', 'decision_path': ['1v1', '1v1 longer push'], 'next_coord': (1, 5), 'next_move': 'right', 'time': '0.031s'}
 
 
     game_state = init_from_log(log)
