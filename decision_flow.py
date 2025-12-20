@@ -1415,6 +1415,8 @@ def main(game_state, log=True, log_db=False):
                 return True
             if any([snake.body[-2] in aset for snake in g.others]):
                 return True
+            if any([snake.body[-3] in aset for snake in g.others]):
+                return True
             if any([is_adjacent(snake.tail, a) for snake in g.others if snake.health == 100 for a in aset]):
                 return True
             return False
