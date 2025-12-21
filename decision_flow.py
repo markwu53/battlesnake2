@@ -120,7 +120,7 @@ def main(game_state, log=True, log_db=False):
 
             (wayout),
 
-            cond(len(g.others) == 1 and g.me.length > g.other.length)(longer_push),
+            (cond(len(g.others) == 1 and g.me.length > g.other.length)(longer_push)),
 
             #try push not chase my own tail
             cond(len(g.others) == 1 and g.me.length > g.other.length)(longer_push_territory),
@@ -406,7 +406,6 @@ def main(game_state, log=True, log_db=False):
     def longer_push_territory(moves):
         if not path_connected(g.other.head, g.me.head): return
         push_move = prefer_by_score(lambda a: len(new_territory(a)))(moves)
-        print(moves, push_move)
         other_move = [a for a in moves if a not in push_move]
         if len(other_move) != 0:
             g.decision_path.append("1v1 longer push territory")
@@ -893,24 +892,30 @@ def main(game_state, log=True, log_db=False):
 
         #don't push from border to center
         #if min(distance_to_border(g.me.head)) >= 2:
+        if len(g.me.territory) >= g.me.length * 0.8:
+            if collision in moves:
+                g.decision_path.append("longer confront push")
+                return [collision]
+
         if sum(distance_to_border(g.me.head)) > sum(distance_to_border(snake.head)) and len(g.me.territory) >= g.me.length//2:
             if collision in moves:
                 g.decision_path.append("longer confront push")
                 return [collision]
-        else:
-            #parallel push
+        #parallel push
 
-            if get_adjacent_dir(snake.neck, snake.head) == get_adjacent_dir(snake.head, collision):
-                pass
-            else:
-                parallel_push = [a for a in moves if distance_vector_abs(a, snake.head) in [(1,2), (2,1)]]
-                parallel_push = [a for a in parallel_push if get_adjacent_dir(g.me.head, a) == get_adjacent_dir(snake.neck, snake.head)]
-                if len(parallel_push) != 1: return
-                parallel_push = take_first(parallel_push)
-                snake_move = [a for a in snake.allowed_moves if distance_vector_abs(a, collision) == (1,1)]
-                if len(snake_move) == 0: return
-                g.decision_path.append("parallel push")
-                return [parallel_push]
+        if get_adjacent_dir(snake.neck, snake.head) != get_adjacent_dir(snake.head, collision):
+            parallel_push = [a for a in moves if distance_vector_abs(a, snake.head) in [(1,2), (2,1)]]
+            parallel_push = [a for a in parallel_push if get_adjacent_dir(g.me.head, a) == get_adjacent_dir(snake.neck, snake.head)]
+            if len(parallel_push) != 1: return
+            parallel_push = take_first(parallel_push)
+            snake_move = [a for a in snake.allowed_moves if distance_vector_abs(a, collision) == (1,1)]
+            if len(snake_move) == 0: return
+            g.decision_path.append("parallel push")
+            return [parallel_push]
+
+        g.decision_path.append("confront go parallel")
+        moves = [a for a in moves if a != collision]
+        return moves
 
 
     def coming_push(moves):
@@ -3245,6 +3250,7 @@ if __name__ == "__main__":
     log = {'id': 'd5355b3f-a9be-4f00-9a3c-30bd2c4607f2', 'turn': 403, 'me': {'name': 'mark_snake', 'health': 94, 'length': 28, 'body': [(0, 5), (0, 4), (0, 3), (0, 2), (0, 1), (0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0), (7, 0), (8, 0), (9, 0), (10, 0), (10, 1), (9, 1), (8, 1), (7, 1), (7, 2), (6, 2), (5, 2), (4, 2), (3, 2), (2, 2), (2, 3), (2, 4)], 'id': 'gs_8qVWhtSCTXRBRqB94P3M3PXV'}, 'others': [{'name': 'ich heisse marvin', 'health': 87, 'length': 17, 'body': [(7, 8), (7, 7), (6, 7), (5, 7), (4, 7), (3, 7), (2, 7), (2, 6), (3, 6), (3, 5), (4, 5), (5, 5), (6, 5), (7, 5), (8, 5), (9, 5), (10, 5)], 'id': 'gs_JFVw3tM4tScjbkWr33pgbFKB'}], 'food': [(10, 10), (10, 7), (6, 8), (8, 6), (3, 3), (10, 6)], 'module': 'decision_flow - github', 'decision_path': ['1v1', '1v1 longer push'], 'next_coord': (1, 5), 'next_move': 'right', 'time': '0.031s'}
     log = {'id': 'e36c585d-cd44-437f-b69f-551f2a72ea47', 'turn': 76, 'me': {'name': 'mark_snake', 'health': 91, 'length': 7, 'body': [(4,10), (4, 9), (4, 8), (4, 7), (5, 7), (6, 7), (6, 8)], 'id': 'gs_dyrHJ7y9cH9DpHh3HbmmKSC4'}, 'others': [{'name': 'Sandworm', 'health': 49, 'length': 5, 'body': [(8,2), (7, 2), (6, 2), (5, 2), (4, 2)], 'id': 'gs_7HgbTkq3WWMYmBV7cDySQDGf'}, {'name': 'poc', 'health': 97, 'length': 9, 'body': [(2,2), (2, 1), (2, 0), (1, 0), (0, 0), (0, 1), (0, 2), (0, 3), (1, 3)], 'id': 'gs_TK49RPQXqCT73jrc3P4QXMSP'}, {'name': 'Spaceheater', 'health': 99, 'length': 9, 'body': [(5,3), (6, 3), (6, 4), (6, 5), (6, 6), (7, 6), (8, 6), (9, 6), (10, 6)], 'id': 'gs_CfrRKjqFF8k4YCbDH3wjVGxD'}], 'food': [(3, 10), (9, 2), (9, 8)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'get food on border (3, 10)'], 'next_coord': (4, 10), 'next_move': 'up', 'time': '0.022s'}
     log = {'id': 'd9cd13ef-3bf5-4d19-b306-c5c5f1bcc9a5', 'turn': 84, 'me': {'name': 'mark_snake', 'health': 98, 'length': 9, 'body': [(2, 8), (1, 8), (0, 8), (0, 7), (1, 7), (1, 6), (1, 5), (1, 4), (1, 3)], 'id': 'gs_HGP8RYgjChmhcShqDJWD9Q48'}, 'others': [{'name': 'mini snake', 'health': 90, 'length': 8, 'body': [(2, 6), (3, 6), (3, 5), (4, 5), (4, 4), (5, 4), (6, 4), (6, 3)], 'id': 'gs_R4kpmJSG84hk3YWtySQyKGfS'}, {'name': 'slieks', 'health': 70, 'length': 6, 'body': [(3, 9), (3, 8), (4, 8), (5, 8), (5, 7), (6, 7)], 'id': 'gs_gkx96DrFhjMmMXJjQh9Qwq6f'}, {'name': 'Przze v2', 'health': 92, 'length': 9, 'body': [(7, 5), (8, 5), (8, 6), (8, 7), (8, 8), (8, 9), (9, 9), (10, 9), (10, 10)], 'id': 'gs_BvBgxHfDq49GY66qPTpTJqpS'}], 'food': [(10, 3), (10, 1), (7, 1)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'split2 choose more space'], 'next_coord': (2, 9), 'next_move': 'up', 'time': '0.013s'}
+    log = {'id': '25be54c9-fba3-4003-8f06-36f0c65a26fd', 'turn': 345, 'me': {'name': 'mark_snake', 'health': 65, 'length': 35, 'body': [(8, 7), (9, 7), (9, 6), (9, 5), (9, 4), (9, 3), (9, 2), (8, 2), (7, 2), (7, 1), (7, 0), (6, 0), (5, 0), (4, 0), (3, 0), (2, 0), (1, 0), (0, 0), (0, 1), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (6, 1), (6, 2), (5, 2), (4, 2), (3, 2), (3, 3), (3, 4), (4, 4), (5, 4), (6, 4), (7, 4)], 'id': 'gs_T9R39jXfpC8Ym7VjYvC9HbyP'}, 'others': [{'name': 'Gregory Megory', 'health': 92, 'length': 22, 'body': [(6, 7), (5, 7), (5, 8), (4, 8), (3, 8), (3, 9), (4, 9), (5, 9), (6, 9), (6, 10), (5, 10), (4, 10), (3, 10), (2, 10), (1, 10), (0, 10), (0, 9), (1, 9), (2, 9), (2, 8), (1, 8), (1, 7)], 'id': 'gs_xJyMFbwXxYQbdBBftTYPfX3b'}], 'food': [(10, 2), (6, 5)], 'module': 'decision_flow - github', 'decision_path': ['1v1', '1v1 longer push', 'get food (10, 2)'], 'next_coord': (8, 8), 'next_move': 'up', 'time': '0.081s'}
 
 
     game_state = init_from_log(log)
