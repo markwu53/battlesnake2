@@ -129,6 +129,7 @@ def main(game_state, log=True, log_db=False):
             (cond(g.me.length > 8)(avoid_next_step_confinement)),
             avoid_two_snake_trap_config_10,
             avoid_two_snake_trap_config_24,
+            avoid_two_snake_trap_config_204,
             #(cond(10 <= g.me.length < 12)(split_choice)),
             #cond(7 <= g.me.length <= 9)(collision_take_risk),
 
@@ -1083,6 +1084,30 @@ def main(game_state, log=True, log_db=False):
                            ]) != 0 ]
         if len(snakes) != 1: return
         g.decision_path.append("avoid two-snake trap config 24")
+        return [avoid]
+
+    def avoid_two_snake_trap_config_204(moves):
+        if len(g.me.allowed_moves) != 3: return
+        snakes = [snake for snake in g.others 
+                  if distance_vector_abs(snake.head, g.me.head) == (1,1)
+                  and is_adjacent(snake.head, g.me.neck)
+                  ]
+        if len(snakes) != 1: return
+        snake = take_first(snakes)
+        collision = take_first([a for a in g.me.allowed_moves if is_adjacent(a, snake.head)])
+        straight = take_first([a for a in g.me.allowed_moves if is_straight(a)])
+        if min(distance_to_border(straight)) > 1: return
+        avoid = take_first([a for a in g.me.allowed_moves if a not in [collision, straight]])
+        if avoid not in moves: return
+        snakes = [snake for snake in g.others
+                  if distance_pq(snake.head, g.me.head) == 4
+                  and path_distance_pq(snake.head, g.me.head) == 4
+                  and len([a for a in snake.allowed_moves 
+                           if distance_vector_abs(a, avoid) in [(0,2), (2,0)]
+                           and distance_pq(snake.head, g.me.head) < distance_pq(snake.head, g.me.neck)
+                           ]) != 0 ]
+        if len(snakes) != 1: return
+        g.decision_path.append("avoid two-snake trap config 204")
         return [avoid]
 
     def avoid_two_snake_trap_config_10(moves):
@@ -3287,6 +3312,7 @@ if __name__ == "__main__":
     log = {'id': '5e432b26-d204-4ebb-b6c0-80f4f27802c4', 'turn': 107, 'me': {'name': 'mark_snake', 'health': 100, 'length': 12, 'body': [(5, 10), (5, 9), (6, 9), (7, 9), (8, 9), (9, 9), (10, 9), (10, 8), (10, 7), (9, 7), (9, 6), (9, 6)], 'id': 'gs_tDyHD6QmYPQkw3Xycq4FDJHS'}, 'others': [{'name': 'mini snake', 'health': 88, 'length': 6, 'body': [(1, 8), (2, 8), (2, 9), (3, 9), (4, 9), (4, 8)], 'id': 'gs_7pfBbMCTSR6jTxhkdGSfJGjV'}, {'name': 'slieks', 'health': 60, 'length': 10, 'body': [(2, 7), (2, 6), (2, 5), (2, 4), (2, 3), (3, 3), (3, 2), (2, 2), (2, 1), (2, 0)], 'id': 'gs_K67tqDM9XyQkwR7RxMkm6PrF'}, {'name': '@~~~~@', 'health': 50, 'length': 9, 'body': [(7, 4), (7, 5), (7, 6), (7, 7), (6, 7), (5, 7), (5, 6), (4, 6), (4, 5)], 'id': 'gs_tmhd7YcYhJ9gyKvtcpdcBpB8'}], 'food': [(1, 9)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'chase other tail via (2, 9)'], 'next_coord': (4, 10), 'next_move': 'left', 'time': '0.024s'}
     log = {'id': 'f80392db-4580-4f05-956b-3d3b1347aa24', 'turn': 55, 'me': {'name': 'mark_snake', 'health': 68, 'length': 5, 'body': [(5, 8), (5, 7), (5, 6), (5, 5), (5, 4)], 'id': 'gs_VJM8F8Jy4SSffGtV7JHRMrDM'}, 'others': [{'name': 'mini snake', 'health': 95, 'length': 7, 'body': [(5, 2), (6, 2), (7, 2), (8, 2), (9, 2), (9, 3), (9, 4)], 'id': 'gs_HWYkHMgBGG87vBkSYxfpcHfY'}, {'name': 'Copy of snake2_v3_FINAL_final(1)', 'health': 94, 'length': 7, 'body': [(8, 9), (9, 9), (10, 9), (10, 8), (10, 7), (10, 6), (9, 6)], 'id': 'gs_VDmJKCWB9V99Y3QPVpbWWqkD'}, {'name': 'Gregory Megory', 'health': 99, 'length': 7, 'body': [(4, 7), (4, 6), (3, 6), (2, 6), (2, 5), (2, 4), (3, 4)], 'id': 'gs_dyGQjRJCRchJd9FgQtYJYb48'}], 'food': [(4, 10)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'avoid single collision [(4, 8)]', 'type 2 collision take avoid point', 'enemy chasing go straight'], 'next_coord': (5, 9), 'next_move': 'up', 'time': '0.024s'}
     log = {'id': 'f28ccb8a-a71c-4d89-b89c-f18e64738d91', 'turn': 22, 'me': {'name': 'mark_snake', 'health': 82, 'length': 4, 'body': [(6, 2), (5, 2), (4, 2), (4, 3)], 'id': 'gs_yyW7cyMHFcQCrXqRQ8DvKkbM'}, 'others': [{'name': 'slieks', 'health': 93, 'length': 6, 'body': [(9, 1), (9, 2), (8, 2), (8, 3), (7, 3), (6, 3)], 'id': 'gs_JgyJbfkW8yfqr3TfTwhKjr3X'}, {'name': 'Natterlie', 'health': 94, 'length': 6, 'body': [(6, 6), (6, 7), (6, 8), (5, 8), (5, 9), (5, 10)], 'id': 'gs_v7FmQhKQvQFQXYQmjXK7cpb8'}, {'name': '@~~~~@', 'health': 88, 'length': 4, 'body': [(7, 5), (7, 6), (8, 6), (8, 5)], 'id': 'gs_bxDGhBgTGg9XkDBwKWqfrdH7'}], 'food': [(8, 1)], 'module': 'decision_flow - github', 'decision_path': ['1vn'], 'next_coord': (7, 2), 'next_move': 'right', 'time': '0.021s'}
+    log = {'id': 'dc26094a-cba2-4687-9e3e-702779af9e69', 'turn': 30, 'me': {'name': 'mark_snake', 'health': 74, 'length': 4, 'body': [(2, 4), (3, 4), (4, 4), (4, 3)], 'id': 'gs_fMQDgRKMPbKbPqDPkXcWfPQF'}, 'others': [{'name': 'slieks', 'health': 88, 'length': 5, 'body': [(3, 3), (3, 2), (3, 1), (2, 1), (1, 1)], 'id': 'gs_FV4G9VwGcm4D4SwHV6vmkx77'}, {'name': 'Game of Chicken', 'health': 99, 'length': 8, 'body': [(2, 8), (2, 9), (3, 9), (3, 8), (3, 7), (3, 6), (3, 5), (4, 5)], 'id': 'gs_qkjx6SmbDHgRTwSVFFjKtK4b'}, {'name': 'Gregory Megory', 'health': 84, 'length': 5, 'body': [(6, 6), (6, 5), (6, 4), (7, 4), (8, 4)], 'id': 'gs_Y48RQmQDh67yx9q9kdbm7TgS'}], 'food': [(0, 3)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'avoid single collision [(2, 3)]', 'type 2 collision take avoid point', 'enemy chasing go straight'], 'next_coord': (1, 4), 'next_move': 'left', 'time': '0.017s'}
 
 
     game_state = init_from_log(log)
