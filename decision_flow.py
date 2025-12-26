@@ -143,7 +143,6 @@ def main(game_state, log=True, log_db=False):
             (cond(len(g.others) == 1 and g.me.length >= g.other.length)(avoid_cornered_bordered)),
             cond(g.me.length <= 6)(short_avoid_corner),
 
-
             attack_vulnerables_lower_priority,
             cond(len(g.others) > 1)(attempt_border_kill),
 
@@ -1439,7 +1438,11 @@ def main(game_state, log=True, log_db=False):
         
         multistep_terrritories(1)(moves)
         ok_set = [a for a in moves if combined_wayout(a)]
-        if len(ok_set) != 0 and len(ok_set) != len(moves):
+        if len(ok_set) == len(moves):
+            g.decision_path.append("split choice all good")
+        elif len(ok_set) == 0:
+            g.decision_path.append("split choice no good")
+        else:
             g.decision_path.append("split choice")
             return ok_set
 
@@ -1713,7 +1716,7 @@ def main(game_state, log=True, log_db=False):
         if ngroup != 1: return
         
         #not chased
-        if len(moves) == len(g.me.allowed_moves): return
+        #if len(moves) == len(g.me.allowed_moves): return
 
         cut_set = [p for a in g.me.territory for p in adj_cells(a)
                     if p in g.me.head_space and p not in g.me.territory ] 
@@ -1867,6 +1870,7 @@ def main(game_state, log=True, log_db=False):
         snake,max_index,wayout_length, wayout_point = take_first(choice)
 
         aset = trim_aset(aset, a, wayout_point)
+
         if len(aset) <= 2:
             if any([path_distance_pq(snake.head, a) <= 2 for a in g.food]):
                 if len(aset) >= wayout_length+1:
@@ -3349,11 +3353,10 @@ def init_from_game_engine_log(log, name):
     return game_state
 
 if __name__ == "__main__":
-    log = {'id': '254b2fbb-0423-4ca5-a9d5-8bbe08afc2e6', 'turn': 346, 'me': {'name': 'mark_snake', 'health': 87, 'length': 25, 'body': [(6, 0), (5, 0), (4, 0), (3, 0), (3, 1), (4, 1), (5, 1), (5, 2), (4, 2), (4, 3), (3, 3), (2, 3), (2, 2), (1, 2), (1, 3), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (1, 7), (2, 7), (3, 7), (4, 7), (4, 6)], 'id': 'gs_VmWvkp3JTpgvGbxFWwvwbxqF'}, 'others': [{'name': 'ich heisse marvin', 'health': 93, 'length': 16, 'body': [(5, 3), (5, 4), (4, 4), (4, 5), (5, 5), (5, 6), (5, 7), (5, 8), (6, 8), (6, 9), (7, 9), (8, 9), (9, 9), (10, 9), (10, 8), (10, 7)], 'id': 'gs_t8DVqBp6QpgdySH4R93jDt6G'}], 'food': [(2, 0), (6, 5), (5, 10)], 'module': 'decision_flow - github', 'decision_path': ['1v1', "vulnerable snakes: [('ich heisse marvin', 1, (6, 3))]", '1v1 longer push'], 'next_coord': (6, 1), 'next_move': 'up', 'time': '0.012s'}
-    log = {'id': '5363b775-74c0-4523-8491-4247c02dda0e', 'turn': 135, 'me': {'name': 'mark_snake', 'health': 97, 'length': 9, 'body': [(4, 3), (4, 4), (3, 4), (2, 4), (2, 5), (2, 6), (1, 6), (1, 7), (1, 8)], 'id': 'gs_JdV4P9DDmVBT7wyTMrwRVYQC'}, 'others': [{'name': 'slieks', 'health': 77, 'length': 12, 'body': [(4, 7), (3, 7), (3, 8), (4, 8), (5, 8), (6, 8), (6, 9), (7, 9), (8, 9), (8, 8), (7, 8), (7, 7)], 'id': 'gs_D966mXmHxbwDdjdYwDmYwV48'}, {'name': 'Game of Chicken', 'health': 100, 'length': 12, 'body': [(6, 3), (6, 4), (6, 5), (7, 5), (8, 5), (9, 5), (9, 6), (10, 6), (10, 7), (10, 8), (10, 9), (10, 9)], 'id': 'gs_XWXGG8y8cWvv9TGGdXPhPBKS'}, {'name': 'Copy of snake2_v3_FINAL_final(1)', 'health': 96, 'length': 16, 'body': [(0, 5), (0, 4), (1, 4), (1, 3), (1, 2), (1, 1), (2, 1), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0), (7, 0), (7, 1), (8, 1), (9, 1)], 'id': 'gs_FySkKwVXk6gQqDjhPjfXPvTG'}], 'food': [(3, 5), (3, 3)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'avoid single collision [(5, 3)]', 'next to food'], 'next_coord': (3, 3), 'next_move': 'left', 'time': '0.027s'}
-    log = {'id': '5363b775-74c0-4523-8491-4247c02dda0e', 'turn': 136, 'me': {'name': 'mark_snake', 'health': 97, 'length': 9, 'body': [(4,2), (4, 3), (4, 4), (3, 4), (2, 4), (2, 5), (2, 6), (1, 6), (1, 7)], 'id': 'gs_JdV4P9DDmVBT7wyTMrwRVYQC'}, 'others': [{'name': 'slieks', 'health': 77, 'length': 12, 'body': [(4,6), (4, 7), (3, 7), (3, 8), (4, 8), (5, 8), (6, 8), (6, 9), (7, 9), (8, 9), (8, 8), (7, 8)], 'id': 'gs_D966mXmHxbwDdjdYwDmYwV48'}, {'name': 'Game of Chicken', 'health': 100, 'length': 12, 'body': [(5,3), (6, 3), (6, 4), (6, 5), (7, 5), (8, 5), (9, 5), (9, 6), (10, 6), (10, 7), (10, 8), (10, 9)], 'id': 'gs_XWXGG8y8cWvv9TGGdXPhPBKS'}, {'name': 'Copy of snake2_v3_FINAL_final(1)', 'health': 96, 'length': 16, 'body': [(0,6), (0, 5), (0, 4), (1, 4), (1, 3), (1, 2), (1, 1), (2, 1), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0), (7, 0), (7, 1), (8, 1)], 'id': 'gs_FySkKwVXk6gQqDjhPjfXPvTG'}], 'food': [(3, 5), (3, 3)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'avoid single collision [(5, 3)]', 'next to food'], 'next_coord': (3, 3), 'next_move': 'left', 'time': '0.027s'}
-    log = {'id': '13437da6-d386-4db0-ae35-59c45089c81d', 'turn': 97, 'me': {'name': 'mark_snake', 'health': 94, 'length': 5, 'body': [(0, 9), (1, 9), (2, 9), (2, 8), (1, 8)], 'id': 'gs_SjYxfgfkrM9WpV3jVWWhxwpW'}, 'others': [{'name': 'Sandworm', 'health': 61, 'length': 9, 'body': [(4, 5), (3, 5), (2, 5), (1, 5), (1, 4), (1, 3), (1, 2), (2, 2), (3, 2)], 'id': 'gs_cXfXKfDJGCTQGjPdrPVMYxf4'}, {'name': 'slieks', 'health': 99, 'length': 10, 'body': [(1, 0), (0, 0), (0, 1), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (5, 2), (5, 3)], 'id': 'gs_MTcXhcy7jxtgbGr7Jq47dQ83'}, {'name': 'poc', 'health': 94, 'length': 13, 'body': [(4, 7), (4, 8), (4, 9), (4, 10), (5, 10), (6, 10), (7, 10), (7, 9), (6, 9), (5, 9), (5, 8), (6, 8), (7, 8)], 'id': 'gs_r94qGR6xFPccFGg9G4qmyScG'}], 'food': [(7, 3)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('slieks', 3, (4, 0))]"], 'next_coord': (0, 10), 'next_move': 'up', 'time': '0.010s'}
-    log = {'id': '4750f976-c05b-4211-af01-22697535827f', 'turn': 306, 'me': {'name': 'mark_snake', 'health': 96, 'length': 23, 'body': [(9, 7), (10, 7), (10, 6), (10, 5), (10, 4), (9, 4), (9, 3), (9, 2), (9, 1), (9, 0), (8, 0), (7, 0), (6, 0), (5, 0), (5, 1), (5, 2), (6, 2), (7, 2), (7, 3), (7, 4), (7, 5), (7, 6), (7, 7)], 'id': 'gs_rhcJGQfWbcPKctGDyk3VKHRM'}, 'others': [{'name': 'Red Yarn', 'health': 84, 'length': 33, 'body': [(6, 8), (5, 8), (5, 7), (6, 7), (6, 6), (6, 5), (6, 4), (6, 3), (5, 3), (4, 3), (4, 4), (3, 4), (3, 3), (3, 2), (3, 1), (3, 0), (2, 0), (2, 1), (2, 2), (2, 3), (2, 4), (2, 5), (3, 5), (4, 5), (4, 6), (3, 6), (2, 6), (2, 7), (2, 8), (2, 9), (3, 9), (4, 9), (5, 9)], 'id': 'gs_RvjMbWdbP64pjGPQ8WdptCCB'}], 'food': [(4, 10)], 'module': 'decision_flow - github', 'decision_path': ['1v1', 'move to territory border'], 'next_coord': (9, 8), 'next_move': 'up', 'time': '0.018s'}
+    log = {'id': '32e8a7d0-5c7e-4278-bec2-0d9e9ce88e20', 'turn': 131, 'me': {'name': 'mark_snake', 'health': 98, 'length': 10, 'body': [(2, 9), (2, 10), (3, 10), (4, 10), (4, 9), (5, 9), (5, 8), (4, 8), (3, 8), (2, 8)], 'id': 'gs_fD8GvXFbYMFgrvxwYYD6vqwX'}, 'others': [{'name': 'Sandworm', 'health': 87, 'length': 11, 'body': [(5, 4), (5, 3), (5, 2), (4, 2), (4, 3), (3, 3), (3, 2), (3, 1), (2, 1), (1, 1), (1, 2)], 'id': 'gs_DFpHmq68YRQvKTVXHQtjwTR3'}, {'name': 'slieks', 'health': 86, 'length': 7, 'body': [(8, 9), (7, 9), (6, 9), (6, 8), (6, 7), (7, 7), (8, 7)], 'id': 'gs_DdQRmRPHpwVVc6jGpyFgwyqS'}, {'name': 'Snaky  McSnakeface', 'health': 80, 'length': 13, 'body': [(0, 5), (0, 6), (0, 7), (1, 7), (1, 6), (1, 5), (2, 5), (2, 6), (3, 6), (3, 5), (4, 5), (4, 6), (5, 6)], 'id': 'gs_kV6qY9BwWxfhcKKHTD8P68yC'}], 'food': [(9, 10), (6, 2)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('Snaky  McSnakeface', 1, (0, 4))]", "vulnerable but I'm short", 'avoid next step single move'], 'next_coord': (2, 8), 'next_move': 'down', 'time': '0.074s'}
+    log = {'id': 'a53dbf1d-93fc-46ef-85ba-d87498ab2404', 'turn': 254, 'me': {'name': 'mark_snake', 'health': 95, 'length': 26, 'body': [(7, 9), (8, 9), (8, 8), (8, 7), (8, 6), (8, 5), (9, 5), (10, 5), (10, 4), (10, 3), (10, 2), (10, 1), (10, 0), (9, 0), (8, 0), (7, 0), (7, 1), (6, 1), (5, 1), (5, 2), (6, 2), (7, 2), (7, 3), (7, 4), (8, 4), (8, 3)], 'id': 'gs_pfJvmDQJVKfVbSxFpgVVV3mK'}, 'others': [{'name': 'SmartyRat', 'health': 79, 'length': 13, 'body': [(5, 9), (6, 9), (6, 8), (6, 7), (6, 6), (6, 5), (5, 5), (5, 4), (5, 3), (4, 3), (3, 3), (3, 2), (2, 2)], 'id': 'gs_9CRghjPD9v4TPcvSTDcgybjb'}, {'name': 'Kakemonsteret-v2', 'health': 97, 'length': 21, 'body': [(0, 0), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (1, 5), (2, 5), (2, 6), (2, 7), (2, 8), (2, 9), (3, 9), (3, 8), (3, 7), (3, 6), (3, 5), (3, 4), (4, 4), (4, 5), (4, 6)], 'id': 'gs_MRGmMgtqPBqJ7D8V9Q7CBYq7'}], 'food': [(0, 9), (6, 0), (9, 4), (10, 8)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('Kakemonsteret-v2', 1, (1, 0))]", 'get food (10, 8)'], 'next_coord': (7, 10), 'next_move': 'up', 'time': '0.014s'}
+    log = {'id': '27fcd32b-fc19-45b6-9be0-0e06ce086675', 'turn': 308, 'me': {'name': 'mark_snake', 'health': 95, 'length': 26, 'body': [(4, 4), (4, 3), (3, 3), (2, 3), (2, 4), (2, 5), (1, 5), (1, 4), (1, 3), (1, 2), (2, 2), (3, 2), (4, 2), (5, 2), (6, 2), (6, 1), (7, 1), (8, 1), (9, 1), (9, 2), (9, 3), (9, 4), (9, 5), (9, 6), (9, 7), (9, 8)], 'id': 'gs_j3pG38WkTdKMkBhwS4tCm8V4'}, 'others': [{'name': 'SmartyRat', 'health': 86, 'length': 17, 'body': [(7, 5), (7, 4), (6, 4), (5, 4), (5, 5), (6, 5), (6, 6), (6, 7), (5, 7), (4, 7), (3, 7), (3, 8), (2, 8), (2, 7), (2, 6), (3, 6), (3, 5)], 'id': 'gs_FJcj9rdrq9wFjqSxTYjhkRSJ'}], 'food': [(10, 0), (10, 8), (0, 1), (7, 7), (8, 7), (1, 7), (6, 0), (5, 10)], 'module': 'decision_flow - github', 'decision_path': ['1v1', 'avoid next step single move'], 'next_coord': (4, 5), 'next_move': 'up', 'time': '0.008s'}
+    log = {'id': '25a4ac8f-9e0f-49a5-b3fe-8ffab596b6ec', 'turn': 128, 'me': {'name': 'mark_snake', 'health': 98, 'length': 14, 'body': [(2, 10), (3, 10), (4, 10), (4, 9), (5, 9), (6, 9), (7, 9), (8, 9), (9, 9), (9, 8), (9, 7), (9, 6), (8, 6), (8, 7)], 'id': 'gs_WbqyggyjGcfPQYwXwdCGkQ6Q'}, 'others': [{'name': 'go-st', 'health': 86, 'length': 15, 'body': [(6, 6), (6, 5), (6, 4), (6, 3), (6, 2), (5, 2), (4, 2), (3, 2), (3, 3), (2, 3), (2, 4), (2, 5), (1, 5), (0, 5), (0, 6)], 'id': 'gs_Y4bm8yYMkjTv9kxXtMKD8gTQ'}, {'name': '@~~~~@', 'health': 84, 'length': 7, 'body': [(2, 8), (3, 8), (3, 7), (4, 7), (5, 7), (5, 6), (4, 6)], 'id': 'gs_bV9HjWKcpmwr8MXVgXp3XVx7'}], 'food': [(1, 8), (3, 6)], 'module': 'decision_flow - github', 'decision_path': ['1vn'], 'next_coord': (2, 9), 'next_move': 'down', 'time': '0.017s'}
 
 
     game_state = init_from_log(log)
