@@ -1743,23 +1743,18 @@ def main(game_state, log=True, log_db=False):
                     if p in g.me.head_space and p not in g.me.territory ] 
         cut_set = sorted(list(set(cut_set)))
  
-        #when to consider wayout
-        if len(cut_set) > 1: 
-            if cut_set_dim(cut_set) == 1:
-                return
-
         if len(cut_set) > 2:
             #if cut_set too long, don't consider cut danger
             return
         
         if len(cut_set) == 2:
-            #if cust_set not "connected", no cut danger
             a,b = cut_set
-            if not any([
-                is_adjacent(a, b),
-                distance_vector_abs(a, b) == (1,1),
-            ]):
-                return
+
+            #cut_set in a row, usually chasing, do not meander
+            if is_adjacent(a, b): return
+
+            #cut_set not connected, no confinement danger
+            if distance_vector_abs(a, b) != (1,1): return
    
         #tail
         if any([snake.tail in g.me.territory for snake in g.snakes]):
