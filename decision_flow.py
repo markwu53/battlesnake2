@@ -1748,7 +1748,6 @@ def main(game_state, log=True, log_db=False):
             if cut_set_dim(cut_set) == 1:
                 return
 
-        """
         if len(cut_set) > 2:
             #if cut_set too long, don't consider cut danger
             return
@@ -1761,7 +1760,6 @@ def main(game_state, log=True, log_db=False):
                 distance_vector_abs(a, b) == (1,1),
             ]):
                 return
-        """
    
         #tail
         if any([snake.tail in g.me.territory for snake in g.snakes]):
@@ -3364,6 +3362,9 @@ if __name__ == "__main__":
     log = {'id': '25a4ac8f-9e0f-49a5-b3fe-8ffab596b6ec', 'turn': 128, 'me': {'name': 'mark_snake', 'health': 98, 'length': 14, 'body': [(2, 10), (3, 10), (4, 10), (4, 9), (5, 9), (6, 9), (7, 9), (8, 9), (9, 9), (9, 8), (9, 7), (9, 6), (8, 6), (8, 7)], 'id': 'gs_WbqyggyjGcfPQYwXwdCGkQ6Q'}, 'others': [{'name': 'go-st', 'health': 86, 'length': 15, 'body': [(6, 6), (6, 5), (6, 4), (6, 3), (6, 2), (5, 2), (4, 2), (3, 2), (3, 3), (2, 3), (2, 4), (2, 5), (1, 5), (0, 5), (0, 6)], 'id': 'gs_Y4bm8yYMkjTv9kxXtMKD8gTQ'}, {'name': '@~~~~@', 'health': 84, 'length': 7, 'body': [(2, 8), (3, 8), (3, 7), (4, 7), (5, 7), (5, 6), (4, 6)], 'id': 'gs_bV9HjWKcpmwr8MXVgXp3XVx7'}], 'food': [(1, 8), (3, 6)], 'module': 'decision_flow - github', 'decision_path': ['1vn'], 'next_coord': (2, 9), 'next_move': 'down', 'time': '0.017s'}
     log = {'id': 'c55ec3ed-2ede-45a5-ba96-d50411f79ce4', 'turn': 142, 'me': {'name': 'mark_snake', 'health': 84, 'length': 13, 'body': [(9, 9), (8, 9), (8, 8), (8, 7), (8, 6), (9, 6), (10, 6), (10, 5), (10, 4), (10, 3), (9, 3), (9, 2), (9, 1)], 'id': 'gs_7Cp9RpK9dFMtkPT8BfTw9yyY'}, 'others': [{'name': 'go-st', 'health': 30, 'length': 8, 'body': [(2, 4), (2, 3), (1, 3), (1, 2), (1, 1), (2, 1), (2, 0), (3, 0)], 'id': 'gs_ySDFBwfb4JBGxTQHjYDxHSvC'}, {'name': 'ich heisse marvin', 'health': 100, 'length': 11, 'body': [(0, 6), (0, 5), (1, 5), (2, 5), (3, 5), (4, 5), (4, 6), (4, 7), (4, 8), (4, 9), (4, 9)], 'id': 'gs_gt4c3XV7tS4cjrFppvMt83CF'}, {'name': '@~~~~@', 'health': 81, 'length': 14, 'body': [(5, 7), (6, 7), (7, 7), (7, 6), (7, 5), (6, 5), (6, 4), (7, 4), (7, 3), (6, 3), (5, 3), (5, 4), (4, 4), (3, 4)], 'id': 'gs_xKPy6VqxxDcH9H3vhq46hxMC'}], 'food': [(0, 8), (5, 10)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'wayout longer cut'], 'next_coord': (10, 9), 'next_move': 'right', 'time': '0.018s'}
     log = {'id': 'c55ec3ed-2ede-45a5-ba96-d50411f79ce4', 'turn': 141, 'me': {'name': 'mark_snake', 'health': 85, 'length': 13, 'body': [(8, 9), (8, 8), (8, 7), (8, 6), (9, 6), (10, 6), (10, 5), (10, 4), (10, 3), (9, 3), (9, 2), (9, 1), (8, 1)], 'id': 'gs_7Cp9RpK9dFMtkPT8BfTw9yyY'}, 'others': [{'name': 'go-st', 'health': 31, 'length': 8, 'body': [(2, 3), (1, 3), (1, 2), (1, 1), (2, 1), (2, 0), (3, 0), (4, 0)], 'id': 'gs_ySDFBwfb4JBGxTQHjYDxHSvC'}, {'name': 'ich heisse marvin', 'health': 44, 'length': 10, 'body': [(0, 5), (1, 5), (2, 5), (3, 5), (4, 5), (4, 6), (4, 7), (4, 8), (4, 9), (3, 9)], 'id': 'gs_gt4c3XV7tS4cjrFppvMt83CF'}, {'name': '@~~~~@', 'health': 82, 'length': 14, 'body': [(6, 7), (7, 7), (7, 6), (7, 5), (6, 5), (6, 4), (7, 4), (7, 3), (6, 3), (5, 3), (5, 4), (4, 4), (3, 4), (2, 4)], 'id': 'gs_xKPy6VqxxDcH9H3vhq46hxMC'}], 'food': [(0, 6), (0, 8), (5, 10)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'split2 choose more space'], 'next_coord': (9, 9), 'next_move': 'right', 'time': '0.027s'}
+    log = {'id': '9c262f9b-3734-4077-9192-9fce9d8f959b', 'turn': 386, 'me': {'name': 'mark_snake', 'health': 90, 'length': 31, 'body': [(7, 5), (6, 5), (5, 5), (4, 5), (4, 6), (5, 6), (6, 6), (6, 7), (6, 8), (5, 8), (4, 8), (3, 8), (2, 8), (1, 8), (1, 9), (1, 10), (2, 10), (2, 9), (3, 9), (4, 9), (5, 9), (6, 9), (7, 9), (8, 9), (8, 8), (8, 7), (8, 6), (9, 6), (9, 7), (9, 8), (9, 9)], 'id': 'gs_3G7v3DG9qxJc8gq7gfqwK969'}, 'others': [{'name': 'Natterlie', 'health': 88, 'length': 31, 'body': [(7, 3), (6, 3), (6, 4), (5, 4), (4, 4), (3, 4), (2, 4), (1, 4), (0, 4), (0, 3), (1, 3), (2, 3), (3, 3), (3, 2), (4, 2), (5, 2), (5, 1), (6, 1), (7, 1), (8, 1), (9, 1), (10, 1), (10, 2), (10, 3), (10, 4), (9, 4), (9, 3), (9, 2), (8, 2), (8, 3), (8, 4)], 'id': 'gs_h8tTw6xXSKFGGJTkS43T6TjP'}], 'food': [(0, 2), (5, 10), (4, 10), (7, 8)], 'module': 'decision_flow - github', 'decision_path': ['1v1', 'split avoid self confined moves', 'prefer less split'], 'next_coord': (7, 4), 'next_move': 'down', 'time': '0.011s'}
+    log = {'id': '0fd41404-5661-464b-b5e7-de7a8797cd07', 'turn': 188, 'me': {'name': 'mark_snake', 'health': 94, 'length': 12, 'body': [(1, 1), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (1, 5), (1, 6), (1, 7), (1, 8), (0, 8), (0, 9)], 'id': 'gs_Rxgmvmd8bp9xmmF4c6YtbJr9'}, 'others': [{'name': '@~~~~@', 'health': 36, 'length': 16, 'body': [(4, 2), (4, 3), (5, 3), (6, 3), (6, 4), (6, 5), (6, 6), (6, 7), (5, 7), (4, 7), (3, 7), (2, 7), (2, 6), (3, 6), (4, 6), (4, 5)], 'id': 'gs_v776qqFrTR7Y7KDdfqgk69p3'}], 'food': [(3, 8), (2, 10)], 'module': 'decision_flow - github', 'decision_path': ['1v1', 'try wayout', 'meander'], 'next_coord': (1, 0), 'next_move': 'down', 'time': '0.024s'}
+
 
 
     game_state = init_from_log(log)
