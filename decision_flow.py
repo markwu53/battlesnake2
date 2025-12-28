@@ -176,7 +176,7 @@ def main(game_state, log=True, log_db=False):
             (cond(g.me.length <= 12)(multi_step_collision)),
 
             cond(len(g.others) == 1 and g.me.length < g.other.length)(shorter_goto_territory_border),
-            move_to_largest_territory_component,
+            cond(len(g.others) > 1)(move_to_largest_territory_component),
             
             #this seems doesn't work
             #disable it
