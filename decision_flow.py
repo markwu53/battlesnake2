@@ -101,7 +101,6 @@ def main(game_state, log=True, log_db=False):
             (cond(len(g.others) > 1)(avoid_two_step_collision)),
 
             avoid_food_split_confine,
-            avoid_food_split_confine,
             (cond(g.me.length >= 9)(split_choice)),
 
             (cut_kill_oppotunity),
