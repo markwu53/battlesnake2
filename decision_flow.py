@@ -176,6 +176,7 @@ def main(game_state, log=True, log_db=False):
             (cond(g.me.length <= 12)(multi_step_collision)),
 
             cond(len(g.others) == 1 and g.me.length < g.other.length)(shorter_goto_territory_border),
+            move_to_largest_territory_component,
             
             #this seems doesn't work
             #disable it
@@ -459,6 +460,20 @@ def main(game_state, log=True, log_db=False):
         nabors = [b for b in piece if b != a and (is_adjacent(a, b) or distance_vector_abs(a, b) == (1,1))]
         return len(nabors) == 1
 
+    def move_to_largest_territory_component(moves):
+        territory = g.me.territory
+        if len(territory) >= 2:
+            multistep_terrritories(2)(moves)
+            territory = g.me.territory2
+
+        territory_component = largest_territory_component(territory)
+        if len(territory_component) == 0: return
+        if len(territory_component) == len(territory): return
+        moves = [a for a in moves if a in territory_component]
+        if len(moves) != 0:
+            g.decision_path.append("move to largest territory component")
+            return moves
+
     def shorter_goto_territory_border(moves):
         #used in 1v1 and shorter
         #go to territory border
@@ -484,6 +499,7 @@ def main(game_state, log=True, log_db=False):
             if terminal_move in moves:
                 g.decision_path.append("move to territory border")
                 return [terminal_move]
+
         x0,y0 = g.me.head
         x1,y1 = target_terminal
         v1 = (x0,y1)
@@ -502,30 +518,6 @@ def main(game_state, log=True, log_db=False):
         terminal_moves = [a for a in terminal_moves if a in path_moves and a in moves]
         if len(terminal_moves) != 0:
             g.decision_path.append(f"move to territory border via {preferred_v}")
-            return terminal_moves
-
-    def move_close_to_open_space(moves):
-        killers = [snake for snake in g.others if snake.length > g.me.length and path_distance_pq(snake.head, g.me.head) <= 6]
-        if len(killers) == 0: return
-
-        ngroup = move_connected_group(moves)
-        if ngroup != 1: return
-
-        territory_border = [a for a in g.me.territory for p in adj_cells(a) if p not in g.me.territory and p not in g.occupied_cells[0]]
-        territory_border = sorted(list(set(territory_border)))
-        if len(territory_border) == 0: return
-        pieces = connected_pieces(territory_border)
-        if len(pieces) != 1: return
-        piece = take_first(pieces)
-
-        terminals = [a for a in piece if is_connected_piece_terminal(a, piece)]
-        if len(terminals) == 0: return
-        target_terminal = prefer_by_score(lambda a: path_distance_pq(a, g.me.head))(terminals)
-        target_terminal = take_first(target_terminal)
-        terminal_moves = shortest_path_move(g.me.head, target_terminal)
-        terminal_moves = [a for a in moves if a in terminal_moves]
-        if len(terminal_moves) != 0:
-            g.decision_path.append(f"move close to open space {target_terminal}")
             return terminal_moves
 
     def killer_near_prefer_away_border(moves):
@@ -3364,6 +3356,7 @@ if __name__ == "__main__":
     log = {'id': '90669e9b-2748-41c4-b839-d2b9d8a813a3', 'turn': 118, 'me': {'name': 'mark_snake', 'health': 80, 'length': 8, 'body': [(9, 7), (8, 7), (7, 7), (6, 7), (5, 7), (4, 7), (3, 7), (3, 6)], 'id': 'gs_xwb3KjJbFqfFkPWc3XbdtfG8'}, 'others': [{'name': 'mini snake', 'health': 85, 'length': 9, 'body': [(6, 4), (5, 4), (4, 4), (3, 4), (2, 4), (2, 5), (3, 5), (4, 5), (5, 5)], 'id': 'gs_WyDwJ8FmgFS8pf3Vp9pjhpxH'}, {'name': '@~~~~@', 'health': 92, 'length': 12, 'body': [(8, 8), (7, 8), (6, 8), (5, 8), (4, 8), (3, 8), (2, 8), (1, 8), (0, 8), (0, 7), (0, 6), (0, 5)], 'id': 'gs_jYgw4JBpmX6VrdbtM7SmtSxc'}], 'food': [(0, 10), (10, 5), (9, 3), (4, 9)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'avoid single collision [(9, 8)]', 'type 2 collision take avoid point', 'try wayout', 'meander'], 'next_coord': (10, 7), 'next_move': 'right', 'time': '0.018s'}
     log = {'id': '797bdc7c-6741-4fb2-bee5-b2cb3f7e3203', 'turn': 94, 'me': {'name': 'mark_snake', 'health': 88, 'length': 12, 'body': [(2, 6), (3, 6), (4, 6), (5, 6), (6, 6), (7, 6), (7, 5), (8, 5), (9, 5), (9, 4), (9, 3), (9, 2)], 'id': 'gs_mvmB977P6qChVdTrbMbJwCgB'}, 'others': [{'name': 'SmartyRat', 'health': 80, 'length': 7, 'body': [(2, 8), (2, 7), (3, 7), (4, 7), (5, 7), (6, 7), (7, 7)], 'id': 'gs_yRPvhmFJfxF7CCqqMwTYk9w4'}, {'name': 'Gregory Megory', 'health': 97, 'length': 13, 'body': [(5, 5), (4, 5), (4, 4), (4, 3), (3, 3), (2, 3), (1, 3), (1, 4), (1, 5), (0, 5), (0, 4), (0, 3), (0, 2)], 'id': 'gs_G7bQtW834cCxf6TgCCVj7qrG'}], 'food': [(0, 10), (3, 8)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'split choice all good'], 'next_coord': (2, 5), 'next_move': 'down', 'time': '0.029s'}
     log = {'id': 'b528b1de-01cb-4c5d-84d1-d6f2f88b9a58', 'turn': 74, 'me': {'name': 'mark_snake', 'health': 97, 'length': 10, 'body': [(6, 2), (5, 2), (5, 3), (5, 4), (6, 4), (7, 4), (7, 5), (7, 6), (7, 7), (6, 7)], 'id': 'gs_XgTJkmDYppxvxk6JYwqxybtD'}, 'others': [{'name': 'mini snake', 'health': 28, 'length': 4, 'body': [(2, 2), (2, 1), (3, 1), (4, 1)], 'id': 'gs_jX8Mdj3rkp6tyjcGM8ch7B83'}, {'name': 'SmartyRat', 'health': 98, 'length': 8, 'body': [(10, 0), (9, 0), (8, 0), (8, 1), (8, 2), (8, 3), (8, 4), (8, 5)], 'id': 'gs_DhTxQKGqdKKV6QvXtQxFjvFP'}, {'name': 'Natterlie', 'health': 97, 'length': 7, 'body': [(4, 8), (4, 7), (4, 6), (4, 5), (4, 4), (3, 4), (3, 3)], 'id': 'gs_gYTwkc6yW87SVkDyCCY6vDj7'}], 'food': [(6, 9)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('SmartyRat', 1, (10, 1))]", 'chase other tail via (8, 2) detour', 'split2 choose spacious'], 'next_coord': (6, 1), 'next_move': 'down', 'time': '0.110s'}
+    log = {'id': '92eed225-ff63-46ff-b057-d33d5cef4c29', 'turn': 97, 'me': {'name': 'mark_snake', 'health': 82, 'length': 10, 'body': [(3, 4), (3, 5), (3, 6), (3, 7), (3, 8), (2, 8), (2, 7), (2, 6), (1, 6), (0, 6)], 'id': 'gs_SmhgpPRXk6v8CqRxDqdbJFk7'}, 'others': [{'name': 'SmartyRat', 'health': 99, 'length': 8, 'body': [(0, 5), (1, 5), (1, 4), (1, 3), (1, 2), (2, 2), (3, 2), (4, 2)], 'id': 'gs_hDqjJYc8YjHJJ9k3vXKhmxXT'}, {'name': 'ich heisse marvin', 'health': 93, 'length': 13, 'body': [(4, 1), (5, 1), (6, 1), (7, 1), (8, 1), (8, 2), (7, 2), (6, 2), (6, 3), (7, 3), (7, 4), (7, 5), (6, 5)], 'id': 'gs_cwHYWKQfPRd8PrG9rQf9TdSH'}, {'name': '@~~~~@', 'health': 85, 'length': 6, 'body': [(5, 4), (5, 5), (5, 6), (6, 6), (6, 7), (5, 7)], 'id': 'gs_YycpGvWQdfc6jrS33pPwqKdT'}], 'food': [(5, 3)], 'module': 'decision_flow - github', 'decision_path': ['1vn'], 'next_coord': (3, 3), 'next_move': 'down', 'time': '0.080s'}
 
 
 
