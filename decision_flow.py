@@ -804,12 +804,13 @@ def main(game_state, log=True, log_db=False):
 
         chasing_info = [(i,c,p, path_distance_pq(g.me.head, p), target.length-i-1) 
                         for i,c in enumerate(target.body)
-                        if c != target.head and c not in target.body[-3:]
+                        if c != target.head and c not in target.body[-2:]
                         #and path_distance_pq(g.me.head, c) == distance_pq(g.me.head, c) 
                         for p in adj_cells(c) if p in g.me.territory
                         ]
         #distance within 4
         chasing_info = [info for info in chasing_info for i,c,p,d,t in [info] if abs(d-t) <= 3]
+        for info in chasing_info: print(info)
         if len(chasing_info) == 0: return
         chasing_info = prefer_by_rank(lambda a: abs(a[3]-a[4]))(chasing_info)
         chasing_info = prefer_by_score(lambda a: a[0])(chasing_info)
@@ -3361,6 +3362,7 @@ if __name__ == "__main__":
     log = {'id': '0fd41404-5661-464b-b5e7-de7a8797cd07', 'turn': 188, 'me': {'name': 'mark_snake', 'health': 94, 'length': 12, 'body': [(1, 1), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (1, 5), (1, 6), (1, 7), (1, 8), (0, 8), (0, 9)], 'id': 'gs_Rxgmvmd8bp9xmmF4c6YtbJr9'}, 'others': [{'name': '@~~~~@', 'health': 36, 'length': 16, 'body': [(4, 2), (4, 3), (5, 3), (6, 3), (6, 4), (6, 5), (6, 6), (6, 7), (5, 7), (4, 7), (3, 7), (2, 7), (2, 6), (3, 6), (4, 6), (4, 5)], 'id': 'gs_v776qqFrTR7Y7KDdfqgk69p3'}], 'food': [(3, 8), (2, 10)], 'module': 'decision_flow - github', 'decision_path': ['1v1', 'try wayout', 'meander'], 'next_coord': (1, 0), 'next_move': 'down', 'time': '0.024s'}
     log = {'id': '90669e9b-2748-41c4-b839-d2b9d8a813a3', 'turn': 118, 'me': {'name': 'mark_snake', 'health': 80, 'length': 8, 'body': [(9, 7), (8, 7), (7, 7), (6, 7), (5, 7), (4, 7), (3, 7), (3, 6)], 'id': 'gs_xwb3KjJbFqfFkPWc3XbdtfG8'}, 'others': [{'name': 'mini snake', 'health': 85, 'length': 9, 'body': [(6, 4), (5, 4), (4, 4), (3, 4), (2, 4), (2, 5), (3, 5), (4, 5), (5, 5)], 'id': 'gs_WyDwJ8FmgFS8pf3Vp9pjhpxH'}, {'name': '@~~~~@', 'health': 92, 'length': 12, 'body': [(8, 8), (7, 8), (6, 8), (5, 8), (4, 8), (3, 8), (2, 8), (1, 8), (0, 8), (0, 7), (0, 6), (0, 5)], 'id': 'gs_jYgw4JBpmX6VrdbtM7SmtSxc'}], 'food': [(0, 10), (10, 5), (9, 3), (4, 9)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'avoid single collision [(9, 8)]', 'type 2 collision take avoid point', 'try wayout', 'meander'], 'next_coord': (10, 7), 'next_move': 'right', 'time': '0.018s'}
     log = {'id': '797bdc7c-6741-4fb2-bee5-b2cb3f7e3203', 'turn': 94, 'me': {'name': 'mark_snake', 'health': 88, 'length': 12, 'body': [(2, 6), (3, 6), (4, 6), (5, 6), (6, 6), (7, 6), (7, 5), (8, 5), (9, 5), (9, 4), (9, 3), (9, 2)], 'id': 'gs_mvmB977P6qChVdTrbMbJwCgB'}, 'others': [{'name': 'SmartyRat', 'health': 80, 'length': 7, 'body': [(2, 8), (2, 7), (3, 7), (4, 7), (5, 7), (6, 7), (7, 7)], 'id': 'gs_yRPvhmFJfxF7CCqqMwTYk9w4'}, {'name': 'Gregory Megory', 'health': 97, 'length': 13, 'body': [(5, 5), (4, 5), (4, 4), (4, 3), (3, 3), (2, 3), (1, 3), (1, 4), (1, 5), (0, 5), (0, 4), (0, 3), (0, 2)], 'id': 'gs_G7bQtW834cCxf6TgCCVj7qrG'}], 'food': [(0, 10), (3, 8)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'split choice all good'], 'next_coord': (2, 5), 'next_move': 'down', 'time': '0.029s'}
+    log = {'id': 'b528b1de-01cb-4c5d-84d1-d6f2f88b9a58', 'turn': 74, 'me': {'name': 'mark_snake', 'health': 97, 'length': 10, 'body': [(6, 2), (5, 2), (5, 3), (5, 4), (6, 4), (7, 4), (7, 5), (7, 6), (7, 7), (6, 7)], 'id': 'gs_XgTJkmDYppxvxk6JYwqxybtD'}, 'others': [{'name': 'mini snake', 'health': 28, 'length': 4, 'body': [(2, 2), (2, 1), (3, 1), (4, 1)], 'id': 'gs_jX8Mdj3rkp6tyjcGM8ch7B83'}, {'name': 'SmartyRat', 'health': 98, 'length': 8, 'body': [(10, 0), (9, 0), (8, 0), (8, 1), (8, 2), (8, 3), (8, 4), (8, 5)], 'id': 'gs_DhTxQKGqdKKV6QvXtQxFjvFP'}, {'name': 'Natterlie', 'health': 97, 'length': 7, 'body': [(4, 8), (4, 7), (4, 6), (4, 5), (4, 4), (3, 4), (3, 3)], 'id': 'gs_gYTwkc6yW87SVkDyCCY6vDj7'}], 'food': [(6, 9)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('SmartyRat', 1, (10, 1))]", 'chase other tail via (8, 2) detour', 'split2 choose spacious'], 'next_coord': (6, 1), 'next_move': 'down', 'time': '0.110s'}
 
 
 
