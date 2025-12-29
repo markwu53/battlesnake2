@@ -66,7 +66,7 @@ def main(game_state, log=True, log_db=False):
         return seq([
             some_calculations,
 
-            (immediate_kill_oppotunity),
+            (immediate_kill_opportunity),
 
             (avoid_single_collision_dead),
             avoid_next_step_no_move,
@@ -82,10 +82,10 @@ def main(game_state, log=True, log_db=False):
             (type_1_collision),
 
             avoid_two_snake_trap_config_11,
-            chasing_kill_oppotunity,
-            (collision_cut_oppotunity),
+            chasing_kill_opportunity,
+            (collision_cut_opportunity),
 
-            (suppressed_chasing_kill_oppotunity),
+            (suppressed_chasing_kill_opportunity),
 
             (prefer_not(entering_danger(suppressed_chasing_kill_situation))),
             (prefer_not(entering_danger(border_confront_kill_situation))),
@@ -94,27 +94,29 @@ def main(game_state, log=True, log_db=False):
 
             (type_2_collision),
 
-            (trap_kill_oppotunity),
+            (trap_kill_opportunity),
 
             avoid_border_type_1_collision,
 
             #two step collision mean crowded, don't go
             (cond(len(g.others) > 1)(avoid_two_step_collision)),
 
+            two_snake_kill_opportunity,
+
             avoid_food_split_confine,
             split_avoid_square2,
             (cond(g.me.length >= 9)(split_choice)),
 
-            (cut_kill_oppotunity),
-            general_suppressed_chasing_kill_oppotunity,
+            (cut_kill_opportunity),
+            general_suppressed_chasing_kill_opportunity,
 
             #cond(g.me.length >= 12)(par([ split_choice, collision_take_risk, ])),
             (attack_vulnerables),
-            border_confront_kill_oppotunity,
-            general_confront_kill_oppotunity,
+            border_confront_kill_opportunity,
+            general_confront_kill_opportunity,
 
             #this seems not effective
-            #partial_cut_oppotunity,
+            #partial_cut_opportunity,
 
             #(cond(g.me.length >= 12)(split_choice)),
             (cond(len(g.others) == 1)(split_choice)),
@@ -1049,8 +1051,34 @@ def main(game_state, log=True, log_db=False):
         distv = distance_to_border(p)
         return sum(distv) <= 2
 
-    def avoid_two_snake_trap(moves):
-        pass
+    def two_snake_kill_opportunity(moves):
+        #my position
+        snake = [snake for snake in g.others
+                 if g.me.length > snake.length
+                     and any([
+                     distance_vector_abs(snake.head, g.me.head) == (1,1) and is_adjacent(g.me.head, snake.neck),
+                     distance_vector_abs(g.me.head, snake.head) in [(0,2), (2,0)],
+                     ]) ]
+        if len(snake) != 1: return
+        target = take_first(snake)
+        collision = [a for a in moves if is_adjacent(a, target.head)]
+        if len(collision) != 1: return
+        collision = take_first(collision)
+
+        snake = [snake for snake in g.others
+                 if snake.length > target.length
+                     and any([
+                     distance_vector_abs(snake.head, target.head) == (1,1) and is_adjacent(snake.head, target.neck),
+                     distance_vector_abs(snake.head, target.head) in [(0,2), (2,0)],
+                     ]) ]
+        if len(snake) != 1: return
+        other = take_first(snake)
+        other_collision = [a for a in other.allowed_moves if is_adjacent(a, target.head)]
+        if len(other_collision) != 1: return
+        other_collision = take_first(other_collision)
+        if distance_vector_abs(collision, other_collision) == (1,1): return
+        g.decision_path.append("two-snake kill opportunity")
+        return [collision]
 
     def avoid_two_snake_trap_config_11(moves):
         snakes = [snake for snake in g.others if distance_vector_abs(snake.head, g.me.head) == (1,1)]
@@ -1975,7 +2003,7 @@ def main(game_state, log=True, log_db=False):
                 return True
         return False
 
-    def cut_kill_oppotunity(moves):
+    def cut_kill_opportunity(moves):
         if not cut_kill_target():
             return
 
@@ -2301,7 +2329,7 @@ def main(game_state, log=True, log_db=False):
             len([a for a in killer.allowed_moves if off_border_1(a) and distance_pq(a, target.head) == 3]) == 1,
         ])
 
-    def trap_kill_oppotunity(moves):
+    def trap_kill_opportunity(moves):
         for snake in g.others:
             if trap_kill_situation(g.me, snake):
                 if any([on_border(c) for c in g.me.body if c != g.me.head]):
@@ -2336,7 +2364,7 @@ def main(game_state, log=True, log_db=False):
                 return True
         return False
 
-    def border_confront_kill_oppotunity(moves):
+    def border_confront_kill_opportunity(moves):
         for snake in g.others:
             if border_confront_kill_situation(g.me, snake):
                 g.target_snake = snake
@@ -2405,7 +2433,7 @@ def main(game_state, log=True, log_db=False):
         b = take_first(b)
         return distance_vector_abs(a, b) == (1,1)
 
-    def general_confront_kill_oppotunity(moves):
+    def general_confront_kill_opportunity(moves):
         for snake in g.others:
             if general_confront_kill_situation(g.me, snake):
                 g.target_snake = snake
@@ -2429,7 +2457,7 @@ def main(game_state, log=True, log_db=False):
                 return True
         return False
 
-    def general_suppressed_chasing_kill_oppotunity(moves):
+    def general_suppressed_chasing_kill_opportunity(moves):
         for snake in g.others:
             if g.me.length <= snake.length: continue
             if len(snake.allowed_moves) != 2: continue
@@ -2445,7 +2473,7 @@ def main(game_state, log=True, log_db=False):
             g.decision_path.append("general suppressed chasing")
             return [collision]
 
-    def suppressed_chasing_kill_oppotunity(moves):
+    def suppressed_chasing_kill_opportunity(moves):
         for snake in g.others:
             if suppressed_chasing_kill_situation(g.me, snake):
                 kill_moves = [a for a in moves if a in snake.allowed_moves]
@@ -2489,7 +2517,7 @@ def main(game_state, log=True, log_db=False):
 
         return False
 
-    def chasing_kill_oppotunity(moves):
+    def chasing_kill_opportunity(moves):
         snake = [snake for snake in g.others 
                   if g.me.length > snake.length
                   and distance_vector_abs(g.me.head, snake.head) == (1,1) 
@@ -2513,7 +2541,7 @@ def main(game_state, log=True, log_db=False):
             g.decision_path.append(f"chasing kill {collision}")
             return [collision]
 
-    def collision_cut_oppotunity(moves):
+    def collision_cut_opportunity(moves):
         snakes = [snake for snake in g.others if distance_vector_abs(g.me.head, snake.head) == (1,1) and g.me.length > snake.length]
         if len(snakes) == 0:
             return
@@ -2652,7 +2680,7 @@ def main(game_state, log=True, log_db=False):
             return [one_set]
         return [one_set] + connected_pieces(rest_set)
 
-    def partial_cut_oppotunity(moves):
+    def partial_cut_opportunity(moves):
         #choose a target
         for snake in g.others:
             cut_set = [p for a in snake.territory for p in adj_cells(a) if p not in snake.territory and p not in g.occupied_cells[0]]
@@ -2799,7 +2827,7 @@ def main(game_state, log=True, log_db=False):
             if len(moves) != 0:
                 return moves
 
-    def immediate_kill_oppotunity(moves):
+    def immediate_kill_opportunity(moves):
         for snake in g.others:
             if immediate_kill_situation(g.me, snake):
                 kill_moves = [a for a in moves if is_adjacent(a, snake.head)]
@@ -3402,6 +3430,7 @@ if __name__ == "__main__":
     log = {'id': '0da262d2-9ecf-4616-8c09-ae7766f5be20', 'turn': 137, 'me': {'name': 'mark_snake', 'health': 80, 'length': 13, 'body': [(7, 2), (6, 2), (5, 2), (4, 2), (4, 3), (4, 4), (4, 5), (3, 5), (3, 4), (3, 3), (2, 3), (2, 4), (2, 5)], 'id': 'gs_d3MP4k9K4krP6pYmprXvWvkR'}, 'others': [{'name': 'go-st', 'health': 86, 'length': 11, 'body': [(8, 1), (7, 1), (6, 1), (6, 0), (5, 0), (4, 0), (3, 0), (2, 0), (1, 0), (1, 1), (1, 2)], 'id': 'gs_tQKxYrhhJBdXMWV4DSjPVC9D'}, {'name': 'ich heisse marvin', 'health': 52, 'length': 8, 'body': [(1, 6), (1, 7), (1, 8), (1, 9), (2, 9), (2, 8), (3, 8), (4, 8)], 'id': 'gs_BvQdxWvpJMGSWgVHS93x68Tb'}, {'name': 'Gregory Megory', 'health': 84, 'length': 11, 'body': [(10, 5), (10, 4), (9, 4), (9, 5), (8, 5), (8, 6), (8, 7), (8, 8), (7, 8), (7, 7), (7, 6)], 'id': 'gs_3bJ8MxqhSDYwRQFM94Q9qjT8'}], 'food': [(10, 10), (10, 0), (0, 0), (3, 10)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('Gregory Megory', 1, (10, 6))]", 'preliminary cut kill target: go-st', 'go cut to (10, 2)'], 'next_coord': (8, 2), 'next_move': 'right', 'time': '0.018s'}
     log = {'id': 'd9a935b4-aa4a-43b5-a1bf-2538e8e504ef', 'turn': 159, 'me': {'name': 'mark_snake', 'health': 91, 'length': 14, 'body': [(3, 6), (3, 7), (3, 8), (4, 8), (5, 8), (6, 8), (7, 8), (8, 8), (9, 8), (9, 7), (8, 7), (7, 7), (6, 7), (5, 7)], 'id': 'gs_CryR7DRDBtk7xbhpB37hQddV'}, 'others': [{'name': 'SmartyRat', 'health': 85, 'length': 12, 'body': [(3, 4), (3, 3), (2, 3), (2, 2), (3, 2), (4, 2), (4, 1), (5, 1), (5, 2), (5, 3), (5, 4), (6, 4)], 'id': 'gs_qfg3m9PrMx77qtqP6rxdpC4J'}, {'name': 'Game of Chicken', 'health': 83, 'length': 11, 'body': [(2, 5), (1, 5), (1, 4), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8), (1, 8), (1, 7), (1, 6)], 'id': 'gs_mgSXK9jhMG74vcB8wgKH4DJf'}, {'name': '@~~~~@', 'health': 96, 'length': 12, 'body': [(7, 4), (7, 3), (6, 3), (6, 2), (6, 1), (7, 1), (8, 1), (8, 2), (9, 2), (9, 3), (10, 3), (10, 4)], 'id': 'gs_RDfqXh3yFppJPYY3k9w6jYkW'}], 'food': [(10, 10)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'split choice all good', 'longer confront push'], 'next_coord': (3, 5), 'next_move': 'down', 'time': '0.061s'}
     log = {'id': 'a057296d-f1d1-4657-bd92-9db27a43050a', 'turn': 126, 'me': {'name': 'mark_snake', 'health': 94, 'length': 17, 'body': [(7, 7), (6, 7), (5, 7), (5, 8), (4, 8), (3, 8), (2, 8), (2, 7), (2, 6), (2, 5), (2, 4), (2, 3), (2, 2), (2, 1), (3, 1), (3, 0), (4, 0)], 'id': 'gs_Cp3dHDVTV7x8kh7q8jHM4fFT'}, 'others': [{'name': 'go-st', 'health': 90, 'length': 12, 'body': [(8, 10), (7, 10), (6, 10), (5, 10), (4, 10), (3, 10), (3, 9), (4, 9), (5, 9), (6, 9), (7, 9), (7, 8)], 'id': 'gs_9kdcq9PyBwX3BvXwk6yxB6G4'}, {'name': '@~~~~@', 'health': 84, 'length': 10, 'body': [(8, 6), (8, 5), (8, 4), (9, 4), (9, 3), (8, 3), (7, 3), (7, 2), (6, 2), (6, 3)], 'id': 'gs_Vp73jJRFty84vYqr8XQDFRTF'}], 'food': [(10, 6)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'split choice all good', 'chase other tail detour'], 'next_coord': (8, 7), 'next_move': 'right', 'time': '0.035s'}
+    log = {'id': '3c9c9b52-0211-455e-93da-bf3ef877522f', 'turn': 27, 'me': {'name': 'mark_snake', 'health': 95, 'length': 5, 'body': [(5, 8), (4, 8), (3, 8), (3, 7), (3, 6)], 'id': 'gs_xrYWBgpMYPStJrKFq8tjM6f9'}, 'others': [{'name': 'Snaky  McSnakeface', 'health': 92, 'length': 6, 'body': [(7, 8), (7, 7), (7, 6), (7, 5), (7, 4), (8, 4)], 'id': 'gs_kfFh4vYDxrTJmqxjJcH4bgrG'}, {'name': '@~~~~@', 'health': 83, 'length': 4, 'body': [(6, 9), (6, 8), (6, 7), (6, 6)], 'id': 'gs_mcdXFPX4jrBCX7t4WBrPkx3c'}, {'name': 'Spaceheater', 'health': 93, 'length': 5, 'body': [(5, 2), (6, 2), (6, 1), (7, 1), (8, 1)], 'id': 'gs_3BtMD7X8dXH3S44M9WxRccpB'}], 'food': [(8, 9)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'split choice all good', 'split2 choose my tail'], 'next_coord': (5, 7), 'next_move': 'down', 'time': '0.023s'}
 
 
 
