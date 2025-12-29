@@ -82,6 +82,7 @@ def main(game_state, log=True, log_db=False):
             (type_1_collision),
 
             avoid_two_snake_trap_config_11,
+            chasing_kill_oppotunity,
             (collision_cut_oppotunity),
 
             (suppressed_chasing_kill_oppotunity),
@@ -2482,6 +2483,30 @@ def main(game_state, log=True, log_db=False):
 
         return False
 
+    def chasing_kill_oppotunity(moves):
+        snake = [snake for snake in g.others 
+                  if g.me.length > snake.length
+                  and distance_vector_abs(g.me.head, snake.head) == (1,1) 
+                  and is_adjacent(g.me.head, snake.neck)
+                  ]
+        if len(snake) != 1: return
+        snake = take_first(snake)
+
+        collision = [a for a in moves if a in snake.allowed_moves]
+        collision = take_first(collision)
+        avoid = [a for a in snake.allowed_moves if distance_vector_abs(a, snake.neck) != (1,1)]
+        if len(avoid) != 1: return
+        avoid = take_first(avoid)
+
+        snake2 = possible_next_state(snake, avoid)
+        me2 = possible_next_state(g.me, collision)
+        others = [possible_next_state(s, take_first(s.allowed_moves)) for s in g.others if s.head != snake.head and len(s.allowed_moves) != 0]
+
+        hypothetic_development_territories([me2]+[snake2]+others)
+        if preliminary_cut_kill_situation(me2, snake2):
+            g.decision_path.append(f"chasing kill {collision}")
+            return [collision]
+
     def collision_cut_oppotunity(moves):
         snakes = [snake for snake in g.others if distance_vector_abs(g.me.head, snake.head) == (1,1) and g.me.length > snake.length]
         if len(snakes) == 0:
@@ -3375,6 +3400,8 @@ if __name__ == "__main__":
     log = {'id': 'c24cda76-d698-49da-abcd-8315d30c63b5', 'turn': 90, 'me': {'name': 'mark_snake', 'health': 95, 'length': 10, 'body': [(6, 4), (6, 3), (6, 2), (5, 2), (4, 2), (4, 3), (3, 3), (3, 4), (3, 5), (4, 5)], 'id': 'gs_tfJj4VfS3bDTqRbh86mqkYfQ'}, 'others': [{'name': 'SmartyRat', 'health': 92, 'length': 4, 'body': [(0, 4), (0, 5), (1, 5), (1, 4)], 'id': 'gs_4xxKPBvh7BQQhdQMjqkv3rGY'}, {'name': 'slieks', 'health': 89, 'length': 14, 'body': [(5, 5), (5, 6), (5, 7), (6, 7), (6, 8), (5, 8), (4, 8), (3, 8), (3, 7), (2, 7), (1, 7), (1, 6), (2, 6), (3, 6)], 'id': 'gs_fYTqc4fT4wPYMpMgP96QywT6'}, {'name': 'ich heisse marvin', 'health': 43, 'length': 8, 'body': [(7, 1), (8, 1), (8, 2), (8, 3), (8, 4), (8, 5), (9, 5), (9, 4)], 'id': 'gs_BStD8hvBDVTHvTvDtFjmHvyG'}], 'food': [(10, 8), (10, 5), (7, 9)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'collision type 2 take avoid point'], 'next_coord': (7, 4), 'next_move': 'right', 'time': '0.018s'}
     log = {'id': 'e6042f5e-a25a-4e81-a1f8-3367dc4e1e5e', 'turn': 83, 'me': {'name': 'mark_snake', 'health': 95, 'length': 11, 'body': [(1, 8), (1, 7), (2, 7), (2, 8), (2, 9), (2, 10), (3, 10), (3, 9), (3, 8), (4, 8), (4, 7)], 'id': 'gs_cYpbQfqw7hWBtdSvMCpmvkPT'}, 'others': [{'name': 'mini snake', 'health': 84, 'length': 5, 'body': [(4, 3), (5, 3), (6, 3), (7, 3), (7, 4)], 'id': 'gs_3wfFSbv7rSgF6YT7cbGpCPHG'}, {'name': 'SmartyRat', 'health': 25, 'length': 4, 'body': [(6, 7), (5, 7), (5, 6), (5, 5)], 'id': 'gs_hRc73wVvrdQkmK3XF9Tr76pV'}, {'name': 'Natterlie', 'health': 89, 'length': 15, 'body': [(3, 4), (2, 4), (1, 4), (0, 4), (0, 3), (0, 2), (1, 2), (1, 1), (1, 0), (2, 0), (3, 0), (4, 0), (4, 1), (3, 1), (2, 1)], 'id': 'gs_bjcj7XrFBmH8Xx7fXWSGSTj9'}], 'food': [(4, 2)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'try wayout', 'meander'], 'next_coord': (0, 8), 'next_move': 'left', 'time': '0.031s'}
     log = {'id': 'e6042f5e-a25a-4e81-a1f8-3367dc4e1e5e', 'turn': 84, 'me': {'name': 'mark_snake', 'health': 94, 'length': 11, 'body': [(0, 8), (1, 8), (1, 7), (2, 7), (2, 8), (2, 9), (2, 10), (3, 10), (3, 9), (3, 8), (4, 8)], 'id': 'gs_cYpbQfqw7hWBtdSvMCpmvkPT'}, 'others': [{'name': 'mini snake', 'health': 100, 'length': 6, 'body': [(4, 2), (4, 3), (5, 3), (6, 3), (7, 3), (7, 3)], 'id': 'gs_3wfFSbv7rSgF6YT7cbGpCPHG'}, {'name': 'SmartyRat', 'health': 24, 'length': 4, 'body': [(7, 7), (6, 7), (5, 7), (5, 6)], 'id': 'gs_hRc73wVvrdQkmK3XF9Tr76pV'}, {'name': 'Natterlie', 'health': 88, 'length': 15, 'body': [(4, 4), (3, 4), (2, 4), (1, 4), (0, 4), (0, 3), (0, 2), (1, 2), (1, 1), (1, 0), (2, 0), (3, 0), (4, 0), (4, 1), (3, 1)], 'id': 'gs_bjcj7XrFBmH8Xx7fXWSGSTj9'}], 'food': [(8, 2)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'split choice'], 'next_coord': (0, 9), 'next_move': 'up', 'time': '0.010s'}
+    log = {'id': '0da262d2-9ecf-4616-8c09-ae7766f5be20', 'turn': 138, 'me': {'name': 'mark_snake', 'health': 79, 'length': 13, 'body': [(8, 2), (7, 2), (6, 2), (5, 2), (4, 2), (4, 3), (4, 4), (4, 5), (3, 5), (3, 4), (3, 3), (2, 3), (2, 4)], 'id': 'gs_d3MP4k9K4krP6pYmprXvWvkR'}, 'others': [{'name': 'go-st', 'health': 85, 'length': 11, 'body': [(9, 1), (8, 1), (7, 1), (6, 1), (6, 0), (5, 0), (4, 0), (3, 0), (2, 0), (1, 0), (1, 1)], 'id': 'gs_tQKxYrhhJBdXMWV4DSjPVC9D'}, {'name': 'ich heisse marvin', 'health': 51, 'length': 8, 'body': [(2, 6), (1, 6), (1, 7), (1, 8), (1, 9), (2, 9), (2, 8), (3, 8)], 'id': 'gs_BvQdxWvpJMGSWgVHS93x68Tb'}, {'name': 'Gregory Megory', 'health': 83, 'length': 11, 'body': [(10, 6), (10, 5), (10, 4), (9, 4), (9, 5), (8, 5), (8, 6), (8, 7), (8, 8), (7, 8), (7, 7)], 'id': 'gs_3bJ8MxqhSDYwRQFM94Q9qjT8'}], 'food': [(10, 10), (10, 0), (0, 0), (3, 10), (0, 1)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'preliminary cut kill target: go-st'], 'next_coord': (8, 3), 'next_move': 'up', 'time': '0.025s'}
+    log = {'id': '0da262d2-9ecf-4616-8c09-ae7766f5be20', 'turn': 137, 'me': {'name': 'mark_snake', 'health': 80, 'length': 13, 'body': [(7, 2), (6, 2), (5, 2), (4, 2), (4, 3), (4, 4), (4, 5), (3, 5), (3, 4), (3, 3), (2, 3), (2, 4), (2, 5)], 'id': 'gs_d3MP4k9K4krP6pYmprXvWvkR'}, 'others': [{'name': 'go-st', 'health': 86, 'length': 11, 'body': [(8, 1), (7, 1), (6, 1), (6, 0), (5, 0), (4, 0), (3, 0), (2, 0), (1, 0), (1, 1), (1, 2)], 'id': 'gs_tQKxYrhhJBdXMWV4DSjPVC9D'}, {'name': 'ich heisse marvin', 'health': 52, 'length': 8, 'body': [(1, 6), (1, 7), (1, 8), (1, 9), (2, 9), (2, 8), (3, 8), (4, 8)], 'id': 'gs_BvQdxWvpJMGSWgVHS93x68Tb'}, {'name': 'Gregory Megory', 'health': 84, 'length': 11, 'body': [(10, 5), (10, 4), (9, 4), (9, 5), (8, 5), (8, 6), (8, 7), (8, 8), (7, 8), (7, 7), (7, 6)], 'id': 'gs_3bJ8MxqhSDYwRQFM94Q9qjT8'}], 'food': [(10, 10), (10, 0), (0, 0), (3, 10)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('Gregory Megory', 1, (10, 6))]", 'preliminary cut kill target: go-st', 'go cut to (10, 2)'], 'next_coord': (8, 2), 'next_move': 'right', 'time': '0.018s'}
 
 
 
