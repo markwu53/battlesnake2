@@ -629,6 +629,7 @@ def main(game_state, log=True, log_db=False):
                     return [food_target]
             return
 
+        """
         if g.me.length <= 10:
             if on_border(food_target):
                 food_nabor = [a for a in adj_cells(food_target) if on_border(a) and a not in g.occupied_cells[0]]
@@ -647,7 +648,9 @@ def main(game_state, log=True, log_db=False):
             if len(moves) != 0:
                 g.decision_path.append(f"get food {food_target}")
                 return moves
+        """
 
+        """
         def food_space(a):
             occupied = g.occupied_cells[1]+[a]
             food_set = path_connected_set(food_target, occupied)
@@ -662,12 +665,18 @@ def main(game_state, log=True, log_db=False):
                 if len(food_moves) > 1:
                     g.decision_path.append("choose food path on border")
                     return prefer_by_score(food_space)(food_moves)
+        """
 
+        territory_border = [p for p in g.me.territory if any([q not in g.me.territory for q in adj_cells(p)])]
         food_moves = shortest_path_move(g.me.head, food_target)
         food_moves = [a for a in moves if a in food_moves]
-        if len(food_moves) != 0:
-            g.decision_path.append(f"get food {food_target}")
-            return prefer(lambda a: a in food_moves)(moves)
+        if len(food_moves) == 0: return
+        border_route = [a for a in food_moves if a in territory_border]
+        if len(border_route) != 0:
+            g.decision_path.append(f"get food via border {food_target}")
+            return border_route
+        g.decision_path.append(f"get food {food_target}")
+        return food_moves
 
     def confined_follow_tail(moves):
         ngroup = move_connected_group(moves)
@@ -3441,6 +3450,9 @@ if __name__ == "__main__":
     log = {'id': 'e9d9dd41-7542-4529-a704-cdb6c127c09c', 'turn': 43, 'me': {'name': 'mark_snake', 'health': 90, 'length': 6, 'body': [(4, 5), (4, 4), (4, 3), (4, 2), (5, 2), (6, 2)], 'id': 'gs_hgT3bq8YWdqHgVrFkDkb6htJ'}, 'others': [{'name': 'Game of Chicken', 'health': 94, 'length': 5, 'body': [(1, 6), (1, 5), (2, 5), (2, 4), (2, 3)], 'id': 'gs_7vdbtVtxwTjcVp6MkT7bCtY6'}, {'name': 'go-st', 'health': 87, 'length': 8, 'body': [(7, 6), (8, 6), (9, 6), (9, 5), (9, 4), (9, 3), (8, 3), (8, 4)], 'id': 'gs_PtW6DWkYDFr3qPPB8gr8vpHb'}, {'name': 'Snaky  McSnakeface', 'health': 59, 'length': 4, 'body': [(4, 7), (4, 6), (3, 6), (2, 6)], 'id': 'gs_7tfdc4YXth9pj34RHqvf46wH'}], 'food': [(10, 10), (0, 8), (6, 10)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'split choice all good', 'split2 choose my tail', 'split2 choose my tail'], 'next_coord': (5, 5), 'next_move': 'right', 'time': '0.083s'}
     log = {'id': '79f43dc3-073c-41d5-a4eb-d061ceb5113f', 'turn': 149, 'me': {'name': 'mark_snake', 'health': 94, 'length': 10, 'body': [(2, 5), (2, 6), (3, 6), (4, 6), (5, 6), (6, 6), (6, 5), (5, 5), (4, 5), (3, 5)], 'id': 'gs_KYy67tMHRcBVbc9gXPCJ693F'}, 'others': [{'name': 'Copy of snake2_v3_FINAL_final(1)', 'health': 89, 'length': 18, 'body': [(0, 3), (1, 3), (2, 3), (3, 3), (4, 3), (5, 3), (6, 3), (6, 2), (6, 1), (5, 1), (4, 1), (4, 0), (5, 0), (6, 0), (7, 0), (7, 1), (8, 1), (8, 2)], 'id': 'gs_dFtbCBqWvVJWhX3V9D4F8yjY'}, {'name': '@~~~~@', 'health': 92, 'length': 14, 'body': [(2, 7), (3, 7), (4, 7), (5, 7), (6, 7), (7, 7), (7, 8), (8, 8), (9, 8), (9, 7), (8, 7), (8, 6), (8, 5), (9, 5)], 'id': 'gs_7HvYHcBPjVCdFSRBmhBHYg3W'}], 'food': [(0, 4), (0, 0), (1, 1)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'make forming trap'], 'next_coord': (1, 5), 'next_move': 'left', 'time': '0.008s'}
     log = {'id': 'cd817279-5a51-48af-ab54-758aa7cb8918', 'turn': 350, 'me': {'name': 'mark_snake', 'health': 92, 'length': 27, 'body': [(2, 10), (3, 10), (4, 10), (5, 10), (6, 10), (7, 10), (7, 9), (8, 9), (9, 9), (10, 9), (10, 8), (10, 7), (10, 6), (9, 6), (8, 6), (8, 7), (9, 7), (9, 8), (8, 8), (7, 8), (6, 8), (5, 8), (5, 7), (4, 7), (3, 7), (2, 7), (1, 7)], 'id': 'gs_j8xkCBHHCpbKFF6KBHwftDDF'}, 'others': [{'name': 'slieks', 'health': 93, 'length': 25, 'body': [(0, 6), (0, 5), (0, 4), (0, 3), (0, 2), (1, 2), (2, 2), (2, 3), (3, 3), (4, 3), (5, 3), (6, 3), (7, 3), (8, 3), (9, 3), (10, 3), (10, 4), (10, 5), (9, 5), (8, 5), (7, 5), (6, 5), (5, 5), (4, 5), (4, 4)], 'id': 'gs_krpBwYTwMqCpQcxqh76b6BfS'}], 'food': [(4, 0), (0, 1), (0, 0), (8, 10), (5, 6), (8, 4)], 'module': 'decision_flow - github', 'decision_path': ['1v1', 'try wayout', 'wayout path long enough to go direct', '1v1 longer push', 'avoid cornered bordered'], 'next_coord': (1, 10), 'next_move': 'left', 'time': '0.018s'}
+    log = {'id': 'b60b84eb-79b5-4812-8c08-2242efc2cf52', 'turn': 197, 'me': {'name': 'mark_snake', 'health': 85, 'length': 16, 'body': [(5, 4), (5, 3), (5, 2), (4, 2), (3, 2), (3, 1), (3, 0), (2, 0), (1, 0), (1, 1), (2, 1), (2, 2), (2, 3), (2, 4), (2, 5), (3, 5)], 'id': 'gs_jkjdwCVYByJKhhyhjyBqgqjC'}, 'others': [{'name': 'mini snake', 'health': 57, 'length': 8, 'body': [(3, 6), (3, 7), (3, 8), (2, 8), (2, 7), (1, 7), (0, 7), (0, 8)], 'id': 'gs_GtdRPXcqBmgV7JP7gm67Fx4B'}, {'name': 'poc', 'health': 79, 'length': 21, 'body': [(7, 2), (6, 2), (6, 3), (6, 4), (6, 5), (6, 6), (6, 7), (5, 7), (4, 7), (4, 8), (4, 9), (5, 9), (5, 8), (6, 8), (6, 9), (7, 9), (7, 8), (7, 7), (7, 6), (7, 5), (8, 5)], 'id': 'gs_KdRS4QYy9MG3v7Mcr3kvV7V3'}], 'food': [(0, 0), (10, 6), (6, 10), (9, 3), (10, 2)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'try wayout', 'wayout path long enough to go direct'], 'next_coord': (5, 5), 'next_move': 'up', 'time': '0.015s'}
+    log = {'id': 'ceb0bdc1-5a0f-466b-8ba4-9cb256309b07', 'turn': 96, 'me': {'name': 'mark_snake', 'health': 82, 'length': 8, 'body': [(8, 6), (7, 6), (6, 6), (6, 7), (6, 8), (5, 8), (5, 9), (4, 9)], 'id': 'gs_9pwBtSmD3gDyTRdbCTQm4pQM'}, 'others': [{'name': 'Game of Chicken', 'health': 95, 'length': 11, 'body': [(5, 1), (5, 0), (4, 0), (3, 0), (2, 0), (2, 1), (3, 1), (3, 2), (4, 2), (4, 3), (4, 4)], 'id': 'gs_9RTYGYcYWr99P8gTyJx8r99f'}, {'name': 'ich heisse marvin', 'health': 92, 'length': 11, 'body': [(6, 4), (6, 5), (5, 5), (4, 5), (4, 6), (4, 7), (3, 7), (3, 6), (2, 6), (2, 7), (1, 7)], 'id': 'gs_PkByYGYkkdGSHkcbpvRrQpfC'}], 'food': [(8, 4), (10, 5)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'get food on border (10, 5)'], 'next_coord': (9, 6), 'next_move': 'right', 'time': '0.024s'}
+
 
 
 
