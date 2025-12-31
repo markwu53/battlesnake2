@@ -199,7 +199,7 @@ def main(game_state, log=True, log_db=False):
             avoid_equal_collision,
             (avoid_single_move),
 
-            prefer_by_score(lambda a: sum(distance_to_border(a))),
+            #prefer_by_score(lambda a: sum(distance_to_border(a))),
             (prefer(is_straight)),
             #take_random,
 
