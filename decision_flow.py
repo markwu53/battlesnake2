@@ -173,6 +173,8 @@ def main(game_state, log=True, log_db=False):
 
             split_avoid_preliminary_trap,
 
+            next_step_check_food_tail,
+
             (get_food),
 
             (split_choice_2),
@@ -567,8 +569,7 @@ def main(game_state, log=True, log_db=False):
         return prefer_by_score(lambda a: min(*distance_to_border(a), 2))(moves)
 
     def avoid_single_move_food(moves):
-        snakes = [snake for snake in g.others 
-                  if is_adjacent(g.me.head, snake.tail)
+        snakes = [snake for snake in g.others if is_adjacent(g.me.head, snake.tail)
                   and any([is_adjacent(a, snake.head) for a in g.food])]
         if len(snakes) != 1: return
         snake = take_first(snakes)
@@ -1236,6 +1237,37 @@ def main(game_state, log=True, log_db=False):
         if not on_border(straight):
             g.decision_path.append("enemy chasing go straight")
             return [straight]
+
+    def next_step_check_food_tail(moves):
+        snakes = [snake for snake in g.others if any([is_adjacent(a, snake.body[-2]) for a in moves])]
+        snakes = [snake for snake in snakes if any([a in g.food for a in snake.allowed_moves])]
+        #snakes = [snake for snake in snakes if snake.length >= g.me.length]
+        if len(snakes) == 0: return
+
+        #assume only one
+        food_snake = take_first(snakes)
+        b = [b for b in food_snake.allowed_moves if b in g.food]
+        if len(b) == 0: return
+        b = take_first(b)
+        danger_snakes = [snake for snake in g.others if snake.head != g.me.head and snake.head != food_snake.head and snake.length > g.me.length]
+
+        def danger_case(a):
+            if distance_vector_abs(a,b) == (1,1) and food_snake.length >= g.me.length: 
+                contact = [p for p in adj_cells(a) if p in adj_cells(b) and p not in g.occupied_cells[1]]
+                if len(contact) != 0: 
+                    return True
+            if len(danger_snakes) == 0: return False
+            danger_point = [p for other in danger_snakes for p in other.allowed_moves if distance_vector_abs(a, p) == (1,1)]
+            danger_point = [p for p in danger_point if len([c for c in adj_cells(a) if c in adj_cells(p) and c not in g.occupied_cells[1]]) != 0]
+            if len(danger_point) != 0: return True
+            return False
+
+        danger_move = [a for a in moves if is_adjacent(a, food_snake.body[-2]) and danger_case(a)]
+        if len(danger_move) != 0:
+            moves = [a for a in moves if a not in danger_move]
+            if len(moves) != 0:
+                g.decision_path.append("next step check food tail danger")
+                return moves
 
     def type_2_collision(moves):
 
@@ -3559,7 +3591,7 @@ if __name__ == "__main__":
     log = {'id': '3a55c6cb-ffb8-44b0-8895-213cd6b5aab4', 'turn': 41, 'me': {'name': 'mark_snake', 'health': 95, 'length': 8, 'body': [(9, 8), (9, 9), (10, 9), (10, 10), (9, 10), (8, 10), (8, 9), (8, 8)], 'id': 'gs_39hCjXDS6kMFWM6wjjygVJwP'}, 'others': [{'name': 'Game of Chicken', 'health': 89, 'length': 6, 'body': [(2, 7), (3, 7), (3, 6), (4, 6), (4, 5), (3, 5)], 'id': 'gs_vfQGPBkhpYdXcBbGX8jyRttb'}, {'name': 'go-st', 'health': 69, 'length': 4, 'body': [(2, 5), (1, 5), (1, 6), (2, 6)], 'id': 'gs_Kk6JmxrqGRqwQQ9W9Ygh6btF'}, {'name': 'ich heisse marvin', 'health': 93, 'length': 8, 'body': [(6, 7), (6, 6), (6, 5), (6, 4), (7, 4), (7, 3), (8, 3), (8, 2)], 'id': 'gs_VX3wPVy3PFVvwPdB7YrVvvWT'}], 'food': [(10, 2), (4, 7)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'avoid die in two steps', 'split choice all good', 'get food (10, 2) via border'], 'next_coord': (10, 8), 'next_move': 'right', 'time': '0.038s'}
     log = {'id': '3a55c6cb-ffb8-44b0-8895-213cd6b5aab4', 'turn': 113, 'me': {'name': 'mark_snake', 'health': 97, 'length': 14, 'body': [(8, 9), (8, 10), (9, 10), (10, 10), (10, 9), (10, 8), (10, 7), (9, 7), (9, 6), (8, 6), (8, 7), (8, 8), (9, 8), (9, 9)], 'id': 'gs_39hCjXDS6kMFWM6wjjygVJwP'}, 'others': [{'name': 'Game of Chicken', 'health': 87, 'length': 12, 'body': [(4, 9), (5, 9), (6, 9), (6, 8), (7, 8), (7, 7), (6, 7), (6, 6), (6, 5), (7, 5), (8, 5), (9, 5)], 'id': 'gs_vfQGPBkhpYdXcBbGX8jyRttb'}, {'name': 'go-st', 'health': 82, 'length': 5, 'body': [(4, 3), (3, 3), (2, 3), (1, 3), (1, 4)], 'id': 'gs_Kk6JmxrqGRqwQQ9W9Ygh6btF'}, {'name': 'ich heisse marvin', 'health': 81, 'length': 9, 'body': [(3, 4), (3, 5), (3, 6), (3, 7), (3, 8), (4, 8), (5, 8), (5, 7), (5, 6)], 'id': 'gs_VX3wPVy3PFVvwPdB7YrVvvWT'}], 'food': [(0, 10), (5, 0), (6, 10)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'avoid die in two steps'], 'next_coord': (7, 9), 'next_move': 'left', 'time': '0.002s'}
     log = {'id': 'f38f11a9-4a26-4eef-9cb5-2f017f425b64', 'turn': 17, 'me': {'name': 'mark_snake', 'health': 87, 'length': 4, 'body': [(9, 8), (8, 8), (8, 7), (8, 6)], 'id': 'gs_SXpmRXkwFtYYrJ4MxD6fyBFF'}, 'others': [{'name': 'Game of Chicken', 'health': 85, 'length': 4, 'body': [(10, 9), (9, 9), (9, 10), (8, 10)], 'id': 'gs_jbR6MJ7qFfFdmWCtKXjRXycb'}, {'name': 'go-st', 'health': 98, 'length': 6, 'body': [(4, 3), (3, 3), (3, 2), (4, 2), (5, 2), (5, 1)], 'id': 'gs_SDSgCh3BW4gxdjfBDqT4X4RC'}, {'name': 'Natterlie', 'health': 96, 'length': 6, 'body': [(7, 8), (6, 8), (6, 9), (6, 10), (5, 10), (4, 10)], 'id': 'gs_Fy6xV6CjcQ7vHX8jgR4hKkkR'}], 'food': [(1, 10), (8, 1)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'avoid die in two steps'], 'next_coord': (10, 8), 'next_move': 'right', 'time': '0.003s'}
-
+    log = {'id': 'f722d8d4-76b8-4d3f-adaf-f87910a03217', 'turn': 70, 'me': {'name': 'mark_snake', 'health': 95, 'length': 7, 'body': [(8, 6), (8, 7), (8, 8), (8, 9), (8, 10), (7, 10), (6, 10)], 'id': 'gs_qtqWkbR4rpcVqxtrdrjVbtKB'}, 'others': [{'name': 'Geriatric Jagwire', 'health': 77, 'length': 8, 'body': [(9, 3), (9, 2), (8, 2), (8, 3), (7, 3), (7, 4), (7, 5), (6, 5)], 'id': 'gs_hXKVgG4jbD7BHxSmVCJmhBHC'}, {'name': 'go-st', 'health': 74, 'length': 7, 'body': [(6, 0), (7, 0), (7, 1), (6, 1), (6, 2), (5, 2), (4, 2)], 'id': 'gs_TvXQdYKDfWRm9FRg9t9YyH7M'}, {'name': 'Natterlie', 'health': 87, 'length': 9, 'body': [(3, 1), (2, 1), (2, 2), (3, 2), (3, 3), (2, 3), (2, 4), (2, 5), (2, 6)], 'id': 'gs_GprmPKFjQhX6tYbTBYSg6xTH'}], 'food': [(9, 4), (10, 5)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('go-st', 1, (5, 0))]", "vulnerable but I'm short", 'move to largest territory component'], 'next_coord': (8, 5), 'next_move': 'down', 'time': '0.027s'}
 
 
 
