@@ -2567,7 +2567,7 @@ def main(game_state, log=True, log_db=False):
         target_neck = target.neck
         killer_head = killer.head
 
-        for step in range(11):
+        for step in range(3):
             new_target_head = [a for a in adj_cells(target_head) if get_adjacent_dir(target_head, a) == get_adjacent_dir(target_neck, target_head)]
             new_killer_head = [a for a in adj_cells(killer_head) if get_adjacent_dir(killer_head, a) == get_adjacent_dir(target_neck, target_head)]
             if len(new_killer_head) == 0: return False
@@ -2580,7 +2580,7 @@ def main(game_state, log=True, log_db=False):
             target_head = new_target_head
             killer_head = new_killer_head
 
-        return False
+        return True
 
     def chasing_kill_opportunity(moves):
         snake = [snake for snake in g.others 
@@ -3530,6 +3530,7 @@ if __name__ == "__main__":
     log = {'id': '6e317f79-f5b5-4cfe-828e-fec5c45c011f', 'turn': 72, 'me': {'name': 'mark_snake', 'health': 93, 'length': 8, 'body': [(3, 5), (3, 6), (3, 7), (3, 8), (2, 8), (1, 8), (1, 9), (1, 10)], 'id': 'gs_PPy3VBqSrQ63myQpCJ4GjmqH'}, 'others': [{'name': 'Natterlie', 'health': 88, 'length': 9, 'body': [(2, 10), (2, 9), (3, 9), (4, 9), (5, 9), (5, 8), (5, 7), (6, 7), (7, 7)], 'id': 'gs_4BFyppCtMT6kxFxRYkvdHfxF'}, {'name': 'Spaceheater', 'health': 91, 'length': 8, 'body': [(2, 2), (1, 2), (0, 2), (0, 3), (1, 3), (1, 4), (2, 4), (2, 3)], 'id': 'gs_b7hxtv9Dxj79m4jvPVMWJKHX'}, {'name': 'Red Yarn', 'health': 99, 'length': 11, 'body': [(8, 6), (8, 5), (7, 5), (6, 5), (5, 5), (4, 5), (4, 4), (4, 3), (4, 2), (4, 1), (5, 1)], 'id': 'gs_q6mqBKQWcpXqtpPPbkpTvBgF'}], 'food': [(10, 9), (3, 2)], 'module': 'decision_flow - github', 'decision_path': ['1vn'], 'next_coord': (3, 4), 'next_move': 'down', 'time': '0.027s'}
     log = {'id': '2d17fd5b-6075-4f25-b66a-15f8405a9681', 'turn': 117, 'me': {'name': 'mark_snake', 'health': 96, 'length': 11, 'body': [(9, 10), (10, 10), (10, 9), (10, 8), (10, 7), (9, 7), (9, 8), (8, 8), (7, 8), (6, 8), (6, 7)], 'id': 'gs_pPBV7JvJj9VJKvkgK6mtbhgK'}, 'others': [{'name': 'go-st', 'health': 95, 'length': 11, 'body': [(9, 4), (8, 4), (8, 3), (8, 2), (8, 1), (7, 1), (6, 1), (6, 2), (7, 2), (7, 3), (7, 4)], 'id': 'gs_TCkWwMGdvPmYtRfXBM89CVvB'}, {'name': '@~~~~@', 'health': 90, 'length': 14, 'body': [(5, 8), (5, 7), (4, 7), (3, 7), (3, 6), (2, 6), (1, 6), (1, 5), (1, 4), (2, 4), (2, 5), (3, 5), (4, 5), (4, 4)], 'id': 'gs_KrCKthT9SrjpXrGbGgQS64F8'}, {'name': 'Gregory Megory', 'health': 65, 'length': 8, 'body': [(4, 3), (5, 3), (5, 2), (4, 2), (3, 2), (3, 1), (4, 1), (4, 0)], 'id': 'gs_bthFXj4WMVd7SM9Kx8qt3ySC'}], 'food': [(7, 9)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'try wayout', 'meander'], 'next_coord': (9, 9), 'next_move': 'down', 'time': '0.025s'}
     log = {'id': '9344d5a5-5023-476d-87af-d4803343f7d0', 'turn': 250, 'me': {'name': 'mark_snake', 'health': 88, 'length': 22, 'body': [(9, 3), (9, 2), (9, 1), (9, 0), (8, 0), (7, 0), (6, 0), (5, 0), (4, 0), (3, 0), (2, 0), (1, 0), (0, 0), (0, 1), (0, 2), (0, 3), (1, 3), (2, 3), (3, 3), (4, 3), (4, 2), (5, 2)], 'id': 'gs_j3CFkTmYV9y4B3hKxwgmkbt3'}, 'others': [{'name': 'Przze v2', 'health': 94, 'length': 14, 'body': [(8, 4), (7, 4), (6, 4), (5, 4), (4, 4), (3, 4), (3, 5), (4, 5), (4, 6), (4, 7), (4, 8), (3, 8), (3, 7), (3, 6)], 'id': 'gs_hqGHJBRVXd9jt88GCYTDh8kV'}], 'food': [(3, 9), (0, 4), (2, 5), (3, 1), (1, 2), (7, 8)], 'module': 'decision_flow - github', 'decision_path': ['1v1', 'split choice', 'split choice all good', '1v1 longer push territory'], 'next_coord': (10, 3), 'next_move': 'right', 'time': '0.045s'}
+    log = {'id': '9344d5a5-5023-476d-87af-d4803343f7d0', 'turn': 108, 'me': {'name': 'mark_snake', 'health': 90, 'length': 14, 'body': [(3, 9), (2, 9), (2, 8), (2, 7), (2, 6), (2, 5), (2, 4), (2, 3), (2, 2), (2, 1), (3, 1), (3, 2), (3, 3), (3, 4)], 'id': 'gs_j3CFkTmYV9y4B3hKxwgmkbt3'}, 'others': [{'name': 'mini snake', 'health': 67, 'length': 7, 'body': [(8, 4), (9, 4), (9, 5), (8, 5), (8, 6), (7, 6), (6, 6)], 'id': 'gs_fd96mr4VSvJmpfMJCfDprgXQ'}, {'name': 'Przze v2', 'health': 96, 'length': 6, 'body': [(4, 10), (3, 10), (2, 10), (1, 10), (0, 10), (0, 9)], 'id': 'gs_hqGHJBRVXd9jt88GCYTDh8kV'}, {'name': '@~~~~@', 'health': 69, 'length': 6, 'body': [(7, 9), (8, 9), (9, 9), (9, 8), (8, 8), (8, 7)], 'id': 'gs_8kGwk7jqcxKrrxQjvBcjFXc7'}], 'food': [(10, 9), (10, 0), (10, 2), (10, 3)], 'module': 'decision_flow - github', 'decision_path': ['1vn'], 'next_coord': (3, 8), 'next_move': 'down', 'time': '0.044s'}
 
 
 
