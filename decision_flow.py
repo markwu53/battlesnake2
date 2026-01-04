@@ -637,9 +637,15 @@ def main(game_state, log=True, log_db=False):
     def get_food(moves):
 
         #food_near = [f for f in g.food if distance_pq(f, g.me.head) <= 8 and distance_to_border(f) != (0,0)]
-        food_good = [f for f in g.food if f in g.me.territory and distance_pq(f, g.me.head) <= 8]
+        food_good = [f for f in g.food if f in g.me.territory]
+        food_good = [f for f in food_good if distance_pq(f, g.me.head) <= 8]
+
+        food_good = [f for f in food_good for d in [path_distance_pq(g.me.head, f)] 
+                     if (not on_border(f) or d < 4 
+                         or all([path_distance_pq(snake.head, f) > d+2 for snake in g.others if snake.length > g.me.length+1]))]
+
         if len(g.others) != 1:
-            if g.me.length <= 15:
+            if g.me.length <= 10:
                 food_good = [f for f in food_good if distance_to_border(f) != (0,0)]
 
         #food_good = [f for f in food_good if not corner_danger_food(f)]
@@ -3621,7 +3627,7 @@ if __name__ == "__main__":
     log = {'id': 'feeb2ca5-fea1-45f2-b52a-d2a4b8946a17', 'turn': 357, 'me': {'name': 'mark_snake', 'health': 84, 'length': 30, 'body': [(7, 6), (8, 6), (9, 6), (9, 7), (9, 8), (9, 9), (8, 9), (7, 9), (6, 9), (5, 9), (4, 9), (3, 9), (2, 9), (1, 9), (1, 8), (1, 7), (2, 7), (3, 7), (4, 7), (4, 6), (3, 6), (2, 6), (2, 5), (2, 4), (3, 4), (3, 5), (4, 5), (4, 4), (5, 4), (5, 5)], 'id': 'gs_SvVK8QjMDWXCFyxKYmfFH9cH'}, 'others': [{'name': 'SmartyRat', 'health': 96, 'length': 13, 'body': [(6, 5), (7, 5), (8, 5), (9, 5), (9, 4), (10, 4), (10, 3), (9, 3), (9, 2), (9, 1), (8, 1), (7, 1), (6, 1)], 'id': 'gs_YMMxBKDxBGShPTHS67FV9tmG'}], 'food': [(9, 10), (10, 10), (0, 8), (10, 1), (5, 8), (7, 10), (2, 8), (2, 10), (8, 3)], 'module': 'decision_flow - github', 'decision_path': ['1v1', 'cut case collision 2', 'try wayout', 'wayout path long enough to go direct'], 'next_coord': (6, 6), 'next_move': 'left', 'time': '0.007s'}
     log = {'id': '233ce72f-f6fc-411c-a193-1aa02fad36a0', 'turn': 78, 'me': {'name': 'mark_snake', 'health': 90, 'length': 8, 'body': [(2, 6), (3, 6), (4, 6), (5, 6), (6, 6), (7, 6), (8, 6), (9, 6)], 'id': 'gs_Qj4WQ8W6Cwc3jhfMDq7JjWKB'}, 'others': [{'name': 'SmartyRat', 'health': 94, 'length': 6, 'body': [(0, 6), (0, 7), (0, 8), (1, 8), (1, 9), (2, 9)], 'id': 'gs_MDPKY3bcvVbvhvDp3jKCRtvV'}, {'name': 'Game of Chicken', 'health': 94, 'length': 10, 'body': [(3, 1), (4, 1), (4, 2), (4, 3), (4, 4), (3, 4), (3, 5), (2, 5), (1, 5), (1, 4)], 'id': 'gs_7wMSbMmCCVpxfDrKbwqQVjbJ'}], 'food': [(0, 1), (1, 0)], 'module': 'decision_flow - github', 'decision_path': ['1vn'], 'next_coord': (2, 7), 'next_move': 'up', 'time': '0.024s'}
     log = {'id': '92a41d0f-f141-4485-b54f-898063401bf5', 'turn': 196, 'me': {'name': 'mark_snake', 'health': 77, 'length': 16, 'body': [(6, 4), (6, 3), (6, 2), (7, 2), (8, 2), (8, 3), (8, 4), (8, 5), (8, 6), (7, 6), (6, 6), (5, 6), (4, 6), (4, 5), (4, 4), (4, 3)], 'id': 'gs_WQjCCQcB8mpJ6HgCkbBQHqf8'}, 'others': [{'name': 'Frank The Tank', 'health': 100, 'length': 21, 'body': [(3, 7), (2, 7), (1, 7), (1, 8), (0, 8), (0, 9), (0, 10), (1, 10), (1, 9), (2, 9), (3, 9), (4, 9), (4, 8), (5, 8), (6, 8), (7, 8), (7, 9), (8, 9), (9, 9), (10, 9), (10, 9)], 'id': 'gs_Xt8pxYkPKSySC9yqBqbqRfM6'}], 'food': [(7, 3)], 'module': 'decision_flow - github', 'decision_path': ['1v1', 'get food (7, 3) via border'], 'next_coord': (7, 4), 'next_move': 'right', 'time': '0.032s'}
-
+    log = {'id': '55cbacb1-3279-4277-a86d-d2f896c909fa', 'turn': 287, 'me': {'name': 'mark_snake', 'health': 85, 'length': 21, 'body': [(5, 0), (5, 1), (5, 2), (5, 3), (4, 3), (4, 4), (4, 5), (4, 6), (4, 7), (4, 8), (3, 8), (3, 7), (3, 6), (3, 5), (3, 4), (3, 3), (3, 2), (2, 2), (1, 2), (0, 2), (0, 3)], 'id': 'gs_VgJxg3cJ6p3fr7v33ttcrXfM'}, 'others': [{'name': 'Slytherin', 'health': 95, 'length': 22, 'body': [(10, 7), (10, 8), (9, 8), (8, 8), (8, 9), (8, 10), (7, 10), (6, 10), (5, 10), (5, 9), (5, 8), (5, 7), (5, 6), (5, 5), (5, 4), (6, 4), (6, 3), (6, 2), (6, 1), (7, 1), (8, 1), (9, 1)], 'id': 'gs_tmyTRdB7tGk3qVTYMrFkk6yF'}], 'food': [(10, 0), (10, 6)], 'module': 'decision_flow - github', 'decision_path': ['1v1', 'split choice all good', 'split choice all good', 'get food (10, 0) via border'], 'next_coord': (6, 0), 'next_move': 'right', 'time': '0.009s'}
 
 
 
