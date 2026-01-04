@@ -136,6 +136,9 @@ def main(game_state, log=True, log_db=False):
             #cond(len(g.others) == 1 and g.me.length > g.other.length)(chase_my_tail),
 
             (cond(g.me.length > 8)(avoid_next_step_confinement)),
+
+            avoid_single_move(3),
+
             avoid_two_snake_trap_config_10,
             avoid_two_snake_trap_config_24,
             avoid_two_snake_trap_config_204,
@@ -175,6 +178,8 @@ def main(game_state, log=True, log_db=False):
 
             next_step_check_food_tail,
 
+            avoid_single_move(2),
+
             (get_food),
 
             (split_choice_2),
@@ -192,7 +197,7 @@ def main(game_state, log=True, log_db=False):
             cond(len(g.others) == 1 and g.me.length < g.other.length)(border_go_up),
             #cond(len(g.others) == 1 and g.me.length <= g.other.length)(chase_my_tail_body),
 
-            (cond(g.me.length <= 15)(avoid_single_move)),
+            (cond(g.me.length <= 15)(avoid_single_move(1))),
 
             avoid_single_move_food,
 
@@ -206,7 +211,7 @@ def main(game_state, log=True, log_db=False):
             (split_choice_2),
 
             avoid_equal_collision,
-            (avoid_single_move),
+            (avoid_single_move(1)),
 
             #prefer_by_score(lambda a: sum(distance_to_border(a))),
             (prefer(is_straight)),
@@ -568,6 +573,27 @@ def main(game_state, log=True, log_db=False):
     def prefer_away_border(moves):
         return prefer_by_score(lambda a: min(*distance_to_border(a), 2))(moves)
 
+    def single_move_n(n, a):
+        cumulate = []
+        b = a
+        for i in range(n):
+            next_move = [p for p in adj_cells(b) if p not in g.occupied_cells[i+1] and p not in cumulate]
+            if len(next_move) == 0: return True
+            if len(next_move) > 1: return False
+            cumulate += [b]
+            b = take_first(next_move)
+        return True
+    
+    def avoid_single_move(n):
+        def fn(moves):
+            single_move = [a for a in moves if single_move_n(n, a)]
+            if len(single_move) != 0:
+                moves = [a for a in moves if a not in single_move]
+                if len(moves) != 0:
+                    g.decision_path.append(f"avoid_single_move {n}")
+                    return moves
+        return fn
+
     def avoid_single_move_food(moves):
         snakes = [snake for snake in g.others if is_adjacent(g.me.head, snake.tail)
                   and any([is_adjacent(a, snake.head) for a in g.food])]
@@ -584,7 +610,7 @@ def main(game_state, log=True, log_db=False):
                 g.decision_path.append("avoid single move food")
                 return moves
 
-    def avoid_single_move(moves):
+    def avoid_single_move_old(moves):
         single_move = []
         for a in moves:
             me2 = possible_next_state(g.me, a)
@@ -3594,6 +3620,7 @@ if __name__ == "__main__":
     log = {'id': '9dcbf50e-b8e7-45f9-8ef5-940228f6737f', 'turn': 186, 'me': {'name': 'mark_snake', 'health': 100, 'length': 14, 'body': [(0, 2), (0, 1), (0, 0), (1, 0), (2, 0), (2, 1), (2, 2), (2, 3), (2, 4), (1, 4), (0, 4), (0, 5), (1, 5), (1,5)], 'id': 'gs_XB8BWW3WhPQRGQjbSdvgPgCH'}, 'others': [{'name': 'SmartyRat', 'health': 97, 'length': 11, 'body': [(2, 8), (3, 8), (3, 9), (4, 9), (4, 8), (4, 7), (3, 7), (3, 6), (3, 5), (3, 4), (3,3)], 'id': 'gs_4MjrD3TtdmBdDxVhdrSKmmdB'}, {'name': 'go-st', 'health': 62, 'length': 10, 'body': [(6, 6), (5, 6), (5, 7), (6, 7), (6, 8), (6, 9), (7, 9), (7, 8), (8, 8), (9,8)], 'id': 'gs_jbBCKgmCxPfXFxvFQgdK7SVV'}, {'name': 'Red Yarn', 'health': 91, 'length': 18, 'body': [(8, 2), (7, 2), (6, 2), (5, 2), (4, 2), (4, 3), (5, 3), (6, 3), (7, 3), (8, 3), (9, 3), (10, 3), (10, 4), (9, 4), (8, 4), (7, 4), (6, 4), (5,4)], 'id': 'gs_RcybpcKSTh4vJhGVRTwWWcxD'}], 'food': [(8, 5)], 'module': 'decision_flow - github', 'decision_path': ['1vn'], 'next_coord': (1, 3), 'next_move': 'right', 'time': '0.000s'}
     log = {'id': 'feeb2ca5-fea1-45f2-b52a-d2a4b8946a17', 'turn': 357, 'me': {'name': 'mark_snake', 'health': 84, 'length': 30, 'body': [(7, 6), (8, 6), (9, 6), (9, 7), (9, 8), (9, 9), (8, 9), (7, 9), (6, 9), (5, 9), (4, 9), (3, 9), (2, 9), (1, 9), (1, 8), (1, 7), (2, 7), (3, 7), (4, 7), (4, 6), (3, 6), (2, 6), (2, 5), (2, 4), (3, 4), (3, 5), (4, 5), (4, 4), (5, 4), (5, 5)], 'id': 'gs_SvVK8QjMDWXCFyxKYmfFH9cH'}, 'others': [{'name': 'SmartyRat', 'health': 96, 'length': 13, 'body': [(6, 5), (7, 5), (8, 5), (9, 5), (9, 4), (10, 4), (10, 3), (9, 3), (9, 2), (9, 1), (8, 1), (7, 1), (6, 1)], 'id': 'gs_YMMxBKDxBGShPTHS67FV9tmG'}], 'food': [(9, 10), (10, 10), (0, 8), (10, 1), (5, 8), (7, 10), (2, 8), (2, 10), (8, 3)], 'module': 'decision_flow - github', 'decision_path': ['1v1', 'cut case collision 2', 'try wayout', 'wayout path long enough to go direct'], 'next_coord': (6, 6), 'next_move': 'left', 'time': '0.007s'}
     log = {'id': '233ce72f-f6fc-411c-a193-1aa02fad36a0', 'turn': 78, 'me': {'name': 'mark_snake', 'health': 90, 'length': 8, 'body': [(2, 6), (3, 6), (4, 6), (5, 6), (6, 6), (7, 6), (8, 6), (9, 6)], 'id': 'gs_Qj4WQ8W6Cwc3jhfMDq7JjWKB'}, 'others': [{'name': 'SmartyRat', 'health': 94, 'length': 6, 'body': [(0, 6), (0, 7), (0, 8), (1, 8), (1, 9), (2, 9)], 'id': 'gs_MDPKY3bcvVbvhvDp3jKCRtvV'}, {'name': 'Game of Chicken', 'health': 94, 'length': 10, 'body': [(3, 1), (4, 1), (4, 2), (4, 3), (4, 4), (3, 4), (3, 5), (2, 5), (1, 5), (1, 4)], 'id': 'gs_7wMSbMmCCVpxfDrKbwqQVjbJ'}], 'food': [(0, 1), (1, 0)], 'module': 'decision_flow - github', 'decision_path': ['1vn'], 'next_coord': (2, 7), 'next_move': 'up', 'time': '0.024s'}
+    log = {'id': '92a41d0f-f141-4485-b54f-898063401bf5', 'turn': 196, 'me': {'name': 'mark_snake', 'health': 77, 'length': 16, 'body': [(6, 4), (6, 3), (6, 2), (7, 2), (8, 2), (8, 3), (8, 4), (8, 5), (8, 6), (7, 6), (6, 6), (5, 6), (4, 6), (4, 5), (4, 4), (4, 3)], 'id': 'gs_WQjCCQcB8mpJ6HgCkbBQHqf8'}, 'others': [{'name': 'Frank The Tank', 'health': 100, 'length': 21, 'body': [(3, 7), (2, 7), (1, 7), (1, 8), (0, 8), (0, 9), (0, 10), (1, 10), (1, 9), (2, 9), (3, 9), (4, 9), (4, 8), (5, 8), (6, 8), (7, 8), (7, 9), (8, 9), (9, 9), (10, 9), (10, 9)], 'id': 'gs_Xt8pxYkPKSySC9yqBqbqRfM6'}], 'food': [(7, 3)], 'module': 'decision_flow - github', 'decision_path': ['1v1', 'get food (7, 3) via border'], 'next_coord': (7, 4), 'next_move': 'right', 'time': '0.032s'}
 
 
 
