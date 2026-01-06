@@ -2535,14 +2535,21 @@ def main(game_state, log=True, log_db=False):
                             return [a]
 
     def forming_trap_situation(killer: Snake, target: Snake):
-        return all([
+        if all([
             distance_vector_abs(killer.head, target.head) == (1,1),
             #killer.length <= target.length,
             not is_adjacent(killer.neck, target.head),
             on_border(target.head),
             all([is_adjacent(a, killer.head) for a in target.allowed_moves]),
             len([a for a in killer.allowed_moves if off_border_1(a) and distance_pq(a, target.head) == 3]) == 1,
-        ])
+        ]):
+            collision = [a for a in killer.allowed_moves if a in target.allowed_moves and on_border(a)]
+            if len(collision) == 0: return False
+            collision = take_first(collision)
+            occupied = g.occupied_cells[1]+[killer.head, target.head]
+            cset = path_connected_set(collision, occupied)
+            if len(cset) <= killer.length: return False
+            return True
 
     def trap_kill_opportunity(moves):
         for snake in g.others:
@@ -3681,6 +3688,9 @@ if __name__ == "__main__":
     log = {'id': 'e2a55c5f-c4dc-469c-9f0d-eca05310edfd', 'turn': 217, 'me': {'name': 'mark_snake', 'health': 81, 'length': 16, 'body': [(10, 9), (9, 9), (8, 9), (7, 9), (6, 9), (5, 9), (4, 9), (3, 9), (3, 10), (2, 10), (1, 10), (1, 9), (1, 8), (1, 7), (1, 6), (1, 5)], 'id': 'gs_4QGSF6hXygfPkc9PbrWMDKD7'}, 'others': [{'name': 'Jeremy', 'health': 94, 'length': 25, 'body': [(8, 7), (8, 8), (7, 8), (6, 8), (5, 8), (5, 7), (5, 6), (4, 6), (4, 7), (4, 8), (3, 8), (2, 8), (2, 7), (2, 6), (2, 5), (2, 4), (2, 3), (3, 3), (4, 3), (5, 3), (6, 3), (7, 3), (8, 3), (9, 3), (9, 4)], 'id': 'gs_dvgSr649S3d4qxyhGVqPQkQG'}], 'food': [(8, 5)], 'module': 'decision_flow - github', 'decision_path': ['1v1', 'split avoid self confined moves'], 'next_coord': (10, 8), 'next_move': 'down', 'time': '0.005s'}
     log = {'id': 'a971da37-ba66-420d-897e-114d8fbdc0b7', 'turn': 83, 'me': {'name': 'mark_snake', 'health': 79, 'length': 12, 'body': [(8, 1), (8, 0), (9, 0), (9, 1), (9, 2), (9, 3), (9, 4), (9, 5), (9, 6), (8, 6), (7, 6), (6, 6)], 'id': 'gs_xKCGTF84MvTjv4TbqKJJ47bV'}, 'others': [{'name': 'Gregory Megory', 'health': 97, 'length': 12, 'body': [(6, 3), (6, 2), (5, 2), (4, 2), (4, 1), (4, 0), (3, 0), (2, 0), (1, 0), (1, 1), (2, 1), (2, 2)], 'id': 'gs_WKfDrGfVkhj3vXjbJjCg7MYF'}], 'food': [(5, 10), (5, 9), (8, 4), (7, 0)], 'module': 'decision_flow - github', 'decision_path': ['1v1', 'get food (7, 0)'], 'next_coord': (7, 1), 'next_move': 'left', 'time': '0.035s'}
     log = {'id': 'e6db74ca-5cb4-4672-9a57-4b07ce3b507d', 'turn': 127, 'me': {'name': 'mark_snake', 'health': 92, 'length': 14, 'body': [(8, 9), (7, 9), (6, 9), (5, 9), (4, 9), (4, 8), (4, 7), (4, 6), (5, 6), (6, 6), (6, 7), (5, 7), (5, 8), (6, 8)], 'id': 'gs_WH6fVVhkmhtQ43SHDtj7BqHQ'}, 'others': [{'name': 'smartytree', 'health': 94, 'length': 16, 'body': [(9, 8), (9, 7), (9, 6), (9, 5), (9, 4), (9, 3), (10, 3), (10, 2), (10, 1), (10, 0), (9, 0), (8, 0), (7, 0), (6, 0), (5, 0), (5, 1)], 'id': 'gs_3TTWh7Sdp88dVjJYtt8KXkt9'}, {'name': 'Przze v2', 'health': 97, 'length': 9, 'body': [(0, 7), (0, 8), (0, 9), (1, 9), (2, 9), (3, 9), (3, 8), (2, 8), (1, 8)], 'id': 'gs_T8vTB4FVxpxTkMmhPRyPf7xX'}, {'name': 'Gregory Megory', 'health': 48, 'length': 7, 'body': [(6, 3), (5, 3), (4, 3), (3, 3), (2, 3), (2, 4), (3, 4)], 'id': 'gs_r6XBkWPHJFhPxJbvtq9xvQSb'}], 'food': [(9, 10), (0, 2), (2, 1), (2, 5)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'collision type 2 take risk'], 'next_coord': (8, 8), 'next_move': 'down', 'time': '0.011s'}
+    log = {'id': 'ff84ffad-b2ff-4749-b7e2-0b712be7f90d', 'turn': 101, 'me': {'name': 'mark_snake', 'health': 96, 'length': 13, 'body': [(3, 2), (2, 2), (1, 2), (0, 2), (0, 3), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (2, 9)], 'id': 'gs_SK9G9kxP3Y7xBTbkmwpm8JPB'}, 'others': [{'name': 'Gregory Megory', 'health': 100, 'length': 13, 'body': [(5, 0), (6, 0), (6, 1), (6, 2), (7, 2), (7, 1), (8, 1), (8, 2), (9, 2), (9, 3), (8, 3), (8, 4), (8, 4)], 'id': 'gs_v7YgH3bCtYmh7PXfCGkMdpVP'}, {'name': 'Red Yarn', 'health': 89, 'length': 12, 'body': [(6, 5), (7, 5), (7, 4), (6, 4), (5, 4), (5, 5), (5, 6), (5, 7), (5, 8), (6, 8), (7, 8), (7, 9)], 'id': 'gs_pBgt3VW8xrxbyv94FxHpJTK9'}], 'food': [(10, 8)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('Red Yarn', 1, (6, 6))]", 'make forming trap'], 'next_coord': (3, 1), 'next_move': 'down', 'time': '0.008s'}
+    log = {'id': 'ff84ffad-b2ff-4749-b7e2-0b712be7f90d', 'turn': 101, 'me': {'name': 'mark_snake', 'health': 96, 'length': 13, 'body': [(3, 2), (2, 2), (1, 2), (0, 2), (0, 3), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (2, 9)], 'id': 'gs_SK9G9kxP3Y7xBTbkmwpm8JPB'}, 'others': [{'name': 'Gregory Megory', 'health': 100, 'length': 13, 'body': [(5, 0), (6, 0), (6, 1), (6, 2), (7, 2), (7, 1), (8, 1), (8, 2), (9, 2), (9, 3), (8, 3), (8, 4), (8, 4)], 'id': 'gs_v7YgH3bCtYmh7PXfCGkMdpVP'}, {'name': 'Red Yarn', 'health': 89, 'length': 12, 'body': [(6, 5), (7, 5), (7, 4), (6, 4), (5, 4), (5, 5), (5, 6), (5, 7), (5, 8), (6, 8), (7, 8), (7, 9)], 'id': 'gs_pBgt3VW8xrxbyv94FxHpJTK9'}], 'food': [(10, 8)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('Red Yarn', 1, (6, 6))]", 'make forming trap'], 'next_coord': (3, 1), 'next_move': 'down', 'time': '0.008s'}
+    log = {'id': 'ff84ffad-b2ff-4749-b7e2-0b712be7f90d', 'turn': 102, 'me': {'name': 'mark_snake', 'health': 95, 'length': 13, 'body': [(3, 1), (3, 2), (2, 2), (1, 2), (0, 2), (0, 3), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9)], 'id': 'gs_SK9G9kxP3Y7xBTbkmwpm8JPB'}, 'others': [{'name': 'Gregory Megory', 'health': 99, 'length': 13, 'body': [(4, 0), (5, 0), (6, 0), (6, 1), (6, 2), (7, 2), (7, 1), (8, 1), (8, 2), (9, 2), (9, 3), (8, 3), (8, 4)], 'id': 'gs_v7YgH3bCtYmh7PXfCGkMdpVP'}, {'name': 'Red Yarn', 'health': 88, 'length': 12, 'body': [(6, 6), (6, 5), (7, 5), (7, 4), (6, 4), (5, 4), (5, 5), (5, 6), (5, 7), (5, 8), (6, 8), (7, 8)], 'id': 'gs_pBgt3VW8xrxbyv94FxHpJTK9'}], 'food': [(10, 8)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'forming trap'], 'next_coord': (2, 1), 'next_move': 'left', 'time': '0.008s'}
 
 
 
