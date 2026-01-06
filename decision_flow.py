@@ -80,7 +80,9 @@ def main(game_state, log=True, log_db=False):
             avoid_length_change_danger,
 
             (split_avoid_confinement_2),
-            (split_avoid_confinement),
+            (split_avoid_confinement(factor=1.0)),
+            split_avoid_border_trap_2,
+            (split_avoid_confinement(factor=1.1)),
 
             (type_1_collision),
 
@@ -1543,27 +1545,45 @@ def main(game_state, log=True, log_db=False):
                 g.decision_path.append("split avoid other confined moves")
                 return moves
 
-    def split_avoid_confinement(moves):
-        ngroup = move_connected_group(moves)
-        if ngroup != 2: return
-
-        def split_self_confinement(a):
-            #occupied = complement(g.me.territory)
-            occupied = g.occupied_cells[1]
-            aset = path_connected_set(a, occupied)
-            aset = sorted(list(set(aset)))
-            #self confined
-            if not all([p in g.me.body for a in aset for p in adj_cells(a) if p not in aset]): return False
-
-            wayout_point = has_wayout_on_myself2(aset, a)
-            return wayout_point is None
-
-        confined_moves = [a for a in moves if split_self_confinement(a)]
-        if len(confined_moves) != 0:
-            moves = [a for a in moves if a not in confined_moves]
+    def split_avoid_border_trap_2(moves):
+        if not on_border(g.me.head): return
+        if not off_border_1(g.me.neck): return
+        snakes = [snake for snake in g.others if snake.length > g.me.length]
+        snakes = [snake for snake in snakes if distance_vector_abs(snake.neck, g.me.neck) == (1,1)]
+        snakes = [snake for snake in snakes if not on_border(snake.neck)]
+        snakes = [snake for snake in snakes if distance_vector_abs(snake.head, g.me.head) == (2,2)]
+        if len(snakes) != 1: return
+        snake = take_first(snakes)
+        danger_move = [a for a in moves if distance_pq(a, snake.head) == 3]
+        if len(danger_move) != 0:
+            moves = [a for a in moves if a not in danger_move]
             if len(moves) != 0:
-                g.decision_path.append("split avoid self confined moves")
+                g.decision_path.append("split_avoid_border_trap_2")
                 return moves
+
+    def split_avoid_confinement(factor):
+        def fn(moves):
+            ngroup = move_connected_group(moves)
+            if ngroup != 2: return
+
+            def split_self_confinement(a):
+                #occupied = complement(g.me.territory)
+                occupied = g.occupied_cells[1]
+                aset = path_connected_set(a, occupied)
+                aset = sorted(list(set(aset)))
+                #self confined
+                if not all([p in g.me.body for a in aset for p in adj_cells(a) if p not in aset]): return False
+
+                wayout_point = has_wayout_on_myself2(aset, a, factor)
+                return wayout_point is None
+
+            confined_moves = [a for a in moves if split_self_confinement(a)]
+            if len(confined_moves) != 0:
+                moves = [a for a in moves if a not in confined_moves]
+                if len(moves) != 0:
+                    g.decision_path.append("split avoid self confined moves")
+                    return moves
+        return fn
 
     def avoid_food_split_confine(moves):
         for a in moves:
@@ -2068,7 +2088,7 @@ def main(game_state, log=True, log_db=False):
         g.decision_path.append(f"wayout on {snake.name}")
         return wayout_point
 
-    def has_wayout_on_myself2(aset, a):
+    def has_wayout_on_myself2(aset, a, factor=1.1):
         adjacent_indexes = [i
                         for i,c in enumerate(g.me.body) if c != g.me.head and c != g.me.tail
                         for p in adj_cells(c) if p in aset and p != a
@@ -2085,7 +2105,7 @@ def main(game_state, log=True, log_db=False):
             if len(aset) >= wayout_length + len(aset_food):
                 return wayout_point
         else:
-            if len(aset) >= wayout_length * 1.1:
+            if len(aset) >= wayout_length * factor:
                 return wayout_point
 
     def has_wayout_on_others2(aset, a):
@@ -3663,6 +3683,10 @@ if __name__ == "__main__":
     log = {'id': 'e2bb00a6-8701-4c47-862a-e93f4bacdae6', 'turn': 137, 'me': {'name': 'mark_snake', 'health': 96, 'length': 16, 'body': [(9, 4), (8, 4), (8, 5), (9, 5), (10, 5), (10, 6), (9, 6), (8, 6), (8, 7), (8, 8), (7, 8), (6, 8), (5, 8), (4, 8), (4, 9), (4, 10)], 'id': 'gs_gHTrhckCGCTGmD6xMjrJQdHK'}, 'others': [{'name': 'go-st', 'health': 88, 'length': 13, 'body': [(4, 5), (3, 5), (3, 4), (3, 3), (3, 2), (2, 2), (2, 3), (2, 4), (2, 5), (1, 5), (0, 5), (0, 6), (0, 7)], 'id': 'gs_hr76w8cyWQh9ydQ8j6VrVydM'}, {'name': 'ich heisse marvin', 'health': 43, 'length': 11, 'body': [(9, 2), (9, 1), (9, 0), (8, 0), (7, 0), (6, 0), (6, 1), (6, 2), (6, 3), (7, 3), (8, 3)], 'id': 'gs_XCPyVRvwdHhX6kSCWQQ7XydR'}], 'food': [(2, 0), (4, 0), (5, 4)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'wayout longer cut'], 'next_coord': (10, 4), 'next_move': 'right', 'time': '0.007s'}
     log = {'id': 'ddfe6c95-7dcd-452b-8128-bf58a0f595e9', 'turn': 111, 'me': {'name': 'mark_snake', 'health': 74, 'length': 10, 'body': [(8, 9), (8, 8), (8, 7), (8, 6), (8, 5), (8, 4), (8, 3), (8, 2), (7, 2), (6, 2)], 'id': 'gs_bBv6G6fVTD6jjfXKXvtVYwRW'}, 'others': [{'name': 'SmartyRat', 'health': 98, 'length': 11, 'body': [(5, 10), (4, 10), (3, 10), (2, 10), (2, 9), (1, 9), (0, 9), (0,8), (0,7), (0,6), (0,5)], 'id': 'gs_MY7jggqQ9gtqhMydcQ6C3r3T'}, {'name': 'Natterlie', 'health': 82, 'length': 13, 'body': [(2, 5), (2, 6), (2, 7), (2, 8), (3, 8), (4, 8), (5, 8), (6, 8), (6, 7), (5, 7), (5, 6), (4, 6), (3, 6)], 'id': 'gs_bvQkKwP7SrqcJ87pJW7Mmc4Q'}], 'food': [(9, 10), (0, 10)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'get food (9, 10) via border'], 'next_coord': (9, 9), 'next_move': 'right', 'time': '0.033s'}
     log = {'id': 'ddfe6c95-7dcd-452b-8128-bf58a0f595e9', 'turn': 111, 'me': {'name': 'mark_snake', 'health': 74, 'length': 10, 'body': [(8, 9), (8, 8), (8, 7), (8, 6), (8, 5), (8, 4), (8, 3), (8, 2), (7, 2), (6, 2)], 'id': 'gs_bBv6G6fVTD6jjfXKXvtVYwRW'}, 'others': [{'name': 'SmartyRat', 'health': 98, 'length': 7, 'body': [(5, 10), (4, 10), (3, 10), (2, 10), (2, 9), (3, 9), (4, 9)], 'id': 'gs_MY7jggqQ9gtqhMydcQ6C3r3T'}, {'name': 'Natterlie', 'health': 82, 'length': 13, 'body': [(2, 5), (2, 6), (2, 7), (2, 8), (3, 8), (4, 8), (5, 8), (6, 8), (6, 7), (5, 7), (5, 6), (4, 6), (3, 6)], 'id': 'gs_bvQkKwP7SrqcJ87pJW7Mmc4Q'}], 'food': [(9, 10), (0, 10)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'get food (9, 10) via border'], 'next_coord': (9, 9), 'next_move': 'right', 'time': '0.033s'}
+    log = {'id': 'f3f918b2-0955-4018-9040-e91928239433', 'turn': 101, 'me': {'name': 'mark_snake', 'health': 100, 'length': 9, 'body': [(6, 9), (7, 9), (7, 10), (8, 10), (8, 9), (9, 9), (10, 9), (10, 8), (10, 8)], 'id': 'gs_vfMM9MFtkxymFxYFFqmJCGtc'}, 'others': [{'name': 'Przze v2', 'health': 85, 'length': 10, 'body': [(7, 6), (8, 6), (8, 5), (8, 4), (7, 4), (7, 3), (7, 2), (6, 2), (5, 2), (4, 2)], 'id': 'gs_HwQBTB83CrwFfwHbbkWfCVdK'}, {'name': 'go-st', 'health': 65, 'length': 7, 'body': [(2, 9), (3, 9), (4, 9), (5, 9), (5, 8), (5, 7), (4, 7)], 'id': 'gs_VJhMFfjc6gVxJvWY33RgM4fY'}, {'name': 'Spaceheater', 'health': 85, 'length': 12, 'body': [(3, 2), (3, 3), (3, 4), (4, 4), (4, 5), (5, 5), (5, 4), (6, 4), (6, 5), (6, 6), (6, 7), (7, 7)], 'id': 'gs_6v4Rq8bH4FvW3tvCfjxxfmWD'}], 'food': [(0, 9)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'avoid two step collision'], 'next_coord': (6, 10), 'next_move': 'up', 'time': '0.013s'}
+    log = {'id': '072e6a6e-877c-47e6-bb65-c8463e662dad', 'turn': 41, 'me': {'name': 'mark_snake', 'health': 98, 'length': 6, 'body': [(7, 10), (8, 10), (9, 10), (9, 9), (8, 9), (7, 9)], 'id': 'gs_dgMJVhSQBvFYGKtFWvfd8cRW'}, 'others': [{'name': 'Geriatric Jagwire', 'health': 61, 'length': 4, 'body': [(0, 5), (1, 5), (1, 6), (1, 7)], 'id': 'gs_Jgv6Qp4gjKMRcCJgx78kmbGV'}, {'name': 'go-st', 'health': 91, 'length': 7, 'body': [(3, 4), (2, 4), (2, 3), (3, 3), (3, 2), (4, 2), (4, 1)], 'id': 'gs_DQQ7g9rkdcSF8TqQ7f9PqX8M'}, {'name': 'Spaceheater', 'health': 98, 'length': 8, 'body': [(5, 6), (6, 6), (6, 5), (7, 5), (7, 4), (6, 4), (5, 4), (5, 5)], 'id': 'gs_6YQf8BBhM8qgBPPhQ7bHbffB'}], 'food': [(6, 10)], 'module': 'decision_flow - github', 'decision_path': ['1vn'], 'next_coord': (7, 9), 'next_move': 'down', 'time': '0.011s'}
+    log = {'id': 'e1dcd4bf-aa11-496a-927e-d613253afec7', 'turn': 99, 'me': {'name': 'mark_snake', 'health': 43, 'length': 7, 'body': [(1, 4), (1, 5), (2, 5), (3, 5), (4, 5), (4, 4), (3, 4)], 'id': 'gs_RSfkjmDfhv7D4yRH3MpXTBVG'}, 'others': [{'name': 'SmartyRat', 'health': 70, 'length': 8, 'body': [(0, 7), (1, 7), (2, 7), (3, 7), (4, 7), (5, 7), (5, 8), (5, 9)], 'id': 'gs_bCWSRtVfYhYrqfQF7x9F6mPJ'}, {'name': 'ich heisse marvin', 'health': 96, 'length': 10, 'body': [(6, 5), (7, 5), (8, 5), (8, 4), (9, 4), (9, 3), (9, 2), (8, 2), (7, 2), (7, 3)], 'id': 'gs_RpwWVQFgYpXKDh6TVbGmSCkP'}, {'name': 'Slytherin', 'health': 63, 'length': 9, 'body': [(2, 3), (2, 2), (3, 2), (4, 2), (5, 2), (6, 2), (6, 1), (5, 1), (4, 1)], 'id': 'gs_gDYCk9fjYyCYcTcptgRf63j4'}], 'food': [(0, 10)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'avoid type 1 collision [(0, 4)]'], 'next_coord': (0, 4), 'next_move': 'left', 'time': '0.005s'}
+    log = {'id': 'e2a55c5f-c4dc-469c-9f0d-eca05310edfd', 'turn': 217, 'me': {'name': 'mark_snake', 'health': 81, 'length': 16, 'body': [(10, 9), (9, 9), (8, 9), (7, 9), (6, 9), (5, 9), (4, 9), (3, 9), (3, 10), (2, 10), (1, 10), (1, 9), (1, 8), (1, 7), (1, 6), (1, 5)], 'id': 'gs_4QGSF6hXygfPkc9PbrWMDKD7'}, 'others': [{'name': 'Jeremy', 'health': 94, 'length': 25, 'body': [(8, 7), (8, 8), (7, 8), (6, 8), (5, 8), (5, 7), (5, 6), (4, 6), (4, 7), (4, 8), (3, 8), (2, 8), (2, 7), (2, 6), (2, 5), (2, 4), (2, 3), (3, 3), (4, 3), (5, 3), (6, 3), (7, 3), (8, 3), (9, 3), (9, 4)], 'id': 'gs_dvgSr649S3d4qxyhGVqPQkQG'}], 'food': [(8, 5)], 'module': 'decision_flow - github', 'decision_path': ['1v1', 'split avoid self confined moves'], 'next_coord': (10, 8), 'next_move': 'down', 'time': '0.005s'}
 
 
 
