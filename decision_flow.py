@@ -819,6 +819,7 @@ def main(game_state, log=True, log_db=False):
         def push(moves):
             #not push when can collide
             if distance_pq(g.me.head, target.head) == 2: return
+            if sum(distance_to_border(g.me.head)) <= 4: return
             if sum(distance_to_border(g.me.head)) < sum(distance_to_border(target.head)): return
             if distance_pq(g.me.head, target.head) != path_distance_pq(g.me.head, target.head): return
             if not coming_to_each_other(g.me, target): return
