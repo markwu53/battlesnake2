@@ -130,6 +130,7 @@ def main(game_state, log=True, log_db=False):
 
             (wayout),
             wayout_longer_cut,
+            cond(len(g.others) == 1)(wayout_tail_food),
 
             (cond(len(g.others) == 1 and g.me.length > g.other.length)(longer_push)),
 
@@ -1992,6 +1993,17 @@ def main(game_state, log=True, log_db=False):
         g.decision_path.append("wayout longer cut")
         return [straight]
 
+    def wayout_tail_food(moves):
+        head_space = path_connected_set(g.me.head, g.occupied_cells[0])
+        if len(head_space) > 5: return
+        if not g.other.tail in g.me.territory: return
+        other_food = [f for f in g.food if path_distance_pq(f, g.other.head) <= 4]
+        if len(other_food) <= 2: return
+        g.decision_path.append("meander follow other tail")
+        return prefer_less_next_moves(
+            prefer_by_score(lambda a: path_distance_pq(a, g.other.tail))(moves)
+        )
+
     def wayout(moves):
         ngroup = move_connected_group(moves)
         if ngroup != 1:
@@ -3697,6 +3709,7 @@ if __name__ == "__main__":
     log = {'id': 'a2df8b85-6a63-43f9-b8ed-cb1c64da45a4', 'turn': 29, 'me': {'name': 'mark_snake', 'health': 73, 'length': 4, 'body': [(5, 8), (6, 8), (7, 8), (8, 8)], 'id': 'gs_rHSpQSGkTq9pYXpSKDhYyHFb'}, 'others': [{'name': 'Geriatric Jagwire', 'health': 73, 'length': 4, 'body': [(1, 4), (1, 5), (2, 5), (3, 5)], 'id': 'gs_yHyFWDQvdrfQHX8q6Qgcc3HP'}, {'name': 'Natterlie', 'health': 87, 'length': 6, 'body': [(6, 7), (7, 7), (7, 6), (7, 5), (7, 4), (8, 4)], 'id': 'gs_WrrW8YwxKvRJGWpSbQMHgjTc'}, {'name': '@~~~~@', 'health': 100, 'length': 5, 'body': [(4, 9), (4, 8), (4, 7), (5, 7), (5, 7)], 'id': 'gs_jDSkrp4WyprFjDbtvvqvkvgB'}], 'food': [(1, 3), (0, 1)], 'module': 'decision_flow - github', 'decision_path': ['1vn'], 'next_coord': (5, 9), 'next_move': 'up', 'time': '0.000s'}
     log = {'id': 'a2df8b85-6a63-43f9-b8ed-cb1c64da45a4', 'turn': 28, 'me': {'name': 'mark_snake', 'health': 74, 'length': 4, 'body': [(6, 8), (7, 8), (8, 8), (8, 7)], 'id': 'gs_rHSpQSGkTq9pYXpSKDhYyHFb'}, 'others': [{'name': 'Geriatric Jagwire', 'health': 74, 'length': 4, 'body': [(1, 5), (2, 5), (3, 5), (4, 5)], 'id': 'gs_yHyFWDQvdrfQHX8q6Qgcc3HP'}, {'name': 'Natterlie', 'health': 88, 'length': 6, 'body': [(7, 7), (7, 6), (7, 5), (7, 4), (8, 4), (8, 3)], 'id': 'gs_WrrW8YwxKvRJGWpSbQMHgjTc'}, {'name': '@~~~~@', 'health': 74, 'length': 4, 'body': [(4, 8), (4, 7), (5, 7), (6, 7)], 'id': 'gs_jDSkrp4WyprFjDbtvvqvkvgB'}], 'food': [(1, 3), (4, 9), (0, 1)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'avoid type 1 collision [(5, 8), (6, 9)]', 'type 2 collision take avoid point', 'enemy chasing go straight'], 'next_coord': (5, 8), 'next_move': 'left', 'time': '0.032s'}
     log = {'id': '5d6fb213-b3cf-410b-8a06-ecb37ba7ef4d', 'turn': 136, 'me': {'name': 'mark_snake', 'health': 86, 'length': 8, 'body': [(9, 9), (10, 9), (10, 8), (10, 7), (10, 6), (10, 5), (9, 5), (9, 6)], 'id': 'gs_dwh9grtHyMfQWMfbgtqQG8yY'}, 'others': [{'name': 'lackluster oracle', 'health': 89, 'length': 10, 'body': [(8, 8), (7, 8), (7, 7), (6, 7), (6, 8), (6, 9), (5, 9), (5, 8), (4, 8), (3, 8)], 'id': 'gs_JVSqpfygxmMbbRqrtt36yHHb'}, {'name': 'Copy of snake2_v3_FINAL_final(1)', 'health': 92, 'length': 19, 'body': [(5, 1), (4, 1), (4, 0), (5, 0), (6, 0), (7, 0), (8, 0), (9, 0), (10, 0), (10, 1), (9, 1), (8, 1), (8, 2), (9, 2), (10, 2), (10, 3), (9, 3), (8, 3), (8, 4)], 'id': 'gs_TFXRKgjgHTVF783JPwBBFdkd'}, {'name': 'go-st', 'health': 100, 'length': 12, 'body': [(4, 6), (4, 5), (4, 4), (3, 4), (2, 4), (2, 5), (2, 6), (2, 7), (2, 8), (1, 8), (1, 7), (1, 7)], 'id': 'gs_JwmQK38wtqmFpgJDwmkT3yMf'}], 'food': [(4, 7), (5, 10)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'avoid type 1 collision [(9, 10)]'], 'next_coord': (9, 10), 'next_move': 'up', 'time': '0.005s'}
+    log = {'id': '531f2108-edb5-4760-b232-8bb59c646499', 'turn': 281, 'me': {'name': 'mark_snake', 'health': 86, 'length': 22, 'body': [(2, 9), (2, 8), (3, 8), (4, 8), (5, 8), (6, 8), (6, 7), (5, 7), (4, 7), (3, 7), (2, 7), (1, 7), (1, 8), (1, 9), (1, 10), (0, 10), (0, 9), (0, 8), (0, 7), (0, 6), (1, 6), (1, 5)], 'id': 'gs_r76w8TPXjtYkFgw3MjbKKdVd'}, 'others': [{'name': 'mini snake', 'health': 81, 'length': 18, 'body': [(8, 3), (8, 4), (8, 5), (7, 5), (7, 6), (8, 6), (9, 6), (9, 7), (8, 7), (8, 8), (8, 9), (7, 9), (6, 9), (6, 10), (5, 10), (5, 9), (4, 9), (3, 9)], 'id': 'gs_qcJQrC3k8CqQvMRXWGMXdD3H'}], 'food': [(10, 9), (7, 10), (8, 1), (6, 2), (6, 1)], 'module': 'decision_flow - github', 'decision_path': ['1v1'], 'next_coord': (3, 9), 'next_move': 'right', 'time': '0.008s'}
 
 
 
