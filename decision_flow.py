@@ -1996,6 +1996,7 @@ def main(game_state, log=True, log_db=False):
     def wayout_tail_food(moves):
         head_space = path_connected_set(g.me.head, g.occupied_cells[0])
         if len(head_space) > 5: return
+        if path_connected(g.me.head, g.other.head): return
         if not g.other.tail in g.me.territory: return
         other_food = [f for f in g.food if path_distance_pq(f, g.other.head) <= 4]
         if len(other_food) <= 2: return
