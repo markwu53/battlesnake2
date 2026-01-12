@@ -131,7 +131,7 @@ def main(game_state, log=True, log_db=False):
 
             (wayout),
             wayout_longer_cut,
-            cond(len(g.others) == 1)(wayout_tail_food),
+            (wayout_tail_food),
 
             (cond(len(g.others) == 1 and g.me.length > g.other.length)(longer_push)),
 
@@ -1999,13 +1999,16 @@ def main(game_state, log=True, log_db=False):
     def wayout_tail_food(moves):
         head_space = path_connected_set(g.me.head, g.occupied_cells[0])
         if len(head_space) > 5: return
-        if path_connected(g.me.head, g.other.head): return
-        if not g.other.tail in g.me.territory: return
-        other_food = [f for f in g.food if path_distance_pq(f, g.other.head) <= 4]
+        snake = [snake for snake in g.others if snake.tail in g.me.territory]
+        if len(snake) != 1: return
+        snake = take_first(snake)
+
+        if any([path_connected(g.me.head, snake.head) for snake in g.others]): return
+        other_food = [f for f in g.food if path_distance_pq(f, snake.head) <= 3]
         if len(other_food) == 0: return
         g.decision_path.append("meander follow other tail")
         return prefer_less_next_moves(
-            prefer_by_score(lambda a: path_distance_pq(a, g.other.tail))(moves)
+            prefer_by_score(lambda a: path_distance_pq(a, snake.tail))(moves)
         )
 
     def wayout(moves):
