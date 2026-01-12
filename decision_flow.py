@@ -1998,7 +1998,7 @@ def main(game_state, log=True, log_db=False):
         if path_connected(g.me.head, g.other.head): return
         if not g.other.tail in g.me.territory: return
         other_food = [f for f in g.food if path_distance_pq(f, g.other.head) <= 4]
-        if len(other_food) <= 2: return
+        if len(other_food) == 0: return
         g.decision_path.append("meander follow other tail")
         return prefer_less_next_moves(
             prefer_by_score(lambda a: path_distance_pq(a, g.other.tail))(moves)
