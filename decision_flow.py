@@ -211,7 +211,7 @@ def main(game_state, log=True, log_db=False):
             avoid_confined_with_killer,
 
             #sometime this can create type 2 collision situation
-            (cond(g.me.length <= 16)(prefer_away_border)),
+            (cond(g.me.length <= 10)(prefer_away_border)),
 
             (cond(g.me.length >= 10)(prefer_less_split)),
 
@@ -578,6 +578,8 @@ def main(game_state, log=True, log_db=False):
                 return moves
 
     def prefer_away_border(moves):
+        snakes = [snake for snake in g.others if snake.length > g.me.snake]
+        if len(snakes) == 0: return
         return prefer_by_score(lambda a: min(*distance_to_border(a), 2))(moves)
 
     def single_move_n(n, a):
@@ -3709,6 +3711,7 @@ if __name__ == "__main__":
     log = {'id': '50d867bc-35d5-4498-8f38-798a9565575b', 'turn': 115, 'me': {'name': 'mark_snake', 'health': 88, 'length': 6, 'body': [(9, 0), (9, 1), (9, 2), (9, 3), (9, 4), (8, 4)], 'id': 'gs_D8Y4h4mvJvXdkGcywyYpWSVD'}, 'others': [{'name': 'mini snake', 'health': 76, 'length': 5, 'body': [(2, 5), (2, 4), (1, 4), (1, 5), (1, 6)], 'id': 'gs_DVcSCX3Y3X7bfwgWQSxVtfmG'}, {'name': 'Natterlie', 'health': 57, 'length': 10, 'body': [(8, 3), (8, 2), (7, 2), (7, 1), (6, 1), (5, 1), (5, 2), (5, 3), (4, 3), (4, 2)], 'id': 'gs_tCmQXdhkSXvSCQT4Vy7kbTT7'}, {'name': 'Spaceheater', 'health': 80, 'length': 10, 'body': [(5, 6), (6, 6), (7, 6), (8, 6), (8, 5), (7, 5), (6, 5), (5, 5), (4, 5), (4, 6)], 'id': 'gs_X7JDHfY3TMQ46VStVVRGpWQV'}], 'food': [(1, 8), (0, 9), (5, 10), (9, 10)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'avoid cornered moves'], 'next_coord': (8, 0), 'next_move': 'left', 'time': '0.091s'}
     log = {'id': '6b6f92bc-2996-4079-9871-d02232e2de06', 'turn': 281, 'me': {'name': 'mark_snake', 'health': 88, 'length': 20, 'body': [(4, 3), (4, 2), (4, 1), (3, 1), (2, 1), (1, 1), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (1, 7), (2, 7), (3, 7), (4, 7), (4, 6), (4, 5), (5, 5)], 'id': 'gs_hhCw3qWyMvS4mPyhyJfFd9f7'}, 'others': [{'name': 'Sandworm', 'health': 93, 'length': 22, 'body': [(5, 6), (6, 6), (7, 6), (8, 6), (8, 7), (7, 7), (6, 7), (5, 7), (5, 8), (4, 8), (3, 8), (2, 8), (1, 8), (1, 9), (2, 9), (3, 9), (3, 10), (4, 10), (5, 10), (6, 10), (7, 10), (8, 10)], 'id': 'gs_WRhv7dK3Vt6RFyV4RVyMyyRF'}], 'food': [(0, 8), (5, 4), (1, 5)], 'module': 'decision_flow - github', 'decision_path': ['1v1', "vulnerable snakes: [('Sandworm', 1, (5, 5))]", "vulnerable but I'm short", 'avoid next step confinement [(3, 3)]', 'get food (1, 5)'], 'next_coord': (4, 4), 'next_move': 'up', 'time': '0.029s'}
     log = {'id': '6d852a79-1b0b-4f4b-9dc4-728a48a5554d', 'turn': 223, 'me': {'name': 'mark_snake', 'health': 92, 'length': 23, 'body': [(1, 4), (0, 4), (0, 3), (0, 2), (0, 1), (0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (4, 1), (5, 1), (5, 0), (6, 0), (7, 0), (8, 0), (9, 0), (9, 1), (8, 1), (8, 2), (7, 2), (6, 2), (5, 2)], 'id': 'gs_44Mxrc747TBrxhPgS3JBmdjV'}, 'others': [{'name': 'Game of Chicken', 'health': 87, 'length': 18, 'body': [(5, 4), (5, 5), (5, 6), (4, 6), (4, 5), (3, 5), (3, 6), (2, 6), (2, 7), (1, 7), (0, 7), (0, 8), (0, 9), (0, 10), (1, 10), (2, 10), (3, 10), (4, 10)], 'id': 'gs_HjMWGJwwg4f7CyJJBSthS7JK'}, {'name': '@~~~~@', 'health': 93, 'length': 15, 'body': [(9, 4), (9, 3), (8, 3), (8, 4), (8, 5), (8, 6), (8, 7), (7, 7), (7, 8), (6, 8), (6, 7), (6, 6), (7, 6), (7, 5), (7, 4)], 'id': 'gs_f7TmrdBdSFMfht9hy6MSJ8QP'}], 'food': [(10, 1)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'wayout longer cut'], 'next_coord': (2, 4), 'next_move': 'right', 'time': '0.011s'}
+    log = {'id': '08d9113c-c4e3-4e3e-bb2a-933484586cee', 'turn': 178, 'me': {'name': 'mark_snake', 'health': 73, 'length': 14, 'body': [(8, 4), (7, 4), (7, 5), (7, 6), (7, 7), (7, 8), (7, 9), (6, 9), (5, 9), (4, 9), (3, 9), (2, 9), (1, 9), (1, 8)], 'id': 'gs_DXkWGd8g6QC3C7GP6CpKJWr7'}, 'others': [{'name': 'Geriatric Jagwire', 'health': 81, 'length': 9, 'body': [(9, 7), (9, 6), (9, 5), (8, 5), (8, 6), (8, 7), (8, 8), (8, 9), (8, 10)], 'id': 'gs_dmM6PytXpFHXcGxVSmTy89FP'}, {'name': 'Natterlie', 'health': 66, 'length': 16, 'body': [(2, 2), (3, 2), (3, 1), (4, 1), (5, 1), (6, 1), (7, 1), (8, 1), (8, 2), (7, 2), (6, 2), (5, 2), (5, 3), (5, 4), (5, 5), (5, 6)], 'id': 'gs_dth4x4GXDQDrV8ywQTRb8Jfb'}], 'food': [(0, 2), (2, 3), (1, 7), (0, 10)], 'module': 'decision_flow - github', 'decision_path': ['1vn'], 'next_coord': (8, 3), 'next_move': 'down', 'time': '0.035s'}
 
     game_state = init_from_log(log)
     self_name = "mark_snake_test GREEN"
