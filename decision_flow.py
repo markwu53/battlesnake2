@@ -95,6 +95,8 @@ def main(game_state, log=True, log_db=False):
 
             (suppressed_chasing_kill_opportunity),
 
+            avoid_short_vulnerable_move,
+
             (prefer_not(entering_danger(suppressed_chasing_kill_situation))),
             (prefer_not(entering_danger(border_confront_kill_situation))),
 
@@ -106,7 +108,6 @@ def main(game_state, log=True, log_db=False):
 
             avoid_border_type_1_collision,
 
-            #two step collision mean crowded, don't go
             (cond(len(g.others) > 1)(avoid_two_step_collision)),
 
             avoid_food_split_confine,
@@ -581,6 +582,19 @@ def main(game_state, log=True, log_db=False):
         snakes = [snake for snake in g.others if snake.length > g.me.length]
         if len(snakes) == 0: return
         return prefer_by_score(lambda a: min(*distance_to_border(a), 2))(moves)
+
+    def avoid_short_vulnerable_move(moves):
+        if g.me.length > 6: return
+        killers = [snake for snake in g.others if snake.length > g.me.length]
+        if len(killers) == 0: return
+        danger_length = [path_distance_pq(g.me.head, snake.head) for snake in killers]
+        danger_length = min(danger_length) //2 -1
+        vulnerable_move = [a for a in moves if single_move_n(danger_length, a)]
+        if len(vulnerable_move) != 0:
+            moves = [a for a in moves if a not in vulnerable_move]
+            if len(moves) != 0:
+                g.decision_path.append("avoid short vulnerable moves")
+                return moves
 
     def single_move_n(n, a):
         cumulate = []
@@ -3715,6 +3729,8 @@ if __name__ == "__main__":
     log = {'id': 'cf1bb3d3-3800-4cdf-9f88-bc6d29b6078e', 'turn': 241, 'me': {'name': 'mark_snake', 'health': 100, 'length': 21, 'body': [(9,8), (9, 9), (8, 9), (7, 9), (6, 9), (5, 9), (5, 8), (6, 8), (6, 7), (7, 7), (8, 7), (8, 6), (8, 5), (8, 4), (9, 4), (9, 3), (9, 2), (9, 1), (9, 0), (8, 0), (7, 0)], 'id': 'gs_6vJBCr6HKRt7XyF6B8JHT4mD'}, 'others': [{'name': 'lackluster oracle', 'health': 93, 'length': 9, 'body': [(5,6), (4, 6), (3, 6), (3, 7), (3, 8), (3, 9), (4, 9), (4, 8), (4, 7)], 'id': 'gs_TbXCtVM8vrtQmd3CfvfG3jt9'}], 'food': [(10, 0), (9, 5), (2, 5), (1, 5)], 'module': 'decision_flow - github', 'decision_path': ['1v1', '1v1 longer push territory'], 'next_coord': (9, 8), 'next_move': 'down', 'time': '0.024s'}
     log = {'id': '8144074b-1e50-43ab-9690-3eafb4664a32', 'turn': 117, 'me': {'name': 'mark_snake', 'health': 96, 'length': 13, 'body': [(5, 8), (5, 9), (4, 9), (3, 9), (2, 9), (2, 8), (1, 8), (0, 8), (0, 7), (0, 6), (0, 5), (0, 4), (0, 3)], 'id': 'gs_MMHg9VSKhG83JMGmkw6yYpP6'}, 'others': [{'name': 'SnattleBake_v024', 'health': 98, 'length': 10, 'body': [(4, 7), (5, 7), (6, 7), (7, 7), (8, 7), (9, 7), (9, 6), (10, 6), (10, 5), (9, 5)], 'id': 'gs_GpKpMPCq8PVjKyhkp9VG3vrB'}, {'name': '@~~~~@', 'health': 81, 'length': 11, 'body': [(4, 5), (4, 4), (3, 4), (3, 3), (4, 3), (5, 3), (6, 3), (6, 4), (7, 4), (7, 5), (7, 6)], 'id': 'gs_CtQCFB4QBcfVgmVfW8kMHkhG'}, {'name': 'Red Yarn', 'health': 65, 'length': 7, 'body': [(2, 1), (1, 1), (1, 2), (2, 2), (3, 2), (4, 2), (5, 2)], 'id': 'gs_XtfrrcR9xdtmXM3SPgx8wtxG'}], 'food': [(9, 3)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'two-snake kill opportunity'], 'next_coord': (4, 8), 'next_move': 'left', 'time': '0.017s'}
     log = {'id': '23841a7c-9560-426c-8b08-de894e6b54b3', 'turn': 83, 'me': {'name': 'mark_snake', 'health': 97, 'length': 9, 'body': [(6, 3), (7, 3), (7, 2), (7, 1), (7, 0), (8, 0), (8, 1), (8, 2), (8, 3)], 'id': 'gs_rDQFqHw93XV3ktCGPgqhFqcb'}, 'others': [{'name': '@~~~~@', 'health': 100, 'length': 6, 'body': [(5, 2), (4, 2), (4, 3), (4, 4), (3, 4), (3, 4)], 'id': 'gs_Sdqq8FQ7dWTkfPhRbDQSrSkJ'}, {'name': 'Slytherin', 'health': 83, 'length': 7, 'body': [(8, 5), (8, 4), (7, 4), (6, 4), (6, 5), (7, 5), (7, 6)], 'id': 'gs_HcJvTM84DYjkFVTPx9cmFXPd'}, {'name': 'Spaceheater', 'health': 90, 'length': 8, 'body': [(5, 6), (5, 7), (4, 7), (4, 8), (3, 8), (2, 8), (2, 7), (1, 7)], 'id': 'gs_K99vgpRjYVVBC8CDWXJR6Qx3'}], 'food': [(5, 0)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'split choice no good', 'split choice no good', 'split2 choose more space'], 'next_coord': (6, 2), 'next_move': 'down', 'time': '0.077s'}
+    log = {'id': '4262f4e8-b560-491b-8a48-c5d8d5c5d0ce', 'turn': 140, 'me': {'name': 'mark_snake', 'health': 96, 'length': 7, 'body': [(3, 7), (3, 8), (2, 8), (1, 8), (1, 9), (2, 9), (3, 9)], 'id': 'gs_rmcVCm7FQGFS6jhgypTTqM8f'}, 'others': [{'name': 'Sandworm', 'health': 99, 'length': 13, 'body': [(1, 5), (1, 4), (1, 3), (1, 2), (1, 1), (2, 1), (2, 0), (3, 0), (4, 0), (5, 0), (5, 1), (4, 1), (4, 2)], 'id': 'gs_w6GWK6w47fqGktjPYwX87jGJ'}, {'name': 'poc', 'health': 86, 'length': 11, 'body': [(6, 4), (5, 4), (4, 4), (4, 5), (5, 5), (6, 5), (7, 5), (8, 5), (8, 4), (8, 3), (8, 2)], 'id': 'gs_BJfq6q4W6T3bCXXBQjDSHpxM'}, {'name': 'Spaceheater', 'health': 93, 'length': 12, 'body': [(4, 8), (5, 8), (6, 8), (6, 9), (7, 9), (8, 9), (8, 8), (8, 7), (8, 6), (7, 6), (6, 6), (6, 7)], 'id': 'gs_tRpkfhS88TfqcHjHDhGBRGKF'}], 'food': [(5, 6), (3, 4)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'avoid two step collision'], 'next_coord': (4, 7), 'next_move': 'right', 'time': '0.019s'}
+    log = {'id': 'cd5e704c-0260-4983-b1fe-826d3c68aa7a', 'turn': 33, 'me': {'name': 'mark_snake', 'health': 100, 'length': 5, 'body': [(0, 9), (1, 9), (2, 9), (3, 9), (3, 9)], 'id': 'gs_6JQmdG8yF6kxcXStpcdVPT4c'}, 'others': [{'name': 'Natterlie', 'health': 84, 'length': 6, 'body': [(3, 6), (3, 5), (3, 4), (4, 4), (5, 4), (5, 3)], 'id': 'gs_yqdSFxkFYFcyRRwtb46jdRxQ'}, {'name': '@~~~~@', 'health': 92, 'length': 6, 'body': [(5, 6), (5, 5), (6, 5), (6, 6), (7, 6), (8, 6)], 'id': 'gs_9vP8RRcC6fVJdrYrgry38jpc'}, {'name': 'Gregory Megory', 'health': 94, 'length': 5, 'body': [(6, 9), (5, 9), (4, 9), (4, 8), (4, 7)], 'id': 'gs_V79XkPbxWBCyrFkkd86S6j9Y'}], 'food': [(4, 0)], 'module': 'decision_flow - github', 'decision_path': ['1vn'], 'next_coord': (0, 10), 'next_move': 'up', 'time': '0.016s'}
 
 
     game_state = init_from_log(log)
