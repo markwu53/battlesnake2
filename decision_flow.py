@@ -196,7 +196,7 @@ def main(game_state, log=True, log_db=False):
 
             (cond(len(g.others) == 1 and g.me.length < g.other.length)(shorter_goto_territory_border)),
             #(cond(len(g.others) > 1)(move_to_largest_territory_component)),
-            move_to_largest_territory_component,
+            choose_a_territory_component,
             #seal_the_place,
             
             (cond(g.me.length >= 12)(confined_follow_tail)),
@@ -427,18 +427,21 @@ def main(game_state, log=True, log_db=False):
             g.decision_path.append("1v1 longer push territory")
             return push_move
 
-    def largest_territory_component(territory):
-        if len(territory) == 0: return []
-        occupied = complement(territory)
+    def aset_components(aset):
+        if len(aset) == 0: return []
+        occupied = complement(aset)
         pieces = []
-        rest = territory
+        rest = aset
         while len(rest) > 0:
             a = take_first(rest)
             piece = path_connected_set(a, occupied)
             piece = sorted(list(piece))
             pieces.append(piece)
             rest = [p for p in rest if p not in piece]
-        return max(pieces, key=len)
+        return pieces
+
+    def largest_territory_component(territory):
+        return max(aset_components(territory), key=len)
 
     def longer_push(moves):
         #assume 1v1
@@ -469,7 +472,43 @@ def main(game_state, log=True, log_db=False):
         nabors = [b for b in piece if b != a and (is_adjacent(a, b) or distance_vector_abs(a, b) == (1,1))]
         return len(nabors) == 1
 
-    def move_to_largest_territory_component(moves):
+    def choose_a_territory_component(moves):
+        components = aset_components(g.me.territory)
+        if len(components) != 2: return
+        tail_component = []
+        updated_component = []
+        for comp  in components:
+            step = (len(comp)+1)//2
+            multistep_terrritories(step)(moves)
+            comp_a = take_first([a for a in moves if a in comp])
+            aset = path_connected_set(comp_a, complement(g.me.territory2))
+            updated_component.append(aset)
+            if any([snake.body[-step-1] in aset for snake in g.snakes]):
+                tail_component.append(aset)
+        spacious_component = [aset for aset in updated_component if len(aset) >= g.me.length * 1.2]
+        if len(spacious_component) != 0:
+            comp = take_first(spacious_component)
+            moves = [a for a in moves if a in comp]
+            if len(moves) != 0:
+                g.decision_path.append("take spacious territory component")
+                return moves
+        
+        if len(tail_component) == 0:
+            comp = max(updated_component, key=len)
+            moves = [a for a in moves if a in comp]
+            if len(moves) != 0:
+                g.decision_path.append("take largest territory component")
+                return moves
+        
+        #has tail_component
+        if len(tail_component) == 1:
+            comp = take_first(tail_component)
+            moves = [a for a in moves if a in comp]
+            if len(moves) != 0:
+                g.decision_path.append("take tail territory component")
+                return moves
+
+    def move_to_largest_territory_component_2(moves):
         territory = g.me.territory
         if len(territory) >= 2:
             multistep_terrritories(1)(moves)
@@ -3735,6 +3774,7 @@ if __name__ == "__main__":
     log = {'id': 'cd5e704c-0260-4983-b1fe-826d3c68aa7a', 'turn': 33, 'me': {'name': 'mark_snake', 'health': 100, 'length': 5, 'body': [(0, 9), (1, 9), (2, 9), (3, 9), (3, 9)], 'id': 'gs_6JQmdG8yF6kxcXStpcdVPT4c'}, 'others': [{'name': 'Natterlie', 'health': 84, 'length': 6, 'body': [(3, 6), (3, 5), (3, 4), (4, 4), (5, 4), (5, 3)], 'id': 'gs_yqdSFxkFYFcyRRwtb46jdRxQ'}, {'name': '@~~~~@', 'health': 92, 'length': 6, 'body': [(5, 6), (5, 5), (6, 5), (6, 6), (7, 6), (8, 6)], 'id': 'gs_9vP8RRcC6fVJdrYrgry38jpc'}, {'name': 'Gregory Megory', 'health': 94, 'length': 5, 'body': [(6, 9), (5, 9), (4, 9), (4, 8), (4, 7)], 'id': 'gs_V79XkPbxWBCyrFkkd86S6j9Y'}], 'food': [(4, 0)], 'module': 'decision_flow - github', 'decision_path': ['1vn'], 'next_coord': (0, 10), 'next_move': 'up', 'time': '0.016s'}
     log = {'id': '16df4f34-4c64-4879-8199-1e75b61bffae', 'turn': 187, 'me': {'name': 'mark_snake', 'health': 80, 'length': 18, 'body': [(5, 6), (4, 6), (4, 5), (4, 4), (3, 4), (2, 4), (1, 4), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8), (0, 9), (1, 9), (2, 9), (2, 8), (2, 7), (3, 7)], 'id': 'gs_B9t4PWTbrcRvF4SmqFXdxSfX'}, 'others': [{'name': 'Sandworm', 'health': 90, 'length': 9, 'body': [(1, 2), (2, 2), (3, 2), (4, 2), (4, 3), (3, 3), (2, 3), (1, 3), (0, 3)], 'id': 'gs_C7CqQ7Yj6BBmKQCtyD9xK6bR'}, {'name': 'go-st', 'health': 85, 'length': 15, 'body': [(6, 7), (6, 6), (7, 6), (8, 6), (8, 5), (7, 5), (7, 4), (6, 4), (6, 3), (6, 2), (6, 1), (6, 0), (5, 0), (4, 0), (4, 1)], 'id': 'gs_pdR7q33ydhCVK67VyRdC6XVV'}], 'food': [(0, 10), (5, 8), (9, 5)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'split choice all good', 'get food (5, 8)'], 'next_coord': (5, 7), 'next_move': 'up', 'time': '0.043s'}
     log = {'id': '833d65ef-6677-47fe-8cba-4e583de8fa49', 'turn': 191, 'me': {'name': 'mark_snake', 'health': 83, 'length': 9, 'body': [(4, 9), (4, 10), (5, 10), (6, 10), (7, 10), (8, 10), (8, 9), (9, 9), (9, 8)], 'id': 'gs_kcbFjvd3K7wBcPBrYfymFd6f'}, 'others': [{'name': 'Spaceheater', 'health': 91, 'length': 13, 'body': [(5, 8), (6, 8), (6, 7), (7, 7), (8, 7), (9, 7), (9, 6), (8, 6), (7, 6), (6, 6), (5, 6), (4, 6), (3, 6)], 'id': 'gs_GYfhBbfkRhyWSkMjPjTDgMWW'}], 'food': [(0, 10), (0, 2), (1, 5), (1, 2), (9, 5), (0, 9), (7, 0)], 'module': 'decision_flow - github', 'decision_path': ['1v1', 'collision type 2 take avoid point'], 'next_coord': (3, 9), 'next_move': 'left', 'time': '0.019s'}
+    log = {'id': 'facaf1c7-3ad5-4c85-83b2-c14990878f63', 'turn': 155, 'me': {'name': 'mark_snake', 'health': 96, 'length': 12, 'body': [(3, 8), (3, 9), (3, 10), (2, 10), (1, 10), (1, 9), (1, 8), (0, 8), (0, 7), (0, 6), (0, 5), (0, 4)], 'id': 'gs_GGqkTdQHtCy8X3xccX3yDJXD'}, 'others': [{'name': 'Snaky  McSnakeface', 'health': 81, 'length': 13, 'body': [(4, 5), (3, 5), (2, 5), (1, 5), (1, 4), (2, 4), (3, 4), (3, 3), (3, 2), (4, 2), (5, 2), (5, 1), (6, 1)], 'id': 'gs_r7YST8mfDdVPxkgJR9mm777V'}, {'name': '@~~~~@', 'health': 99, 'length': 13, 'body': [(7, 10), (6, 10), (6, 9), (6, 8), (6, 7), (7, 7), (7, 6), (7, 5), (6, 5), (6, 4), (5, 4), (5, 5), (5, 6)], 'id': 'gs_VMmt7fQf3DMSHRD74hW6MygY'}], 'food': [(9, 6)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'move to largest territory component'], 'next_coord': (4, 8), 'next_move': 'right', 'time': '0.028s'}
 
 
     game_state = init_from_log(log)
