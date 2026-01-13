@@ -1661,7 +1661,11 @@ def main(game_state, log=True, log_db=False):
                     return shortest_path_move(g.me.head, snake.tail)
             return prefer_by_score(lambda a: len(path_connected_set(a)))(moves)
         
-        multistep_terrritories(1)(moves)
+        occupied = complement(g.me.territory)
+        min_aset = min([len(path_connected_set(a, occupied)) for a in moves])
+        if min_aset > 9: min_aset = 9
+        multistep_terrritories(min_aset)(moves)
+
         ok_set = [a for a in moves if combined_wayout(a)]
         if len(ok_set) == len(moves):
             g.decision_path.append("split choice all good")
@@ -3710,6 +3714,8 @@ if __name__ == "__main__":
     log = {'id': 'cf1bb3d3-3800-4cdf-9f88-bc6d29b6078e', 'turn': 240, 'me': {'name': 'mark_snake', 'health': 100, 'length': 21, 'body': [(9, 9), (8, 9), (7, 9), (6, 9), (5, 9), (5, 8), (6, 8), (6, 7), (7, 7), (8, 7), (8, 6), (8, 5), (8, 4), (9, 4), (9, 3), (9, 2), (9, 1), (9, 0), (8, 0), (7, 0), (7, 0)], 'id': 'gs_6vJBCr6HKRt7XyF6B8JHT4mD'}, 'others': [{'name': 'lackluster oracle', 'health': 93, 'length': 9, 'body': [(4, 6), (3, 6), (3, 7), (3, 8), (3, 9), (4, 9), (4, 8), (4, 7), (5, 7)], 'id': 'gs_TbXCtVM8vrtQmd3CfvfG3jt9'}], 'food': [(10, 0), (9, 5), (2, 5), (1, 5)], 'module': 'decision_flow - github', 'decision_path': ['1v1', '1v1 longer push territory'], 'next_coord': (9, 8), 'next_move': 'down', 'time': '0.024s'}
     log = {'id': 'cf1bb3d3-3800-4cdf-9f88-bc6d29b6078e', 'turn': 241, 'me': {'name': 'mark_snake', 'health': 100, 'length': 21, 'body': [(9,8), (9, 9), (8, 9), (7, 9), (6, 9), (5, 9), (5, 8), (6, 8), (6, 7), (7, 7), (8, 7), (8, 6), (8, 5), (8, 4), (9, 4), (9, 3), (9, 2), (9, 1), (9, 0), (8, 0), (7, 0)], 'id': 'gs_6vJBCr6HKRt7XyF6B8JHT4mD'}, 'others': [{'name': 'lackluster oracle', 'health': 93, 'length': 9, 'body': [(5,6), (4, 6), (3, 6), (3, 7), (3, 8), (3, 9), (4, 9), (4, 8), (4, 7)], 'id': 'gs_TbXCtVM8vrtQmd3CfvfG3jt9'}], 'food': [(10, 0), (9, 5), (2, 5), (1, 5)], 'module': 'decision_flow - github', 'decision_path': ['1v1', '1v1 longer push territory'], 'next_coord': (9, 8), 'next_move': 'down', 'time': '0.024s'}
     log = {'id': '8144074b-1e50-43ab-9690-3eafb4664a32', 'turn': 117, 'me': {'name': 'mark_snake', 'health': 96, 'length': 13, 'body': [(5, 8), (5, 9), (4, 9), (3, 9), (2, 9), (2, 8), (1, 8), (0, 8), (0, 7), (0, 6), (0, 5), (0, 4), (0, 3)], 'id': 'gs_MMHg9VSKhG83JMGmkw6yYpP6'}, 'others': [{'name': 'SnattleBake_v024', 'health': 98, 'length': 10, 'body': [(4, 7), (5, 7), (6, 7), (7, 7), (8, 7), (9, 7), (9, 6), (10, 6), (10, 5), (9, 5)], 'id': 'gs_GpKpMPCq8PVjKyhkp9VG3vrB'}, {'name': '@~~~~@', 'health': 81, 'length': 11, 'body': [(4, 5), (4, 4), (3, 4), (3, 3), (4, 3), (5, 3), (6, 3), (6, 4), (7, 4), (7, 5), (7, 6)], 'id': 'gs_CtQCFB4QBcfVgmVfW8kMHkhG'}, {'name': 'Red Yarn', 'health': 65, 'length': 7, 'body': [(2, 1), (1, 1), (1, 2), (2, 2), (3, 2), (4, 2), (5, 2)], 'id': 'gs_XtfrrcR9xdtmXM3SPgx8wtxG'}], 'food': [(9, 3)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'two-snake kill opportunity'], 'next_coord': (4, 8), 'next_move': 'left', 'time': '0.017s'}
+    log = {'id': '23841a7c-9560-426c-8b08-de894e6b54b3', 'turn': 83, 'me': {'name': 'mark_snake', 'health': 97, 'length': 9, 'body': [(6, 3), (7, 3), (7, 2), (7, 1), (7, 0), (8, 0), (8, 1), (8, 2), (8, 3)], 'id': 'gs_rDQFqHw93XV3ktCGPgqhFqcb'}, 'others': [{'name': '@~~~~@', 'health': 100, 'length': 6, 'body': [(5, 2), (4, 2), (4, 3), (4, 4), (3, 4), (3, 4)], 'id': 'gs_Sdqq8FQ7dWTkfPhRbDQSrSkJ'}, {'name': 'Slytherin', 'health': 83, 'length': 7, 'body': [(8, 5), (8, 4), (7, 4), (6, 4), (6, 5), (7, 5), (7, 6)], 'id': 'gs_HcJvTM84DYjkFVTPx9cmFXPd'}, {'name': 'Spaceheater', 'health': 90, 'length': 8, 'body': [(5, 6), (5, 7), (4, 7), (4, 8), (3, 8), (2, 8), (2, 7), (1, 7)], 'id': 'gs_K99vgpRjYVVBC8CDWXJR6Qx3'}], 'food': [(5, 0)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'split choice no good', 'split choice no good', 'split2 choose more space'], 'next_coord': (6, 2), 'next_move': 'down', 'time': '0.077s'}
+
 
     game_state = init_from_log(log)
     self_name = "mark_snake_test GREEN"
