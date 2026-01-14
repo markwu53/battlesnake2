@@ -196,8 +196,10 @@ def main(game_state, log=True, log_db=False):
 
             (cond(len(g.others) == 1 and g.me.length < g.other.length)(shorter_goto_territory_border)),
             #(cond(len(g.others) > 1)(move_to_largest_territory_component)),
-            choose_a_territory_component,
-            #seal_the_place,
+
+            #switch back to old, the performance wasn't good, not sure if it's caused by the new one
+            #choose_a_territory_component,
+            move_to_largest_territory_component,
             
             (cond(g.me.length >= 12)(confined_follow_tail)),
 
@@ -515,7 +517,7 @@ def main(game_state, log=True, log_db=False):
                 g.decision_path.append("take tail territory component")
                 return moves
 
-    def move_to_largest_territory_component_2(moves):
+    def move_to_largest_territory_component(moves):
         territory = g.me.territory
         if len(territory) >= 2:
             multistep_terrritories(1)(moves)
