@@ -499,11 +499,12 @@ def main(game_state, log=True, log_db=False):
                 return moves
         
         if len(tail_component) == 0:
-            comp = max(updated_component, key=len)
-            moves = [a for a in moves if a in comp]
-            if len(moves) != 0:
-                g.decision_path.append("take largest territory component")
-                return moves
+            if len(updated_component) != 0:
+                comp = max(updated_component, key=len)
+                moves = [a for a in moves if a in comp]
+                if len(moves) != 0:
+                    g.decision_path.append("take largest territory component")
+                    return moves
         
         #has tail_component
         if len(tail_component) == 1:
