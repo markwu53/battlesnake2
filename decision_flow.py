@@ -141,7 +141,7 @@ def main(game_state, log=True, log_db=False):
             (cond(len(g.others) == 1 and g.me.length > g.other.length)(longer_push)),
 
             #try push not chase my own tail
-            cond(len(g.others) == 1 and g.me.length > g.other.length)(longer_push_territory),
+            #cond(len(g.others) == 1 and g.me.length > g.other.length)(longer_push_territory),
             #cond(len(g.others) == 1 and g.me.length > g.other.length)(chase_my_tail),
 
             (cond(g.me.length > 8)(avoid_next_step_confinement)),
@@ -463,7 +463,7 @@ def main(game_state, log=True, log_db=False):
         g.decision_path.append("1v1 longer push")
         return par([
             (push_2),
-            (prefer_by_score(lambda a: len(new_territory(a)))),
+            #(prefer_by_score(lambda a: len(new_territory(a)))),
         ])(moves)
 
     def new_territory(a):
@@ -3818,6 +3818,7 @@ if __name__ == "__main__":
     log = {'id': '94876bf3-93a7-403d-ab24-6f9a110b764a', 'turn': 62, 'me': {'name': 'mark_snake', 'health': 89, 'length': 6, 'body': [(3, 5), (2, 5), (2, 4), (2, 3), (2, 2), (2, 1)]}, 'others': [{'name': 'SnattleBake_v027', 'health': 82, 'length': 7, 'body': [(2, 6), (1, 6), (1, 7), (1, 8), (1, 9), (2, 9), (2, 8)]}, {'name': 'Natterlie', 'health': 96, 'length': 8, 'body': [(6, 4), (6, 3), (6, 2), (6, 1), (5, 1), (5, 2), (5, 3), (4, 3)]}], 'food': [(9, 5)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'avoid short vulnerable moves', 'type 2 collision take avoid point'], 'next_coord': (4, 5), 'next_move': 'right', 'time': '0.013s'}
     log = {'id': '94876bf3-93a7-403d-ab24-6f9a110b764a', 'turn': 63, 'me': {'name': 'mark_snake', 'health': 89, 'length': 6, 'body': [(4,5), (3, 5), (2, 5), (2, 4), (2, 3), (2, 2)]}, 'others': [{'name': 'SnattleBake_v027', 'health': 82, 'length': 7, 'body': [(3,6), (2, 6), (1, 6), (1, 7), (1, 8), (1, 9), (2, 9)]}, {'name': 'Natterlie', 'health': 96, 'length': 8, 'body': [(5,4), (6, 4), (6, 3), (6, 2), (6, 1), (5, 1), (5, 2), (5, 3)]}], 'food': [(9, 5)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'avoid short vulnerable moves', 'type 2 collision take avoid point'], 'next_coord': (4, 5), 'next_move': 'right', 'time': '0.013s'}
     log = {'id': '6b322726-cf28-4b66-90b0-ad4af8933df7', 'turn': 64, 'me': {'name': 'mark_snake', 'health': 40, 'length': 4, 'body': [(2, 6), (2, 5), (2, 4), (2, 3)]}, 'others': [{'name': 'SmartyRat', 'health': 64, 'length': 5, 'body': [(9, 7), (8, 7), (8, 6), (8, 5), (8, 4)]}, {'name': 'Game of Chicken', 'health': 99, 'length': 12, 'body': [(1, 9), (1, 10), (2, 10), (2, 9), (3, 9), (4, 9), (4, 8), (5, 8), (6, 8), (7, 8), (8, 8), (9, 8)]}, {'name': '@~~~~@', 'health': 75, 'length': 6, 'body': [(7, 7), (7, 6), (7, 5), (7, 4), (6, 4), (5, 4)]}], 'food': [(9, 5)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('@~~~~@', 1, (6, 7))]", "vulnerable but I'm short"], 'next_coord': (2, 7), 'next_move': 'up', 'time': '0.098s'}
+    log = {'id': '7fd8ba74-4a3f-4ebf-bb6b-ab7476f159ea', 'turn': 290, 'me': {'name': 'mark_snake', 'health': 97, 'length': 26, 'body': [(0, 4), (0, 5), (0, 6), (0, 7), (0, 8), (0, 9), (1, 9), (1, 8), (1, 7), (2, 7), (2, 8), (2, 9), (3, 9), (4, 9), (5, 9), (6, 9), (7, 9), (8, 9), (9, 9), (10, 9), (10, 8), (10, 7), (10, 6), (10, 5), (10, 4), (9, 4)]}, 'others': [{'name': 'go-st', 'health': 87, 'length': 21, 'body': [(2, 2), (2, 1), (3, 1), (4, 1), (4, 0), (5, 0), (6, 0), (6, 1), (7, 1), (8, 1), (9, 1), (9, 2), (10, 2), (10, 3), (9, 3), (8, 3), (7, 3), (6, 3), (5, 3), (4, 3), (3, 3)]}], 'food': [(1, 6), (7, 0), (5, 4), (6, 7)], 'module': 'decision_flow - github', 'decision_path': ['1v1', '1v1 longer push'], 'next_coord': (0, 3), 'next_move': 'down', 'time': '0.037s'}
 
 
     game_state = init_from_log(log)
