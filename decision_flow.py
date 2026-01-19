@@ -100,6 +100,7 @@ def main(game_state, log=True, log_db=False):
 
             (make_forming_trap),
 
+            #(type_2_collision_single_point),
             (type_2_collision),
 
             (prefer_not(entering_danger(immediate_kill_situation))),
@@ -1395,6 +1396,17 @@ def main(game_state, log=True, log_db=False):
                 g.decision_path.append("next step check food tail danger")
                 return moves
 
+    def type_2_collision_single_point(moves):
+        killers = [snake for snake in g.others if snake.length > g.me.length and distance_vector_abs(g.me.head, snake.head) == (1,1)]
+        if len(killers) != 1: return
+        killer = take_first(killers)
+        collision = [a for a in moves if is_adjacent(a, killer.head)]
+        if len(collision) != 1: return
+        moves = [a for a in moves if a not in collision]
+        if len(moves) != 0:
+            g.decision_path.append("type 2 collision single point")
+            return moves
+
     def type_2_collision(moves):
 
         killers = [snake for snake in g.others if snake.length > g.me.length and distance_vector_abs(g.me.head, snake.head) == (1,1)]
@@ -2501,13 +2513,14 @@ def main(game_state, log=True, log_db=False):
             #if vulnerable emerge at border and I can reach 2 or 4 to emerge point then go
             if not on_border(snake2.head): continue
             excess = path_distance_pq(g.me.head, snake2.head) - snake.vulnerable_steps
-            if excess in [2,4,6]: 
+            if excess in [2,4]:
                 attack_move = shortest_path_move(g.me.head, snake2.head)
                 attack_move = [a for a in moves if a in attack_move]
                 if len(attack_move) != 0:
                     g.decision_path.append(f"attack vulnerables on point positive {snake.name}")
                     return attack_move
-            elif excess == 8 and sum(distance_to_border(snake2.head)) <= 4:
+                return
+            if excess in [6,8] and sum(distance_to_border(snake2.head)) <= 2:
                 attack_move = shortest_path_move(g.me.head, snake2.head)
                 attack_move = [a for a in moves if a in attack_move]
                 if len(attack_move) != 0:
@@ -2590,7 +2603,7 @@ def main(game_state, log=True, log_db=False):
             
             #if vulnerable emerge at border and I can reach 2 or 4 to attack point then go
             excess = path_distance_pq(g.me.head, attack_point) - snake.vulnerable_steps
-            if excess in [2,4]: 
+            if excess in [2]: 
                 attack_move = shortest_path_move(g.me.head, attack_point)
                 attack_move = [a for a in moves if a in attack_move]
                 if len(attack_move) != 0:
@@ -3930,6 +3943,7 @@ if __name__ == "__main__":
     log = {'id': '67702c41-915d-4db7-bef6-17004a980669', 'turn': 129, 'me': {'name': 'mark_snake', 'health': 85, 'length': 13, 'body': [(0, 3), (1, 3), (2, 3), (3, 3), (4, 3), (4, 4), (4, 5), (4, 6), (3, 6), (2, 6), (1, 6), (1, 7), (1, 8)]}, 'others': [{'name': 'SmartyRat', 'health': 99, 'length': 8, 'body': [(3, 0), (4, 0), (4, 1), (3, 1), (3, 2), (2, 2), (2, 1), (1, 1)]}, {'name': 'Snaky McSnakeface', 'health': 85, 'length': 14, 'body': [(5, 0), (6, 0), (6, 1), (6, 2), (6, 3), (7, 3), (7, 4), (7, 5), (8, 5), (9, 5), (10, 5), (10, 4), (10, 3), (10, 2)]}], 'food': [(0, 9)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('SmartyRat', 1, (2, 0)), ('Snaky McSnakeface', 2, (5, 2))]", 'split choice'], 'next_coord': (0, 4), 'next_move': 'up', 'time': '0.010s'}
     log = {'id': '6f7ab4cb-a4b1-4456-8e26-e4e572935b2b', 'turn': 98, 'me': {'name': 'mark_snake', 'health': 96, 'length': 9, 'body': [(8, 6), (9, 6), (9, 7), (9, 8), (9, 9), (8, 9), (7, 9), (7, 8), (7, 7)]}, 'others': [{'name': 'SmartyRat', 'health': 66, 'length': 4, 'body': [(4, 10), (3, 10), (3, 9), (4, 9)]}, {'name': 'ich heisse marvin', 'health': 96, 'length': 11, 'body': [(2, 6), (1, 6), (1, 7), (1, 8), (2, 8), (3, 8), (4, 8), (5, 8), (5, 7), (5, 6), (4, 6)]}, {'name': 'Slytherin', 'health': 88, 'length': 10, 'body': [(7, 5), (7, 4), (7, 3), (6, 3), (5, 3), (5, 2), (4, 2), (3, 2), (2, 2), (2, 1)]}], 'food': [(8, 8), (7, 6)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'collision type 2 take avoid point'], 'next_coord': (8, 7), 'next_move': 'up', 'time': '0.030s'}
     log = {'id': 'd05643e8-04fb-4a0a-90ff-bc654baf1203', 'turn': 113, 'me': {'name': 'mark_snake', 'health': 68, 'length': 11, 'body': [(10, 7), (10, 6), (9, 6), (9, 5), (9, 4), (9, 3), (9, 2), (9, 1), (9, 0), (8, 0), (7, 0)]}, 'others': [{'name': 'Kakemonsteret-v2', 'health': 98, 'length': 17, 'body': [(9, 10), (8, 10), (8, 9), (7, 9), (7, 8), (6, 8), (6, 9), (5, 9), (4, 9), (3, 9), (3, 8), (3, 7), (3, 6), (3, 5), (3, 4), (3, 3), (2, 3)]}, {'name': 'Copy of snake2_v3_FINAL_final(1)', 'health': 81, 'length': 8, 'body': [(0, 7), (0, 8), (1, 8), (1, 7), (2, 7), (2, 8), (2, 9), (2, 10)]}, {'name': 'Gregory Megory', 'health': 66, 'length': 5, 'body': [(6, 5), (6, 4), (6, 3), (6, 2), (5, 2)]}], 'food': [(7, 4)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('Copy of snake2_v3_FINAL_final(1)', 1, (0, 6))]"], 'next_coord': (10, 8), 'next_move': 'up', 'time': '0.013s'}
+    log = {'id': 'f48c5578-f9c8-4d39-adf6-26178af0b702', 'turn': 106, 'me': {'name': 'mark_snake', 'health': 69, 'length': 10, 'body': [(5, 1), (5, 2), (5, 3), (5, 4), (6, 4), (6, 3), (6, 2), (7, 2), (8, 2), (8, 3)]}, 'others': [{'name': 'HydraOxide', 'health': 89, 'length': 12, 'body': [(4, 2), (4, 3), (4, 4), (4, 5), (4, 6), (4, 7), (4, 8), (3, 8), (3, 7), (3, 6), (3, 5), (3, 4)]}, {'name': 'go-st', 'health': 93, 'length': 8, 'body': [(8, 6), (8, 7), (7, 7), (7, 8), (7, 9), (6, 9), (5, 9), (5, 8)]}, {'name': 'Gregory Megory', 'health': 95, 'length': 9, 'body': [(0, 2), (1, 2), (1, 1), (0, 1), (0, 0), (1, 0), (2, 0), (2, 1), (3, 1)]}], 'food': [(10, 0)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('Gregory Megory', 1, (0, 3))]", 'attack vulnerables on point positive Gregory Megory'], 'next_coord': (4, 1), 'next_move': 'left', 'time': '0.024s'}
 
 
     game_state = init_from_log(log)
