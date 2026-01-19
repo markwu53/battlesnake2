@@ -3284,7 +3284,6 @@ def main(game_state, log=True, log_db=False):
             return False
 
         oset = largest_territory_component(oset)
-        print(cut_set, oset, len(oset))
 
         #trimmed
         #oset = trim_aset(oset, target.head, target.head)
