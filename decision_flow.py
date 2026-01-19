@@ -3283,15 +3283,20 @@ def main(game_state, log=True, log_db=False):
         if any([snake.tail in oset for snake in g.snakes]):
             return False
 
+        oset = largest_territory_component(oset)
+        print(cut_set, oset, len(oset))
+
         #trimmed
         #oset = trim_aset(oset, target.head, target.head)
         #don't trim
+
         factor = 1.2 if killer.name == g.me.name else 1.1
+
         if len(oset) >= target.length * factor:
             return False
-        if len(oset) >= 12:
-            #target room is too big
-            return False
+
+        #target room is too big
+        if len(oset) >= 10 and len(g.others) > 1: return False
 
         occupied_border = [p for p in g.occupied_cells[0] if any([a in oset for a in adj_cells(p)])]
         if any([snake.tail in occupied_border for snake in g.snakes]):
@@ -3950,6 +3955,7 @@ if __name__ == "__main__":
     log = {'id': 'd05643e8-04fb-4a0a-90ff-bc654baf1203', 'turn': 113, 'me': {'name': 'mark_snake', 'health': 68, 'length': 11, 'body': [(10, 7), (10, 6), (9, 6), (9, 5), (9, 4), (9, 3), (9, 2), (9, 1), (9, 0), (8, 0), (7, 0)]}, 'others': [{'name': 'Kakemonsteret-v2', 'health': 98, 'length': 17, 'body': [(9, 10), (8, 10), (8, 9), (7, 9), (7, 8), (6, 8), (6, 9), (5, 9), (4, 9), (3, 9), (3, 8), (3, 7), (3, 6), (3, 5), (3, 4), (3, 3), (2, 3)]}, {'name': 'Copy of snake2_v3_FINAL_final(1)', 'health': 81, 'length': 8, 'body': [(0, 7), (0, 8), (1, 8), (1, 7), (2, 7), (2, 8), (2, 9), (2, 10)]}, {'name': 'Gregory Megory', 'health': 66, 'length': 5, 'body': [(6, 5), (6, 4), (6, 3), (6, 2), (5, 2)]}], 'food': [(7, 4)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('Copy of snake2_v3_FINAL_final(1)', 1, (0, 6))]"], 'next_coord': (10, 8), 'next_move': 'up', 'time': '0.013s'}
     log = {'id': 'f48c5578-f9c8-4d39-adf6-26178af0b702', 'turn': 106, 'me': {'name': 'mark_snake', 'health': 69, 'length': 10, 'body': [(5, 1), (5, 2), (5, 3), (5, 4), (6, 4), (6, 3), (6, 2), (7, 2), (8, 2), (8, 3)]}, 'others': [{'name': 'HydraOxide', 'health': 89, 'length': 12, 'body': [(4, 2), (4, 3), (4, 4), (4, 5), (4, 6), (4, 7), (4, 8), (3, 8), (3, 7), (3, 6), (3, 5), (3, 4)]}, {'name': 'go-st', 'health': 93, 'length': 8, 'body': [(8, 6), (8, 7), (7, 7), (7, 8), (7, 9), (6, 9), (5, 9), (5, 8)]}, {'name': 'Gregory Megory', 'health': 95, 'length': 9, 'body': [(0, 2), (1, 2), (1, 1), (0, 1), (0, 0), (1, 0), (2, 0), (2, 1), (3, 1)]}], 'food': [(10, 0)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('Gregory Megory', 1, (0, 3))]", 'attack vulnerables on point positive Gregory Megory'], 'next_coord': (4, 1), 'next_move': 'left', 'time': '0.024s'}
     log = {'id': 'f3892110-3b90-41c3-a69a-b739c451d723', 'turn': 78, 'me': {'name': 'mark_snake', 'health': 99, 'length': 9, 'body': [(0, 6), (0, 7), (1, 7), (2, 7), (2, 6), (3, 6), (3, 5), (4, 5), (5, 5)]}, 'others': [{'name': 'Copy of snake2_v3_FINAL_final(1)', 'health': 87, 'length': 10, 'body': [(1, 9), (0, 9), (0, 10), (1, 10), (2, 10), (3, 10), (4, 10), (5, 10), (5, 9), (5, 8)]}, {'name': 'go-st', 'health': 96, 'length': 11, 'body': [(8, 0), (7, 0), (6, 0), (5, 0), (4, 0), (4, 1), (5, 1), (6, 1), (7, 1), (7, 2), (7, 3)]}, {'name': 'Red Yarn', 'health': 85, 'length': 8, 'body': [(1, 3), (1, 2), (1, 1), (1, 0), (2, 0), (2, 1), (2, 2), (2, 3)]}], 'food': [(2, 8)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'avoid next step suppressed'], 'next_coord': (1, 6), 'next_move': 'right', 'time': '0.062s'}
+    log = {'id': 'd0732d5b-a23c-4c09-95eb-ffcc8ed10902', 'turn': 205, 'me': {'name': 'mark_snake', 'health': 71, 'length': 16, 'body': [(3, 6), (4, 6), (5, 6), (6, 6), (7, 6), (7, 5), (7, 4), (7, 3), (8, 3), (9, 3), (10, 3), (10, 4), (10, 5), (9, 5), (9, 6), (9, 7)]}, 'others': [{'name': 'Frank The Tank', 'health': 99, 'length': 23, 'body': [(2, 1), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0), (7, 0), (8, 0), (8, 1), (7, 1), (7, 2), (6, 2), (6, 1), (5, 1), (5, 2), (4, 2), (3, 2), (3, 3), (3, 4), (4, 4), (5, 4), (5, 5), (4, 5)]}], 'food': [(0, 1), (3, 8), (10, 2)], 'module': 'decision_flow - github', 'decision_path': ['1v1', 'get food (3, 8)'], 'next_coord': (3, 7), 'next_move': 'up', 'time': '0.054s'}
 
 
     game_state = init_from_log(log)
