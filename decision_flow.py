@@ -121,8 +121,6 @@ def main(game_state, log=True, log_db=False):
 
             (attack_vulnerables),
 
-            (cond(g.me.length >= 9)(split_choice)),
-
             chasing_kill_opportunity,
 
             two_snake_kill_opportunity,
@@ -135,7 +133,8 @@ def main(game_state, log=True, log_db=False):
             general_confront_kill_opportunity,
 
             #(cond(g.me.length >= 12)(split_choice)),
-            (cond(len(g.others) == 1)(split_choice)),
+            (cond(g.me.length >= 9)(split_choice)),
+            #(cond(len(g.others) == 1)(split_choice)),
 
             cond(g.me.health < 20)(get_food),
 
