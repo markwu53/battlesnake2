@@ -1,17 +1,11 @@
-a = [i for i in range(49)]
-a = [i*i for i in a]
-a = [i % 49 for i in a]
-print(a)
-a = sorted(list(set(a)))
-print(a)
-a = [i%7 for i in a]
-print(a)
+import math
+#n*n -7x=2
 
-# a = [i for i in range(7*7*7)]
-# a = [i*i for i in a]
-# a = [i % (7*7*7) for i in a]
-# a = sorted(list(set(a)))
-# a = [i%7 for i in a]
-# print(a)
+for n in range(1, 100):
+    if (n**2-2) % 7 == 0:
+        x = (n**2 - 2) // 7
+        y = math.isqrt(x)
+        if y * y == x:
+            print(f"n: {n}, x: {x}")
 
 
