@@ -118,12 +118,11 @@ def main(game_state, log=True, log_db=False):
 
             avoid_food_split_confine,
             split_avoid_square2,
-
-            (attack_vulnerables),
-
             (cond(g.me.length >= 9)(split_choice)),
 
             chasing_kill_opportunity,
+
+            (attack_vulnerables),
 
             two_snake_kill_opportunity,
 
@@ -2464,7 +2463,7 @@ def main(game_state, log=True, log_db=False):
             attack_move = shortest_path_move(g.me.head, snake2.head)
             attack_move = [a for a in moves if a in attack_move]
             if len(attack_move) != 0:
-                g.decision_path.append(f"attack vulnerables on point exact {snake.name}")
+                g.decision_path.append("attack vulnerables on point exact")
                 return attack_move
 
     def attack_vulnerables_on_point_neg2(moves):
@@ -2477,13 +2476,13 @@ def main(game_state, log=True, log_db=False):
                 attack_move = take_first(attack_move)
                 attack_move = [a for a in moves if distance_vector_abs(a, attack_move) == (1,1) and any([path_connected(a, p) for p in attack_move])]
                 if len(attack_move) != 0:
-                    g.decision_path.append(f"attack vulnerables on point negative 2 {snake.name}")
+                    g.decision_path.append("attack vulnerables on point negative 2")
                     return attack_move
             else:
                 #len(attack_move) == 2
                 attack_move = [a for a in moves if a not in attack_move and any([path_connected(a, p) for p in attack_move])]
                 if len(attack_move) != 0:
-                    g.decision_path.append(f"attack vulnerables on point negative 2 {snake.name}")
+                    g.decision_path.append("attack vulnerables on point negative 2")
                     return attack_move
 
     def attack_vulnerables_on_point_neg_more(moves):
@@ -2494,7 +2493,7 @@ def main(game_state, log=True, log_db=False):
             attack_move = shortest_path_move(g.me.head, snake2.head)
             attack_move = [a for a in moves if a not in attack_move]
             if len(attack_move) != 0:
-                g.decision_path.append(f"attack vulnerables on point negative more {snake.name}")
+                g.decision_path.append("attack vulnerables on point negative more")
                 return attack_move
 
     def attack_vulnerables_on_point_positive(moves):
@@ -2508,13 +2507,13 @@ def main(game_state, log=True, log_db=False):
                 attack_move = shortest_path_move(g.me.head, snake2.head)
                 attack_move = [a for a in moves if a in attack_move]
                 if len(attack_move) != 0:
-                    g.decision_path.append(f"attack vulnerables on point positive {snake.name}")
+                    g.decision_path.append("attack vulnerables on point positive")
                     return attack_move
             elif excess == 8 and sum(distance_to_border(snake2.head)) <= 4:
                 attack_move = shortest_path_move(g.me.head, snake2.head)
                 attack_move = [a for a in moves if a in attack_move]
                 if len(attack_move) != 0:
-                    g.decision_path.append(f"attack vulnerables on point positive 8 {snake.name}")
+                    g.decision_path.append("attack vulnerables on point positive 8")
                     return attack_move
 
     def attack_vulnerables_suppress(moves):
@@ -2532,7 +2531,7 @@ def main(game_state, log=True, log_db=False):
             attack_move = shortest_path_move(g.me.head, attack_point)
             attack_move = [a for a in moves if a in attack_move]
             if len(attack_move) != 0:
-                g.decision_path.append(f"attack vulnerables suppress exact {snake.name}")
+                g.decision_path.append("attack vulnerables suppress exact")
                 return attack_move
 
     def attack_vulnerables_suppress_neg2(moves):
@@ -2552,13 +2551,13 @@ def main(game_state, log=True, log_db=False):
                 attack_move = take_first(attack_move)
                 attack_move = [a for a in moves if distance_vector_abs(a, attack_move) == (1,1) and any([path_connected(a, p) for p in attack_move])]
                 if len(attack_move) != 0:
-                    g.decision_path.append(f"attack vulnerables suppress negative 2 {snake.name}")
+                    g.decision_path.append("attack vulnerables suppress negative 2")
                     return attack_move
             else:
                 #len(attack_move) == 2
                 attack_move = [a for a in moves if a not in attack_move and any([path_connected(a, p) for p in attack_move])]
                 if len(attack_move) != 0:
-                    g.decision_path.append(f"attack vulnerables suppress negative 2 {snake.name}")
+                    g.decision_path.append("attack vulnerables suppress negative 2")
                     return attack_move
 
     def attack_vulnerables_suppress_neg_more(moves):
@@ -2576,7 +2575,7 @@ def main(game_state, log=True, log_db=False):
             attack_move = shortest_path_move(g.me.head, attack_point)
             attack_move = [a for a in moves if a not in attack_move and any([path_connected(a, p) for p in attack_move])]
             if len(attack_move) != 0:
-                g.decision_path.append(f"attack vulnerables suppress negative more {snake.name}")
+                g.decision_path.append("attack vulnerables suppress negative more")
                 return attack_move
 
     def attack_vulnerables_suppress_positive(moves):
@@ -2597,7 +2596,7 @@ def main(game_state, log=True, log_db=False):
                 attack_move = shortest_path_move(g.me.head, attack_point)
                 attack_move = [a for a in moves if a in attack_move]
                 if len(attack_move) != 0:
-                    g.decision_path.append(f"attack vulnerables suppress positive 2 {snake.name}")
+                    g.decision_path.append("attack vulnerables suppress positive 2")
                     return attack_move
 
     def attack_vulnerables(moves):
@@ -3977,8 +3976,6 @@ if __name__ == "__main__":
     log = {'id': '6b322726-cf28-4b66-90b0-ad4af8933df7', 'turn': 64, 'me': {'name': 'mark_snake', 'health': 40, 'length': 4, 'body': [(2, 6), (2, 5), (2, 4), (2, 3)]}, 'others': [{'name': 'SmartyRat', 'health': 64, 'length': 5, 'body': [(9, 7), (8, 7), (8, 6), (8, 5), (8, 4)]}, {'name': 'Game of Chicken', 'health': 99, 'length': 12, 'body': [(1, 9), (1, 10), (2, 10), (2, 9), (3, 9), (4, 9), (4, 8), (5, 8), (6, 8), (7, 8), (8, 8), (9, 8)]}, {'name': '@~~~~@', 'health': 75, 'length': 6, 'body': [(7, 7), (7, 6), (7, 5), (7, 4), (6, 4), (5, 4)]}], 'food': [(9, 5)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('@~~~~@', 1, (6, 7))]", "vulnerable but I'm short"], 'next_coord': (2, 7), 'next_move': 'up', 'time': '0.098s'}
     log = {'id': '7fd8ba74-4a3f-4ebf-bb6b-ab7476f159ea', 'turn': 290, 'me': {'name': 'mark_snake', 'health': 97, 'length': 26, 'body': [(0, 4), (0, 5), (0, 6), (0, 7), (0, 8), (0, 9), (1, 9), (1, 8), (1, 7), (2, 7), (2, 8), (2, 9), (3, 9), (4, 9), (5, 9), (6, 9), (7, 9), (8, 9), (9, 9), (10, 9), (10, 8), (10, 7), (10, 6), (10, 5), (10, 4), (9, 4)]}, 'others': [{'name': 'go-st', 'health': 87, 'length': 21, 'body': [(2, 2), (2, 1), (3, 1), (4, 1), (4, 0), (5, 0), (6, 0), (6, 1), (7, 1), (8, 1), (9, 1), (9, 2), (10, 2), (10, 3), (9, 3), (8, 3), (7, 3), (6, 3), (5, 3), (4, 3), (3, 3)]}], 'food': [(1, 6), (7, 0), (5, 4), (6, 7)], 'module': 'decision_flow - github', 'decision_path': ['1v1', '1v1 longer push'], 'next_coord': (0, 3), 'next_move': 'down', 'time': '0.037s'}
     log = {'id': 'c0d61d32-fd98-4f13-99cc-d4b164ccbbad', 'turn': 114, 'me': {'name': 'mark_snake', 'health': 91, 'length': 14, 'body': [(9, 5), (9, 4), (9, 3), (9, 2), (8, 2), (7, 2), (6, 2), (5, 2), (4, 2), (3, 2), (3, 3), (3, 4), (3, 5), (2, 5)]}, 'others': [{'name': 'SmartyRat', 'health': 33, 'length': 5, 'body': [(1, 7), (1, 8), (2, 8), (2, 7), (2, 6)]}, {'name': 'Copy of snake2_v3_FINAL_final(1)', 'health': 82, 'length': 11, 'body': [(6, 10), (6, 9), (6, 8), (6, 7), (6, 6), (7, 6), (7, 7), (7, 8), (7, 9), (8, 9), (8, 10)]}, {'name': '@~~~~@', 'health': 97, 'length': 11, 'body': [(4, 4), (4, 5), (4, 6), (4, 7), (4, 8), (5, 8), (5, 9), (5, 10), (4, 10), (4, 9), (3, 9)]}], 'food': [(9, 6)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('Copy of snake2_v3_FINAL_final(1)', 2, (8, 10))]", 'preliminary cut kill target: @~~~~@', 'go cut to (7, 3)'], 'next_coord': (8, 5), 'next_move': 'left', 'time': '0.039s'}
-    log = {'id': 'ee3276d5-0394-4e83-86eb-ea6831e172f9', 'turn': 80, 'me': {'name': 'mark_snake', 'health': 69, 'length': 8, 'body': [(2, 6), (3, 6), (4, 6), (5, 6), (6, 6), (6, 5), (6, 4), (6, 3)]}, 'others': [{'name': 'Game of Chicken', 'health': 47, 'length': 7, 'body': [(2, 4), (1, 4), (0, 4), (0, 3), (0, 2), (0, 1), (1, 1)]}, {'name': 'HydraOxide', 'health': 98, 'length': 7, 'body': [(1, 7), (2, 7), (3, 7), (3, 8), (4, 8), (5, 8), (6, 8)]}, {'name': 'Natterlie', 'health': 66, 'length': 8, 'body': [(7, 7), (7, 6), (8, 6), (8, 5), (8, 4), (8, 3), (8, 2), (7, 2)]}], 'food': [(10, 10), (10, 0)], 'module': 'decision_flow - github', 'decision_path': ['1vn'], 'next_coord': (1, 6), 'next_move': 'left', 'time': '0.063s'}
-    log = {'id': '67702c41-915d-4db7-bef6-17004a980669', 'turn': 129, 'me': {'name': 'mark_snake', 'health': 85, 'length': 13, 'body': [(0, 3), (1, 3), (2, 3), (3, 3), (4, 3), (4, 4), (4, 5), (4, 6), (3, 6), (2, 6), (1, 6), (1, 7), (1, 8)]}, 'others': [{'name': 'SmartyRat', 'health': 99, 'length': 8, 'body': [(3, 0), (4, 0), (4, 1), (3, 1), (3, 2), (2, 2), (2, 1), (1, 1)]}, {'name': 'Snaky McSnakeface', 'health': 85, 'length': 14, 'body': [(5, 0), (6, 0), (6, 1), (6, 2), (6, 3), (7, 3), (7, 4), (7, 5), (8, 5), (9, 5), (10, 5), (10, 4), (10, 3), (10, 2)]}], 'food': [(0, 9)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('SmartyRat', 1, (2, 0)), ('Snaky McSnakeface', 2, (5, 2))]", 'split choice'], 'next_coord': (0, 4), 'next_move': 'up', 'time': '0.010s'}
 
 
     game_state = init_from_log(log)
