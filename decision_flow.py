@@ -1041,6 +1041,8 @@ def main(game_state, log=True, log_db=False):
         collision = take_first(collision)
         if collision not in moves: return
 
+        #try go parallel always
+        """
         #don't push from border to center
         #if min(distance_to_border(g.me.head)) >= 2:
         if len(g.me.territory) >= g.me.length * 0.8:
@@ -1053,6 +1055,7 @@ def main(game_state, log=True, log_db=False):
                 g.decision_path.append("longer confront push")
                 return [collision]
         #parallel push
+        """
 
         if get_adjacent_dir(snake.neck, snake.head) != get_adjacent_dir(snake.head, collision):
             parallel_push = [a for a in moves if distance_vector_abs(a, snake.head) in [(1,2), (2,1)]]
