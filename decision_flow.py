@@ -2114,7 +2114,6 @@ def main(game_state, log=True, log_db=False):
         if len(g.me.territory) >= g.me.length * 1.1:
             return
 
-        """
         #added experimentally - actually not confined
         if len(cut_set) != 0:
             remove_tail_length = min([path_distance_pq(a, g.me.head) for a in cut_set])-1
@@ -2123,13 +2122,12 @@ def main(game_state, log=True, log_db=False):
             head_space = path_connected_set(g.me.head, occupied)
             if len(head_space) - 1 > len(g.me.territory):
                 return
-        """
 
         g.decision_path.append("try wayout")
 
         return par([
             (wayout_myself),
-            (wayout_on_others),
+            wayout_on_others,
         ])(moves)
 
     def wayout_myself(moves):
@@ -2260,22 +2258,9 @@ def main(game_state, log=True, log_db=False):
             return shortest_path_move(g.me.head, wayout_point)
 
         g.decision_path.append("meander")
-        moves = prefer_by_score(lambda a: path_distance_pq(a, wayout_point))(moves_in_territory)
-        if len(moves) == 1:
-            return moves
-        moves = prefer_less_next_moves(moves)
-        if len(moves) == 1:
-            return moves
-        moves = prefer_more_next_split(moves)
-        return moves
-
-    def prefer_more_next_split(moves):
-        def n_next_split(a):
-            occupied = complement(g.me.territory)+[a]
-            next_moves = [p for p in adj_cells(a) if p not in occupied]
-            ngroup = move_connected_group(next_moves, occupied)
-            return ngroup
-        return prefer_by_score(n_next_split)(moves)
+        return prefer_less_next_moves(
+            prefer_by_score(lambda a: path_distance_pq(a, wayout_point))(moves_in_territory)
+        )
 
     def prefer_less_next_moves(moves):
         def n_next_moves(a):
@@ -3970,9 +3955,6 @@ if __name__ == "__main__":
     log = {'id': 'f48c5578-f9c8-4d39-adf6-26178af0b702', 'turn': 106, 'me': {'name': 'mark_snake', 'health': 69, 'length': 10, 'body': [(5, 1), (5, 2), (5, 3), (5, 4), (6, 4), (6, 3), (6, 2), (7, 2), (8, 2), (8, 3)]}, 'others': [{'name': 'HydraOxide', 'health': 89, 'length': 12, 'body': [(4, 2), (4, 3), (4, 4), (4, 5), (4, 6), (4, 7), (4, 8), (3, 8), (3, 7), (3, 6), (3, 5), (3, 4)]}, {'name': 'go-st', 'health': 93, 'length': 8, 'body': [(8, 6), (8, 7), (7, 7), (7, 8), (7, 9), (6, 9), (5, 9), (5, 8)]}, {'name': 'Gregory Megory', 'health': 95, 'length': 9, 'body': [(0, 2), (1, 2), (1, 1), (0, 1), (0, 0), (1, 0), (2, 0), (2, 1), (3, 1)]}], 'food': [(10, 0)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('Gregory Megory', 1, (0, 3))]", 'attack vulnerables on point positive Gregory Megory'], 'next_coord': (4, 1), 'next_move': 'left', 'time': '0.024s'}
     log = {'id': 'f3892110-3b90-41c3-a69a-b739c451d723', 'turn': 78, 'me': {'name': 'mark_snake', 'health': 99, 'length': 9, 'body': [(0, 6), (0, 7), (1, 7), (2, 7), (2, 6), (3, 6), (3, 5), (4, 5), (5, 5)]}, 'others': [{'name': 'Copy of snake2_v3_FINAL_final(1)', 'health': 87, 'length': 10, 'body': [(1, 9), (0, 9), (0, 10), (1, 10), (2, 10), (3, 10), (4, 10), (5, 10), (5, 9), (5, 8)]}, {'name': 'go-st', 'health': 96, 'length': 11, 'body': [(8, 0), (7, 0), (6, 0), (5, 0), (4, 0), (4, 1), (5, 1), (6, 1), (7, 1), (7, 2), (7, 3)]}, {'name': 'Red Yarn', 'health': 85, 'length': 8, 'body': [(1, 3), (1, 2), (1, 1), (1, 0), (2, 0), (2, 1), (2, 2), (2, 3)]}], 'food': [(2, 8)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'avoid next step suppressed'], 'next_coord': (1, 6), 'next_move': 'right', 'time': '0.062s'}
     log = {'id': 'd0732d5b-a23c-4c09-95eb-ffcc8ed10902', 'turn': 205, 'me': {'name': 'mark_snake', 'health': 71, 'length': 16, 'body': [(3, 6), (4, 6), (5, 6), (6, 6), (7, 6), (7, 5), (7, 4), (7, 3), (8, 3), (9, 3), (10, 3), (10, 4), (10, 5), (9, 5), (9, 6), (9, 7)]}, 'others': [{'name': 'Frank The Tank', 'health': 99, 'length': 23, 'body': [(2, 1), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0), (7, 0), (8, 0), (8, 1), (7, 1), (7, 2), (6, 2), (6, 1), (5, 1), (5, 2), (4, 2), (3, 2), (3, 3), (3, 4), (4, 4), (5, 4), (5, 5), (4, 5)]}], 'food': [(0, 1), (3, 8), (10, 2)], 'module': 'decision_flow - github', 'decision_path': ['1v1', 'get food (3, 8)'], 'next_coord': (3, 7), 'next_move': 'up', 'time': '0.054s'}
-    log = {'id': '5ab003c9-24a3-4ef5-abfc-714026e0255c', 'turn': 212, 'me': {'name': 'mark_snake', 'health': 42, 'length': 20, 'body': [(2, 4), (1, 4), (0, 4), (0, 3), (1, 3), (2, 3), (3, 3), (3, 2), (2, 2), (1, 2), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (6, 1), (7, 1), (8, 1), (9, 1), (10, 1)]}, 'others': [{'name': 'Game of Chicken', 'health': 93, 'length': 23, 'body': [(5, 5), (6, 5), (7, 5), (7, 6), (8, 6), (8, 7), (8, 8), (8, 9), (8, 10), (7, 10), (6, 10), (5, 10), (4, 10), (3, 10), (2, 10), (1, 10), (0, 10), (0, 9), (1, 9), (2, 9), (3, 9), (4, 9), (5, 9)]}], 'food': [(2, 0)], 'module': 'decision_flow - github', 'decision_path': ['1v1', 'avoid next step confinement [(2, 5)]'], 'next_coord': (3, 4), 'next_move': 'right', 'time': '0.022s'}
-    log = {'id': '7dffc9fe-256b-4462-9403-fa7f60e69c0a', 'turn': 203, 'me': {'name': 'mark_snake', 'health': 100, 'length': 18, 'body': [(0, 3), (1, 3), (2, 3), (2, 4), (2, 5), (2, 6), (2, 7), (1, 7), (1, 8), (1, 9), (2, 9), (3, 9), (3, 8), (4, 8), (5, 8), (6, 8), (7, 8), (7, 8)]}, 'others': [{'name': 'SmartyRat', 'health': 19, 'length': 10, 'body': [(4, 1), (3, 1), (3, 2), (3, 3), (3, 4), (3, 5), (3, 6), (3, 7), (4, 7), (5, 7)]}], 'food': [(0, 0), (7, 6), (7, 2), (1, 6), (6, 3)], 'module': 'decision_flow - github', 'decision_path': ['1v1', 'split choice all good', 'get food (0, 0)'], 'next_coord': (0, 2), 'next_move': 'down', 'time': '0.040s'}
-    log = {'id': '7dffc9fe-256b-4462-9403-fa7f60e69c0a', 'turn': 207, 'me': {'name': 'mark_snake', 'health': 99, 'length': 19, 'body': [(1, 0), (0, 0), (0, 1), (0, 2), (0, 3), (1, 3), (2, 3), (2, 4), (2, 5), (2, 6), (2, 7), (1, 7), (1, 8), (1, 9), (2, 9), (3, 9), (3, 8), (4, 8), (5, 8)]}, 'others': [{'name': 'SmartyRat', 'health': 100, 'length': 11, 'body': [(7, 2), (7, 1), (6, 1), (5, 1), (4, 1), (3, 1), (3, 2), (3, 3), (3, 4), (3, 5), (3, 5)]}], 'food': [(7, 6), (1, 6), (6, 3)], 'module': 'decision_flow - github', 'decision_path': ['1v1', 'prefer less split'], 'next_coord': (1, 1), 'next_move': 'up', 'time': '0.027s'}
 
 
     game_state = init_from_log(log)
