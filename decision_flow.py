@@ -1473,13 +1473,7 @@ def main(game_state, log=True, log_db=False):
             g.decision_path.append("collision type 2 take risk")
             return [collision, middle]
 
-        aset = g.me.territory
-        step = len(aset)
-        step = step if step <= 5 else 5
-        multistep_terrritories(step)(moves)
-        aset = sorted(list(set(g.me.territory2)))
-
-        cut_set = [p for a in aset for p in adj_cells(a) if p not in aset and p not in g.occupied_cells[step]]
+        cut_set = [p for a in g.me.territory for p in adj_cells(a) if p not in g.me.territory and p in g.me.head_space]
         cut_set = sorted(list(set(cut_set)))
 
         #has wayout
@@ -1490,6 +1484,11 @@ def main(game_state, log=True, log_db=False):
         if cut_set_dim(cut_set) >= 2:
             g.decision_path.append("collision type 2 take avoid point")
             return [avoid]
+
+        #aset = sorted(list(set(g.me.territory)))
+        #aset = path_connected_set(avoid, g.occupied_cells[1])
+        multistep_terrritories(2)(moves)
+        aset = sorted(list(set(g.me.territory2)))
 
         if len(aset) >= g.me.length:
             g.decision_path.append("collision type 2 take avoid point")
@@ -1515,8 +1514,8 @@ def main(game_state, log=True, log_db=False):
         """
 
         adjacent_indexes = [i
-                for i,c in enumerate(g.me.body) if c != g.me.head and c != g.me.tail and c not in cut_set
-                for p in adj_cells(c) if p in aset
+                for i,c in enumerate(g.me.body) if c != g.me.head and c != g.me.tail
+                for p in adj_cells(c) if p in aset 
                 #and p != avoid
                 ]
 
@@ -1532,7 +1531,7 @@ def main(game_state, log=True, log_db=False):
         oset = [a for a in oset if a not in g.food]
 
         if wayout_length <= len(oset): 
-            g.decision_path.append("collision type 2 take avoid point oset long enough")
+            g.decision_path.append("collision type 2 take avoid point")
             return [avoid]
 
         if len(g.others) == 1 and len(cut_set) >= 5 and len(cut_set) >= len(aset) * 0.4:
@@ -1543,7 +1542,7 @@ def main(game_state, log=True, log_db=False):
         #if len(g.others) > 1 and g.me.length >= 10 and all([g.me.length <= snake.length for snake in g.others]):
         if len(g.others) > 1 and g.me.length >= 8:
             if len(oset) < wayout_length:
-                g.decision_path.append("collision type 2 take risk oset short")
+                g.decision_path.append("collision type 2 take risk")
                 return [collision]
 
         if len(aset) <= 2:
@@ -3979,7 +3978,6 @@ if __name__ == "__main__":
     log = {'id': 'c0d61d32-fd98-4f13-99cc-d4b164ccbbad', 'turn': 114, 'me': {'name': 'mark_snake', 'health': 91, 'length': 14, 'body': [(9, 5), (9, 4), (9, 3), (9, 2), (8, 2), (7, 2), (6, 2), (5, 2), (4, 2), (3, 2), (3, 3), (3, 4), (3, 5), (2, 5)]}, 'others': [{'name': 'SmartyRat', 'health': 33, 'length': 5, 'body': [(1, 7), (1, 8), (2, 8), (2, 7), (2, 6)]}, {'name': 'Copy of snake2_v3_FINAL_final(1)', 'health': 82, 'length': 11, 'body': [(6, 10), (6, 9), (6, 8), (6, 7), (6, 6), (7, 6), (7, 7), (7, 8), (7, 9), (8, 9), (8, 10)]}, {'name': '@~~~~@', 'health': 97, 'length': 11, 'body': [(4, 4), (4, 5), (4, 6), (4, 7), (4, 8), (5, 8), (5, 9), (5, 10), (4, 10), (4, 9), (3, 9)]}], 'food': [(9, 6)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('Copy of snake2_v3_FINAL_final(1)', 2, (8, 10))]", 'preliminary cut kill target: @~~~~@', 'go cut to (7, 3)'], 'next_coord': (8, 5), 'next_move': 'left', 'time': '0.039s'}
     log = {'id': 'ee3276d5-0394-4e83-86eb-ea6831e172f9', 'turn': 80, 'me': {'name': 'mark_snake', 'health': 69, 'length': 8, 'body': [(2, 6), (3, 6), (4, 6), (5, 6), (6, 6), (6, 5), (6, 4), (6, 3)]}, 'others': [{'name': 'Game of Chicken', 'health': 47, 'length': 7, 'body': [(2, 4), (1, 4), (0, 4), (0, 3), (0, 2), (0, 1), (1, 1)]}, {'name': 'HydraOxide', 'health': 98, 'length': 7, 'body': [(1, 7), (2, 7), (3, 7), (3, 8), (4, 8), (5, 8), (6, 8)]}, {'name': 'Natterlie', 'health': 66, 'length': 8, 'body': [(7, 7), (7, 6), (8, 6), (8, 5), (8, 4), (8, 3), (8, 2), (7, 2)]}], 'food': [(10, 10), (10, 0)], 'module': 'decision_flow - github', 'decision_path': ['1vn'], 'next_coord': (1, 6), 'next_move': 'left', 'time': '0.063s'}
     log = {'id': '67702c41-915d-4db7-bef6-17004a980669', 'turn': 129, 'me': {'name': 'mark_snake', 'health': 85, 'length': 13, 'body': [(0, 3), (1, 3), (2, 3), (3, 3), (4, 3), (4, 4), (4, 5), (4, 6), (3, 6), (2, 6), (1, 6), (1, 7), (1, 8)]}, 'others': [{'name': 'SmartyRat', 'health': 99, 'length': 8, 'body': [(3, 0), (4, 0), (4, 1), (3, 1), (3, 2), (2, 2), (2, 1), (1, 1)]}, {'name': 'Snaky McSnakeface', 'health': 85, 'length': 14, 'body': [(5, 0), (6, 0), (6, 1), (6, 2), (6, 3), (7, 3), (7, 4), (7, 5), (8, 5), (9, 5), (10, 5), (10, 4), (10, 3), (10, 2)]}], 'food': [(0, 9)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('SmartyRat', 1, (2, 0)), ('Snaky McSnakeface', 2, (5, 2))]", 'split choice'], 'next_coord': (0, 4), 'next_move': 'up', 'time': '0.010s'}
-    log = {'id': '6f7ab4cb-a4b1-4456-8e26-e4e572935b2b', 'turn': 98, 'me': {'name': 'mark_snake', 'health': 96, 'length': 9, 'body': [(8, 6), (9, 6), (9, 7), (9, 8), (9, 9), (8, 9), (7, 9), (7, 8), (7, 7)]}, 'others': [{'name': 'SmartyRat', 'health': 66, 'length': 4, 'body': [(4, 10), (3, 10), (3, 9), (4, 9)]}, {'name': 'ich heisse marvin', 'health': 96, 'length': 11, 'body': [(2, 6), (1, 6), (1, 7), (1, 8), (2, 8), (3, 8), (4, 8), (5, 8), (5, 7), (5, 6), (4, 6)]}, {'name': 'Slytherin', 'health': 88, 'length': 10, 'body': [(7, 5), (7, 4), (7, 3), (6, 3), (5, 3), (5, 2), (4, 2), (3, 2), (2, 2), (2, 1)]}], 'food': [(8, 8), (7, 6)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'collision type 2 take avoid point'], 'next_coord': (8, 7), 'next_move': 'up', 'time': '0.030s'}
 
 
     game_state = init_from_log(log)
