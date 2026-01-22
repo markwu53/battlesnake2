@@ -104,7 +104,6 @@ def main(game_state, log=True, log_db=False):
 
             (prefer_not(entering_danger(immediate_kill_situation))),
             (prefer_not(entering_danger(trap_kill_situation))),
-            (prefer_not(entering_danger(general_suppressed_chasing_situation))),
 
             (trap_kill_opportunity),
 
@@ -2753,29 +2752,6 @@ def main(game_state, log=True, log_db=False):
                 return True
         return False
 
-    def general_suppressed_chasing_situation(killer: Snake, target: Snake):
-        if killer.length <= target.length: return False
-        if len(target.allowed_moves) != 2: return False
-        if distance_pq(killer.head, target.head) != 2: return False
-        if distance_vector_abs(killer.head, target.head) not in [(0,2), (2,0)]: return False
-        collision = [a for a in killer.allowed_moves if a in target.allowed_moves]
-        if len(collision) != 1: return False
-        collision = take_first(collision)
-        b = take_first([a for a in target.allowed_moves if a != collision])
-        if get_adjacent_dir(target.neck, target.head) != get_adjacent_dir(target.head, b): return False
-        if path_distance_pq(b, collision) != 2: return False
-        return True
-
-    def general_suppressed_chasing_kill_opportunity(moves):
-        for snake in g.others:
-            if general_suppressed_chasing_situation(g.me, snake):
-                if sum(distance_to_border(g.me.head)) >= sum(distance_to_border(snake.head)):
-                    kill_moves = [a for a in moves if a in snake.allowed_moves]
-                    if len(kill_moves) != 0:
-                        g.decision_path.append(f"suppressed chasing kill {snake.name}")
-                        return kill_moves
-
-    """
     def general_suppressed_chasing_kill_opportunity(moves):
         for snake in g.others:
             if g.me.length <= snake.length: continue
@@ -2791,7 +2767,6 @@ def main(game_state, log=True, log_db=False):
             if sum(distance_to_border(g.me.head)) < sum(distance_to_border(snake.head)): continue
             g.decision_path.append("general suppressed chasing")
             return [collision]
-    """
 
     def suppressed_chasing_kill_opportunity(moves):
         for snake in g.others:
@@ -3797,7 +3772,6 @@ if __name__ == "__main__":
     log = {'id': 'd8a9a72d-30c2-42b3-bff8-f791275b304f', 'turn': 80, 'me': {'name': 'mark_snake', 'health': 95, 'length': 11, 'body': [(0,8), (1, 8), (2, 8), (3, 8), (4, 8), (5, 8), (5, 7), (5, 6), (4, 6), (4, 7), (3, 7), (3, 7)], 'id': 'gs_K68bkyQXJvcRpBw6wbkqJW4T'}, 'others': [{'name': 'SmartyRat', 'health': 31, 'length': 4, 'body': [(7,5), (7, 4), (7, 3), (6, 3)], 'id': 'gs_tpPffYf9WhB4bvgcPRtRHRpC'}, {'name': 'go-st', 'health': 92, 'length': 9, 'body': [(0, 10), (0, 9), (1, 9), (2, 9), (3, 9), (4, 9), (5, 9), (6, 9), (6, 10)], 'id': 'gs_D6V6dYdj6q6RSx8wvkVQ7qGY'}, {'name': 'ich heisse marvin', 'health': 67, 'length': 9, 'body': [(5,1), (6, 1), (7, 1), (8, 1), (8, 2), (8, 3), (9, 3), (9, 4), (8, 4)], 'id': 'gs_px4kfDKQTHBKV3GkDjG7myxC'}], 'food': [(2, 5)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'next to food'], 'next_coord': (0, 8), 'next_move': 'left', 'time': '0.053s'}
     log = {'id': '62f28013-f756-411c-b969-51432f253c94', 'turn': 173, 'me': {'name': 'mark_snake', 'health': 88, 'length': 8, 'body': [(9, 6), (9, 7), (8, 7), (8, 8), (8, 9), (9, 9), (10, 9), (10, 8)], 'id': 'gs_DfVMt7yvTWw7FTDQr4K49XX6'}, 'others': [{'name': 'SmartyRat', 'health': 75, 'length': 9, 'body': [(1, 6), (1, 5), (2, 5), (2, 4), (2, 3), (3, 3), (3, 4), (3, 5), (3, 6)], 'id': 'gs_y6xmpBrtyxbrkfqtcH63wXDY'}, {'name': 'Game of Chicken', 'health': 90, 'length': 18, 'body': [(8, 5), (7, 5), (7, 4), (8, 4), (8, 3), (8, 2), (8, 1), (7, 1), (7, 0), (6, 0), (6, 1), (5, 1), (4, 1), (4, 2), (5, 2), (6, 2), (7, 2), (7, 3)], 'id': 'gs_vbGS9WWd9StrCF7SWXThSyxR'}, {'name': 'go-st', 'health': 98, 'length': 13, 'body': [(7, 8), (7, 7), (6, 7), (6, 8), (6, 9), (5, 9), (4, 9), (4, 8), (5, 8), (5, 7), (5, 6), (6, 6), (7, 6)], 'id': 'gs_qHyFJXT7xJwJq4tvFBtFfmf8'}], 'food': [(0, 10)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('go-st', 2, (7, 10))]", 'collision type 2 bad tail take risk'], 'next_coord': (8, 6), 'next_move': 'left', 'time': '0.016s'}
     log = {'id': '6d042211-2323-4882-9d6e-495b2db00fe1', 'turn': 58, 'me': {'name': 'mark_snake', 'health': 71, 'length': 5, 'body': [(0, 4), (0, 3), (0, 2), (1, 2), (1, 3)], 'id': 'gs_cJwDFgwQQWkGGryHkm8jBJRH'}, 'others': [{'name': 'Copy of snake2_v3_FINAL_final(1)', 'health': 81, 'length': 9, 'body': [(1, 5), (2, 5), (3, 5), (3, 4), (4, 4), (5, 4), (5, 3), (6, 3), (7, 3)], 'id': 'gs_ydD4SR3BBmwP8Qwry8vd36M3'}, {'name': 'HydraOxide', 'health': 88, 'length': 6, 'body': [(4, 0), (3, 0), (2, 0), (2, 1), (3, 1), (4, 1)], 'id': 'gs_Qp3JtDM8HHYmjc4vMCyytg34'}, {'name': 'ich heisse marvin', 'health': 95, 'length': 7, 'body': [(4, 8), (3, 8), (2, 8), (1, 8), (0, 8), (0, 7), (1, 7)], 'id': 'gs_Gv43jHJ3crmjGjkyM8pTGmQG'}], 'food': [(0, 1)], 'module': 'decision_flow - github', 'decision_path': ['1vn'], 'next_coord': (1, 4), 'next_move': 'right', 'time': '0.006s'}
-    log = {'id': '417387d6-9d63-4799-bd8f-1f7a3e88c614', 'turn': 190, 'me': {'name': 'mark_snake', 'health': 82, 'length': 12, 'body': [(0, 2), (0, 1), (1, 1), (2, 1), (3, 1), (4, 1), (4, 2), (4, 3), (3, 3), (2, 3), (1, 3), (0, 3)], 'id': 'gs_ShKdCtcWpD7DqHDqkgS7rv8B'}, 'others': [{'name': 'Game of Chicken', 'health': 61, 'length': 15, 'body': [(2, 4), (3, 4), (4, 4), (5, 4), (5, 3), (6, 3), (6, 2), (6, 1), (6, 0), (7, 0), (8, 0), (9, 0), (10, 0), (10, 1), (10, 2)], 'id': 'gs_YvBYmqkhDJbjg3mqc3bSpX69'}, {'name': 'go-st', 'health': 50, 'length': 13, 'body': [(8, 8), (8, 7), (8, 6), (8, 5), (7, 5), (6, 5), (5, 5), (4, 5), (3, 5), (2, 5), (2, 6), (2, 7), (3, 7)], 'id': 'gs_CbVBSDBpHm9WyMDdBXKjGkFK'}], 'food': [(10, 7), (1, 9), (10, 8)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('Game of Chicken', 1, (1, 4))]", 'avoid two step collision'], 'next_coord': (1, 2), 'next_move': 'right', 'time': '0.010s'}
 
 
     game_state = init_from_log(log)
