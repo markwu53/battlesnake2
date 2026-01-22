@@ -88,6 +88,7 @@ def main(game_state, log=True, log_db=False):
             (type_1_collision),
 
             avoid_two_snake_trap_config_11,
+            chasing_kill_opportunity,
 
             (collision_cut_opportunity),
             (collision_cut_opportunity_2),
@@ -116,8 +117,6 @@ def main(game_state, log=True, log_db=False):
             avoid_food_split_confine,
             split_avoid_square2,
             (cond(g.me.length >= 9)(split_choice)),
-
-            chasing_kill_opportunity,
 
             two_snake_kill_opportunity,
 
@@ -3766,7 +3765,6 @@ if __name__ == "__main__":
     log = {'id': '30d73964-a805-44d4-b816-198683de4199', 'turn': 176, 'me': {'name': 'mark_snake', 'health': 92, 'length': 12, 'body': [(1, 3), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8), (0, 9), (0, 10), (1, 10), (2, 10), (2, 9)], 'id': 'gs_74bRfMgMTrYMKBPTCWHkxxcH'}, 'others': [{'name': 'SmartyRat', 'health': 96, 'length': 8, 'body': [(8, 2), (9, 2), (9, 3), (9, 4), (8, 4), (8, 3), (7, 3), (7, 2)], 'id': 'gs_BqSWJyvRPbBwQdkFv4HKfVB9'}, {'name': 'go-st', 'health': 88, 'length': 12, 'body': [(2, 2), (2, 3), (2, 4), (3, 4), (4, 4), (4, 3), (4, 2), (3, 2), (3, 1), (3, 0), (2, 0), (1, 0)], 'id': 'gs_yvrF9Rw3Q4WtrGdpPhmDDXRG'}, {'name': 'Snaky  McSnakeface', 'health': 69, 'length': 14, 'body': [(3, 7), (4, 7), (4, 6), (5, 6), (6, 6), (7, 6), (8, 6), (9, 6), (9, 7), (8, 7), (7, 7), (6, 7), (5, 7), (5, 8)], 'id': 'gs_DgXj8dpGVpkyGhqSdMYv4my6'}], 'food': [(9, 1), (4, 8), (9, 9), (8, 5), (7, 8), (10, 10)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'split choice'], 'next_coord': (1, 2), 'next_move': 'down', 'time': '0.020s'}
     log = {'id': '6d77be80-a433-4a02-8a7e-21fe196ad71f', 'turn': 299, 'me': {'name': 'mark_snake', 'health': 93, 'length': 27, 'body': [(4, 9), (3, 9), (3, 8), (3, 7), (3, 6), (4, 6), (4, 7), (4, 8), (5, 8), (5, 7), (6, 7), (6, 8), (7, 8), (8, 8), (9, 8), (9, 9), (10, 9), (10, 8), (10, 7), (10, 6), (10, 5), (10, 4), (10, 3), (9, 3), (9, 2), (10, 2), (10, 1)], 'id': 'gs_gYd8xGWj7HSRCpVBYbqwgfgc'}, 'others': [{'name': 'Natterlie', 'health': 82, 'length': 23, 'body': [(6, 3), (7, 3), (7, 4), (8, 4), (8, 5), (7, 5), (6, 5), (5, 5), (5, 4), (4, 4), (4, 5), (3, 5), (2, 5), (1, 5), (1, 6), (1, 7), (1, 8), (0, 8), (0, 9), (1, 9), (1, 10), (2, 10), (3, 10)], 'id': 'gs_FDqqtTDkB3bxfDygBgdRDMRV'}], 'food': [(10, 0), (8, 10), (3, 1)], 'module': 'decision_flow - github', 'decision_path': ['1v1', 'get food (8, 10) via near territory border'], 'next_coord': (4, 10), 'next_move': 'up', 'time': '0.007s'}
     log = {'id': '3228ba13-070b-4635-9347-5cfbcbb7871d', 'turn': 223, 'me': {'name': 'mark_snake', 'health': 99, 'length': 20, 'body': [(0, 5), (0, 6), (1, 6), (1, 7), (1, 8), (2, 8), (3, 8), (4, 8), (4, 9), (5, 9), (6, 9), (7, 9), (8, 9), (9, 9), (10, 9), (10, 8), (10, 7), (9, 7), (8, 7), (7, 7)], 'id': 'gs_wcCS7rpJk7VSdXYMTDrWC8GC'}, 'others': [{'name': 'Gregory Megory', 'health': 97, 'length': 23, 'body': [(5, 2), (5, 1), (5, 0), (6, 0), (7, 0), (8, 0), (9, 0), (10, 0), (10, 1), (9, 1), (9, 2), (10, 2), (10, 3), (10, 4), (10, 5), (10, 6), (9, 6), (8, 6), (7, 6), (6, 6), (5, 6), (4, 6), (3, 6)], 'id': 'gs_PQqmXCFjTqVWjMGJR63jtX8c'}], 'food': [(0, 0), (4, 4), (9, 3), (9, 8), (5, 5)], 'module': 'decision_flow - github', 'decision_path': ['1v1', 'move to territory border'], 'next_coord': (0, 4), 'next_move': 'down', 'time': '0.031s'}
-    log = {'id': '7892cb80-37de-4e74-a2bd-df6dd2447a2a', 'turn': 193, 'me': {'name': 'mark_snake', 'health': 97, 'length': 16, 'body': [(5, 8), (5, 9), (6, 9), (7, 9), (8, 9), (9, 9), (9, 10), (10, 10), (10, 9), (10, 8), (10, 7), (10, 6), (9, 6), (8, 6), (7, 6), (6, 6)], 'id': 'gs_BJDDSMXxrtV8HMbYhMdV4T96'}, 'others': [{'name': 'Gregory Megory', 'health': 99, 'length': 11, 'body': [(6, 7), (5, 7), (5, 6), (5, 5), (5, 4), (6, 4), (7, 4), (7, 3), (8, 3), (9, 3), (10, 3)], 'id': 'gs_cwqFtSfGVxgTmwHDkhmHGffT'}], 'food': [(0, 6), (7, 7), (1, 9)], 'module': 'decision_flow - github', 'decision_path': ['1v1', 'preliminary cut kill target: Gregory Megory', 'chasing kill (6, 8)'], 'next_coord': (6, 8), 'next_move': 'right', 'time': '0.011s'}
 
 
     game_state = init_from_log(log)
