@@ -216,7 +216,7 @@ def main(game_state, log=True, log_db=False):
 
             avoid_confined_with_killer,
 
-            #avoid_collision_type_2_all,
+            avoid_collision_type_2_all,
 
             #sometime this can create type 2 collision situation
             (cond(g.me.length <= 10)(prefer_away_border)),
