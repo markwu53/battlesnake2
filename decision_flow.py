@@ -201,7 +201,7 @@ def main(game_state, log=True, log_db=False):
             #choose_a_territory_component,
             move_to_largest_territory_component,
             
-            #(cond(g.me.length >= 12)(confined_follow_tail)),
+            (cond(g.me.length >= 12)(confined_follow_tail)),
 
             #cond(len(g.others) == 1 and g.me.length > g.other.length)(border_go_up),
             cond(len(g.others) == 1 and g.me.length < g.other.length)(border_go_up),
@@ -746,7 +746,45 @@ def main(game_state, log=True, log_db=False):
                     g.decision_path.append("next to food")
                     return [food_target]
             return
-        
+
+        """
+        if g.me.length <= 10:
+            if on_border(food_target):
+                food_nabor = [a for a in adj_cells(food_target) if on_border(a) and a not in g.occupied_cells[0]]
+                if len(food_nabor) == 2:
+                    food_nabor = [a for a in food_nabor if path_distance_pq(g.me.head, a) < path_distance_pq(g.me.head, food_target)]
+                    if len(food_nabor) != 0:
+                        food_nabor = take_first(food_nabor)
+                        food_moves = shortest_path_move(g.me.head, food_nabor)
+                        moves = [a for a in moves if a in food_moves]
+                        if len(moves) != 0:
+                            g.decision_path.append(f"get food on border {food_target}")
+                            return moves
+
+            food_moves = shortest_path_move(g.me.head, food_target)
+            moves = [a for a in moves if a in food_moves]
+            if len(moves) != 0:
+                g.decision_path.append(f"get food {food_target}")
+                return moves
+        """
+
+        """
+        def food_space(a):
+            occupied = g.occupied_cells[1]+[a]
+            food_set = path_connected_set(food_target, occupied)
+            return len(food_set)
+
+        if on_border(food_target):
+            if distance_vector_abs(g.me.head, food_target) == (1,1):
+                food_moves = [a for a in moves if is_adjacent(a, food_target)]
+                if len(food_moves) == 1:
+                    g.decision_path.append("get food on border")
+                    return food_moves
+                if len(food_moves) > 1:
+                    g.decision_path.append("choose food path on border")
+                    return prefer_by_score(food_space)(food_moves)
+        """
+
         food_moves = shortest_path_move(g.me.head, food_target)
         food_moves = [a for a in moves if a in food_moves]
         if len(food_moves) == 0: return
@@ -755,10 +793,6 @@ def main(game_state, log=True, log_db=False):
             return food_moves
 
         if len(food_moves) != 2: return
-
-        if len(g.others) == 1 and path_distance_pq(g.me.head, g.other.head) >= 10:
-            g.decision_path.append(f"get food {food_target} any path")
-            return food_moves
 
         def territory_border_distance(a):
             b = take_first([b for b in food_moves if b != a])
@@ -3761,7 +3795,6 @@ if __name__ == "__main__":
     log = {'id': '999a17fb-835c-4192-8e4b-f37a8f277e03', 'turn': 95, 'me': {'name': 'mark_snake', 'health': 100, 'length': 10, 'body': [(10, 9), (9, 9), (9, 8), (9, 7), (9, 6), (9, 5), (9, 4), (8, 4), (8, 5), (8, 5)], 'id': 'gs_jttd4kt9g9vQ9SbxRPT9xG4R'}, 'others': [{'name': 'Sandworm', 'health': 85, 'length': 7, 'body': [(0, 5), (0, 6), (0, 7), (0, 8), (1, 8), (1, 7), (1, 6)], 'id': 'gs_GtFx7rTm8xJrdhXVQXBpT9PV'}, {'name': 'SnattleBake_v027', 'health': 88, 'length': 8, 'body': [(3, 4), (3, 5), (2, 5), (2, 4), (2, 3), (3, 3), (3, 2), (4, 2)], 'id': 'gs_pjbR88Ry7hk3Q9FSykjBhDjB'}, {'name': 'Spaceheater', 'health': 86, 'length': 10, 'body': [(6, 5), (6, 6), (6, 7), (5, 7), (5, 8), (4, 8), (4, 7), (4, 6), (5, 6), (5, 5)], 'id': 'gs_FXcM996QFjhdpKm7jkKCwh6K'}], 'food': [(10, 10), (6, 10), (6, 3)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('SnattleBake_v027', 1, (4, 4))]", 'split choice all good', 'avoid_single_move 3'], 'next_coord': (10, 10), 'next_move': 'up', 'time': '0.066s'}
     log = {'id': 'ae803bef-26a4-4de3-8886-3c2cffe18cef', 'turn': 153, 'me': {'name': 'mark_snake', 'health': 97, 'length': 8, 'body': [(3, 4), (2, 4), (2, 5), (2, 6), (2, 7), (3, 7), (4, 7), (5, 7)], 'id': 'gs_V8Mv3Hct4gqTcV4yvCmwmrrP'}, 'others': [{'name': 'Geriatric Jagwire', 'health': 55, 'length': 12, 'body': [(1, 8), (0, 8), (0, 9), (1, 9), (2, 9), (3, 9), (4, 9), (5, 9), (5, 10), (6, 10), (6, 9), (7, 9)], 'id': 'gs_wJKtBpwGPmdYT37PKCqmPvgY'}, {'name': 'Slytherin', 'health': 99, 'length': 13, 'body': [(1, 4), (0, 4), (0, 3), (0, 2), (0, 1), (0, 0), (1, 0), (2, 0), (2, 1), (3, 1), (3, 2), (4, 2), (5, 2)], 'id': 'gs_CGC6R8JfChWrRSwPJvjpw3kT'}, {'name': 'Spaceheater', 'health': 65, 'length': 14, 'body': [(5, 4), (5, 3), (6, 3), (7, 3), (7, 4), (6, 4), (6, 5), (7, 5), (7, 6), (6, 6), (5, 6), (5, 5), (4, 5), (3, 5)], 'id': 'gs_mKY87tB3wPCxgTj9xb4BG3QP'}], 'food': [(9, 8), (4, 8)], 'module': 'decision_flow - github', 'decision_path': ['1vn', "vulnerable snakes: [('Spaceheater', 1, (4, 4))]", 'avoid two step collision'], 'next_coord': (3, 5), 'next_move': 'up', 'time': '0.008s'}
     log = {'id': '30d73964-a805-44d4-b816-198683de4199', 'turn': 176, 'me': {'name': 'mark_snake', 'health': 92, 'length': 12, 'body': [(1, 3), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8), (0, 9), (0, 10), (1, 10), (2, 10), (2, 9)], 'id': 'gs_74bRfMgMTrYMKBPTCWHkxxcH'}, 'others': [{'name': 'SmartyRat', 'health': 96, 'length': 8, 'body': [(8, 2), (9, 2), (9, 3), (9, 4), (8, 4), (8, 3), (7, 3), (7, 2)], 'id': 'gs_BqSWJyvRPbBwQdkFv4HKfVB9'}, {'name': 'go-st', 'health': 88, 'length': 12, 'body': [(2, 2), (2, 3), (2, 4), (3, 4), (4, 4), (4, 3), (4, 2), (3, 2), (3, 1), (3, 0), (2, 0), (1, 0)], 'id': 'gs_yvrF9Rw3Q4WtrGdpPhmDDXRG'}, {'name': 'Snaky  McSnakeface', 'health': 69, 'length': 14, 'body': [(3, 7), (4, 7), (4, 6), (5, 6), (6, 6), (7, 6), (8, 6), (9, 6), (9, 7), (8, 7), (7, 7), (6, 7), (5, 7), (5, 8)], 'id': 'gs_DgXj8dpGVpkyGhqSdMYv4my6'}], 'food': [(9, 1), (4, 8), (9, 9), (8, 5), (7, 8), (10, 10)], 'module': 'decision_flow - github', 'decision_path': ['1vn', 'split choice'], 'next_coord': (1, 2), 'next_move': 'down', 'time': '0.020s'}
-    log = {'id': '6d77be80-a433-4a02-8a7e-21fe196ad71f', 'turn': 299, 'me': {'name': 'mark_snake', 'health': 93, 'length': 27, 'body': [(4, 9), (3, 9), (3, 8), (3, 7), (3, 6), (4, 6), (4, 7), (4, 8), (5, 8), (5, 7), (6, 7), (6, 8), (7, 8), (8, 8), (9, 8), (9, 9), (10, 9), (10, 8), (10, 7), (10, 6), (10, 5), (10, 4), (10, 3), (9, 3), (9, 2), (10, 2), (10, 1)], 'id': 'gs_gYd8xGWj7HSRCpVBYbqwgfgc'}, 'others': [{'name': 'Natterlie', 'health': 82, 'length': 23, 'body': [(6, 3), (7, 3), (7, 4), (8, 4), (8, 5), (7, 5), (6, 5), (5, 5), (5, 4), (4, 4), (4, 5), (3, 5), (2, 5), (1, 5), (1, 6), (1, 7), (1, 8), (0, 8), (0, 9), (1, 9), (1, 10), (2, 10), (3, 10)], 'id': 'gs_FDqqtTDkB3bxfDygBgdRDMRV'}], 'food': [(10, 0), (8, 10), (3, 1)], 'module': 'decision_flow - github', 'decision_path': ['1v1', 'get food (8, 10) via near territory border'], 'next_coord': (4, 10), 'next_move': 'up', 'time': '0.007s'}
 
 
     game_state = init_from_log(log)
