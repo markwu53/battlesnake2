@@ -96,6 +96,7 @@ def main(game_state, log=True, log_db=False):
             avoid_short_vulnerable_move,
 
             (prefer_not(entering_danger(suppressed_chasing_kill_situation))),
+            (prefer_not(entering_danger(border_confront_kill_situation))),
 
             (make_forming_trap),
 
@@ -118,7 +119,7 @@ def main(game_state, log=True, log_db=False):
             avoid_food_split_confine,
             split_avoid_square2,
 
-            (attack_vulnerables_group_1),
+            (attack_vulnerables),
 
             chasing_kill_opportunity,
 
@@ -158,7 +159,6 @@ def main(game_state, log=True, log_db=False):
             (cond(len(g.others) == 1 and g.me.length >= g.other.length)(avoid_cornered_bordered)),
             cond(g.me.length <= 6)(short_avoid_corner),
 
-            attack_vulnerables_group_2,
             attack_vulnerables_lower_priority,
             cond(len(g.others) > 1)(attempt_border_kill),
 
@@ -179,7 +179,6 @@ def main(game_state, log=True, log_db=False):
             #cond(g.me.length >= 35)(chase_my_tail),
             avoid_next_step_suppressed,
             avoid_next_step_suppressed_2,
-            (prefer_not(entering_danger(border_confront_kill_situation))),
 
             split_avoid_preliminary_trap,
 
@@ -2611,7 +2610,7 @@ def main(game_state, log=True, log_db=False):
                     g.decision_path.append(f"attack vulnerables suppress positive 2 {snake.name}")
                     return attack_move
 
-    def attack_vulnerables_group_1(moves):
+    def attack_vulnerables(moves):
         return seq([
             attack_vulnerables_on_point,
             attack_vulnerables_suppress,
@@ -2619,10 +2618,6 @@ def main(game_state, log=True, log_db=False):
             attack_vulnerables_suppress_neg2,
             attack_vulnerables_on_point_neg_more,
             attack_vulnerables_suppress_neg_more,
-        ])(moves)
-
-    def attack_vulnerables_group_2(moves):
-        return seq([
             attack_vulnerables_on_point_positive,
             attack_vulnerables_suppress_positive,
         ])(moves)
