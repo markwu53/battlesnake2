@@ -1,5 +1,5 @@
 import typing
-import decision_flow
+import local_main
 
 # info is called when you create your Battlesnake on play.battlesnake.com
 # and controls your Battlesnake's appearance
@@ -28,6 +28,5 @@ def end(game_state: typing.Dict):
 
 
 def move(game_state: typing.Dict) -> typing.Dict:
-
-    decision_flow.main(game_state)
+    local_main.main(game_state)
     return {"move": game_state["next_move"]}

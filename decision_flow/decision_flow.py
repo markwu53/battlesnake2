@@ -3667,13 +3667,25 @@ def main(game_state, log=True, log_db=False):
         g.log["others"] = [snake.dict() for snake in g.others]
         g.log["food"] = g.food
         
+    def entry_condition():
+        if g.me.name in [
+            "mark_snake",
+            #"mark_snake_test RED",
+            #"mark_snake_test BLUE",
+            #"mark_snake_test GREEN",
+            #"mark_snake_test YELLOW",
+        ]:
+            return True
+        return False
 
+    
 
     ######################################################
     # main process
     ######################################################
 
     init_game(game_state)
+    if not entry_condition(): return False
 
     if log_db:
         init_db()
