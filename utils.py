@@ -1,9 +1,5 @@
 from __future__ import annotations
-import context
-from models import GameTurn, Snake
-
-# This provides the 'g' shortcut for the entire file
-g: GameTurn = context._helper.g
+from models import GameTurn, Snake, g
 
 
 ######################################################
@@ -58,17 +54,17 @@ def pos_on_board(pos):
         return False
     if y < 0:
         return False
-    if x >= g.state["board"]["width"]:
+    if x >= g().state["board"]["width"]:
         return False
-    if y >= g.state["board"]["height"]:
+    if y >= g().state["board"]["height"]:
         return False
     return True
 
 def on_border(p):
     x,y = p
-    if x == 0 or x == g.state["board"]["width"]-1:
+    if x == 0 or x == g().state["board"]["width"]-1:
         return True
-    if y == 0 or y == g.state["board"]["height"]-1:
+    if y == 0 or y == g().state["board"]["height"]-1:
         return True
     return False
 
@@ -88,7 +84,7 @@ def occupied_cells(step):
     #assuming no eating food
     #if eating food it will be more
     sbody = []
-    for s in g.snakes:
+    for s in g().snakes:
         body = s.body
         # if s.health == 100:
             #eat food, tail will not move in the next step
@@ -108,8 +104,8 @@ def is_adjacent(p, q):
 
 def distance_to_border(p):
     x,y = p
-    dx = min([x, g.state["board"]["width"]-x-1])
-    dy = min([y, g.state["board"]["height"]-y-1])
+    dx = min([x, g().state["board"]["width"]-x-1])
+    dy = min([y, g().state["board"]["height"]-y-1])
     return (dx, dy)
 
 def distance_vector_abs(p, q):
@@ -123,7 +119,7 @@ def get_dir_number(p, q):
     x1,y1 = p
     x2,y2 = q
     dx,dy = x2-x1,y2-y1
-    dir_dict = {dir:i for i, dir in enumerate(g.dir_order)}
+    dir_dict = {dir:i for i, dir in enumerate(g().dir_order)}
     return dir_dict[(dx,dy)]
 
 def add_coord(p, dq):
@@ -136,13 +132,13 @@ def minus(dq):
     return (-dx, -dy)
 
 def is_straight(p):
-    return get_adjacent_dir(g.me.head, p) == get_adjacent_dir(g.me.neck, g.me.head)
+    return get_adjacent_dir(g().me.head, p) == get_adjacent_dir(g().me.neck, g().me.head)
 
 ######################################################
 
 def path_distance_pq(p, q, occupied=None):
     if occupied is None:
-        occupied = g.occupied_cells[0]
+        occupied = g().occupied_cells[0]
     #remove q from occupied otherwise there is no path
     occupied = [p for p in occupied if p != q]
     layers = path_connected_layers(p, occupied)
@@ -153,7 +149,7 @@ def path_distance_pq(p, q, occupied=None):
 
 def path_connected_layers(p, occupied=None):
     if occupied is None:
-        occupied = g.occupied_cells[0]
+        occupied = g().occupied_cells[0]
     #remove p from occupied
     occupied = [q for q in occupied if q != p]
     layers = [set([p])]
@@ -165,13 +161,13 @@ def path_connected_layers(p, occupied=None):
 
 def path_connected_set(p, occupied=None):
     if occupied is None:
-        occupied = g.occupied_cells[0]
+        occupied = g().occupied_cells[0]
     layers = path_connected_layers(p, occupied)
     return set([q for layer in layers for q in layer])
 
 def path_connected(p, q, occupied=None):
     if occupied is None:
-        occupied = g.occupied_cells[0]
+        occupied = g().occupied_cells[0]
     occupied = [x for x in occupied if x != q]
     return q in path_connected_set(p, occupied)
 
@@ -179,7 +175,7 @@ def shortest_path_move(p, q, occupied=None):
     if is_adjacent(p, q):
         return [q]
     if occupied is None:
-        occupied = g.occupied_cells[0]
+        occupied = g().occupied_cells[0]
     occupied = [c for c in occupied if c != q]
     if q in path_connected_set(p, occupied):
         dist = path_distance_pq(p, q, occupied)
@@ -224,10 +220,10 @@ def prefer(check, message=None):
         good = [a for a in moves if check(a)]
         if message is not None:
             if isinstance(message, str):
-                g.decision_path.append(message)
+                g().decision_path.append(message)
             else:
                 #message must be a function
-                g.decision_path.append(message(moves, good))
+                g().decision_path.append(message(moves, good))
         if len(good) != 0:
             return good
     return fn
@@ -239,8 +235,8 @@ def take_first(moves):
     try:
         assert(len(moves) != 0)
     except AssertionError:
-        turn = g.state["turn"]
-        id = g.state["game"]["id"]
+        turn = g().state["turn"]
+        id = g().state["game"]["id"]
         print(f"id: {id}, TURN: {turn}")
         raise AssertionError
     return moves[0]
@@ -294,14 +290,14 @@ def print_after(f):
     return fn
 
 def log_print(anything=None):
-    turn = g.state["turn"]
-    id = g.state["game"]["id"]
+    turn = g().state["turn"]
+    id = g().state["game"]["id"]
     print(f"MARK_EXCEPTION, TURN: {turn}, id: {id}, {anything}")
 
 def board_cells():
     return [(x,y)
-        for x in range(g.state["board"]["width"])
-        for y in range(g.state["board"]["height"])
+        for x in range(g().state["board"]["width"])
+        for y in range(g().state["board"]["height"])
         ]
 
 def complement(aset):
@@ -314,10 +310,10 @@ def message(msg):
 
 def possible_next_state(snake, a):
     ns = Snake( snake.name, [a]+snake.body[:-1], snake.health-1)
-    ns.allowed_moves = [a for a in adj_cells(ns.head) if a not in g.occupied_cells[1]]
-    if a in g.food:
+    ns.allowed_moves = [a for a in adj_cells(ns.head) if a not in g().occupied_cells[1]]
+    if a in g().food:
         ns = Snake( snake.name, [a]+snake.body[:-1]+[snake.body[-2]], 100)
-        ns.allowed_moves = [a for a in adj_cells(ns.head) if a not in g.occupied_cells[1]+[snake.body[-2]]]
+        ns.allowed_moves = [a for a in adj_cells(ns.head) if a not in g().occupied_cells[1]+[snake.body[-2]]]
     return ns
 
 def hypothetic_development_territories(snakes):
@@ -369,7 +365,7 @@ def trim_aset(aset, a, b=None):
 def move_connected_group(moves, occupied=None):
     if occupied is None:
         #tail -1 will not split routes
-        occupied = g.occupied_cells[1]
+        occupied = g().occupied_cells[1]
 
     if len(moves) == 1:
         return 1
@@ -400,19 +396,19 @@ def grow_path(head, steps):
             for end in [path[-1]]
             for nhead in adj_cells(end)
             if nhead not in path
-            and nhead not in g.occupied_cells[i]
+            and nhead not in g().occupied_cells[i]
         ]
         layers.append(layer)
     return layers
 
 def collision_score(a, consider_equal=True):
-    killers = [snake for snake in g.others if snake.length > g.me.length if distance_pq(snake.head, g.me.head) <= 8]
-    nonkillers = [snake for snake in g.others if snake.length == g.me.length if distance_pq(snake.head, g.me.head) <= 8]
+    killers = [snake for snake in g().others if snake.length > g().me.length if distance_pq(snake.head, g().me.head) <= 8]
+    nonkillers = [snake for snake in g().others if snake.length == g().me.length if distance_pq(snake.head, g().me.head) <= 8]
     def path_collision_score(apath):
         length = len(apath)
         if length == 5:
             return 999
-        if len(g.me.head_paths) <= length:
+        if len(g().me.head_paths) <= length:
             return length - 1
         snakes = (killers+nonkillers) if length <= (3 if consider_equal else 2) else killers
         if apath[-1] in [ path[-1]
@@ -420,11 +416,11 @@ def collision_score(a, consider_equal=True):
             for path in snake.head_paths[length-1]
         ]:
             return length - 1
-        npaths = [path for path in g.me.head_paths[length] if path[:length] == apath ]
+        npaths = [path for path in g().me.head_paths[length] if path[:length] == apath ]
         if len(npaths) == 0:
             return length - 1
         return max([path_collision_score(path) for path in npaths])
-    return path_collision_score([g.me.head, a])
+    return path_collision_score([g().me.head, a])
 
 def coming_to(snake: Snake, p):
     straight = [a for a in snake.allowed_moves if get_adjacent_dir(snake.head, a) == get_adjacent_dir(snake.neck, snake.head)]
@@ -435,8 +431,8 @@ def coming_to(snake: Snake, p):
 
 def multistep_terrritories(step):
     def fn(moves):
-        occupied = g.occupied_cells[step]
-        snakes = g.snakes
+        occupied = g().occupied_cells[step]
+        snakes = g().snakes
         for snake in snakes:
             layers = path_connected_layers(snake.head, occupied)
             snake.cell_distance2 = {p:i for i,layer in enumerate(layers) for p in layer}
@@ -491,7 +487,7 @@ def cut_set_connected(cut_set):
         a = cut_set[i-1]
         b = [b for b in cut_set_copy if b not in cut_set[:i] and connected(a, b)]
         if len(b) != 1: 
-            g.decision_path.append(f"anomaly cut_set {cut_set}")
+            g().decision_path.append(f"anomaly cut_set {cut_set}")
             return False
         b = take_first(b)
         cut_set[i] = b
@@ -503,7 +499,7 @@ def irange(a, b):
 
 def prefer_less_next_moves(moves):
     def n_next_moves(a):
-        occupied = complement(g.me.territory)
+        occupied = complement(g().me.territory)
         next_moves = [p for p in adj_cells(a) if p not in occupied]
         return len(next_moves)
     return prefer_by_rank(n_next_moves)(moves)
@@ -544,11 +540,11 @@ def largest_territory_component(territory):
     return max(aset_components(territory), key=len)
 
 def new_territory(a):
-    territory = g.me.territory
-    territory_border = [p for p in territory if len([q for q in adj_cells(p) if q not in territory and q not in g.occupied_cells[0] and q != g.me.head]) != 0]
-    lost = [p for p in territory_border if path_distance_pq(a, p) > path_distance_pq(g.me.head, p)]
-    gain = [q for p in territory_border if path_distance_pq(a, p) < path_distance_pq(g.me.head, p)
-            for q in adj_cells(p) if q not in territory and q not in g.occupied_cells[0] and q != g.me.head]
+    territory = g().me.territory
+    territory_border = [p for p in territory if len([q for q in adj_cells(p) if q not in territory and q not in g().occupied_cells[0] and q != g().me.head]) != 0]
+    lost = [p for p in territory_border if path_distance_pq(a, p) > path_distance_pq(g().me.head, p)]
+    gain = [q for p in territory_border if path_distance_pq(a, p) < path_distance_pq(g().me.head, p)
+            for q in adj_cells(p) if q not in territory and q not in g().occupied_cells[0] and q != g().me.head]
     new_territory = list(set([p for p in territory if p not in lost] + gain))
     new_territory = [p for p in new_territory if p != a]
     largest_component = largest_territory_component(new_territory)

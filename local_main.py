@@ -1,19 +1,14 @@
 import time
-from models import Snake, GameTurn
+from models import Snake, GameTurn, g
 from cases import *
 from decision import decision
-import context
-
-g: GameTurn = context._helper.g
 
 def init_game(game_state):
-    new_turn = GameTurn()
-    context._helper._state = new_turn
-    g.state = game_state
-    g.id = game_state["game"]["id"]
-    g.turn = game_state["turn"]
+    g().state = game_state
+    g().id = game_state["game"]["id"]
+    g().turn = game_state["turn"]
 
-    g.snakes = [
+    g().snakes = [
         Snake(
             name = snake["name"],
             body = get_coord(snake["body"]),
@@ -22,48 +17,48 @@ def init_game(game_state):
         )
         for snake in game_state["board"]["snakes"]
     ]
-    g.me = [snake for snake in g.snakes for c in [game_state["you"]["body"][0]] if snake.head == (c["x"], c["y"])][0]
-    g.others = [snake for snake in g.snakes if snake.head != g.me.head]
+    g().me = [snake for snake in g().snakes for c in [game_state["you"]["body"][0]] if snake.head == (c["x"], c["y"])][0]
+    g().others = [snake for snake in g().snakes if snake.head != g().me.head]
 
-    if len(g.others) == 0:
-        g.decision_path.append("only myself")
-    elif len(g.others) == 1:
-        g.decision_path.append("1v1")
-        g.other = g.others[0]
+    if len(g().others) == 0:
+        g().decision_path.append("only myself")
+    elif len(g().others) == 1:
+        g().decision_path.append("1v1")
+        g().other = g().others[0]
     else:
-        g.decision_path.append("1vn")
+        g().decision_path.append("1vn")
 
-    g.food = get_coord(game_state["board"]["food"])
+    g().food = get_coord(game_state["board"]["food"])
 
-    g.log["id"] = game_state["game"]["id"]
-    g.log["turn"] = game_state["turn"]
-    g.log["me"] = g.me.dict()
-    g.log["others"] = [snake.dict() for snake in g.others]
-    g.log["food"] = g.food
+    g().log["id"] = game_state["game"]["id"]
+    g().log["turn"] = game_state["turn"]
+    g().log["me"] = g().me.dict()
+    g().log["others"] = [snake.dict() for snake in g().others]
+    g().log["food"] = g().food
 
    
 def main(game_state, log=True):
  
     init_game(game_state)
 
-    g.log["module"] = "decision_flow - github"
+    g().log["module"] = "decision_flow - github"
     start_time = time.time()
-    #g.e.localtime = time.localtime()
+    #g().e.localtime = time.localtime()
 
     decision()
-    next_move = get_adjacent_dir(g.me.head, g.next_coord)
+    next_move = get_adjacent_dir(g().me.head, g().next_coord)
 
-    #g.log["decision_support"] = {k:v for k,v in g.e.__dict__.items() if v is not None}
-    g.log["decision_path"] = g.decision_path
-    g.log["next_coord"] = g.next_coord
-    g.log["next_move"] = next_move
+    #g().log["decision_support"] = {k:v for k,v in g().e.__dict__.items() if v is not None}
+    g().log["decision_path"] = g().decision_path
+    g().log["next_coord"] = g().next_coord
+    g().log["next_move"] = next_move
 
     end_time = time.time()
-    g.log["time"] = f"{end_time-start_time:.3f}s"
+    g().log["time"] = f"{end_time-start_time:.3f}s"
 
     if log: 
-        #print(g.log)
-        print(str(g.log).encode('ascii', 'ignore').decode())
+        #print(g().log)
+        print(str(g().log).encode('ascii', 'ignore').decode())
 
     game_state["next_move"] = next_move
     return True

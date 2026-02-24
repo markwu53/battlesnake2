@@ -1,18 +1,14 @@
 from __future__ import annotations
-import context
-from models import GameTurn, Snake
+from models import GameTurn, Snake, g
 from utils import *
 from case_cut_util import *
-
-# Setup the shortcut for this module
-g: GameTurn = context._helper.g
 
 
 def cut_kill_target():
     #get the first target
-    for snake in g.others:
-        if preliminary_cut_kill_situation(g.me, snake):
-            g.target_snake = snake
+    for snake in g().others:
+        if preliminary_cut_kill_situation(g().me, snake):
+            g().target_snake = snake
             return True
     return False
 
@@ -32,15 +28,15 @@ def cut_kill_opportunity(moves):
     #the cut_path will be the border of the rectangle
     #good - the resulting cut space is small enough so that the target will likely die
     
-    cut_set = g.target_snake.cut_set
+    cut_set = g().target_snake.cut_set
     if len(cut_set) == 1:
         cut_point = take_first(cut_set)
-        if is_adjacent(g.me.head, cut_point):
+        if is_adjacent(g().me.head, cut_point):
             if cut_point in moves:
-                g.decision_path.append("go cut direct")
+                g().decision_path.append("go cut direct")
                 return [cut_point]
 
-    target = g.target_snake
+    target = g().target_snake
 
     rects = []
 
@@ -51,27 +47,27 @@ def cut_kill_opportunity(moves):
         if x0 == x1 or y0 == y1: continue
 
         #my head cannot be the other corner
-        if g.me.head == (x1,y1): continue
+        if g().me.head == (x1,y1): continue
 
-        #if min(distance_vector_abs(g.me.head, v)) != 0: continue
+        #if min(distance_vector_abs(g().me.head, v)) != 0: continue
 
         cells = [(x,y) for x in irange(x0, x1) for y in irange(y0, y1)]
 
         #select the rectangle in the correct direction
         if any([p in cells for p in target.territory]): continue
 
-        occupied = list(set(g.occupied_cells[0]+cells))
+        occupied = list(set(g().occupied_cells[0]+cells))
         oset = path_connected_set(target.head, occupied)
         oset = [p for p in oset if p != target.head]
         oset = sorted(list(set(oset)))
-        if any([snake.tail in oset for snake in g.snakes]): continue
-        if any([any([is_adjacent(snake.tail, a) for a in oset]) for snake in g.snakes if snake.health == 100]): continue
+        if any([snake.tail in oset for snake in g().snakes]): continue
+        if any([any([is_adjacent(snake.tail, a) for a in oset]) for snake in g().snakes if snake.health == 100]): continue
 
-        v2 = [p for p in [(x0,y1), (x1,y0)] if min(distance_vector_abs(g.me.head, p)) == 0]
+        v2 = [p for p in [(x0,y1), (x1,y0)] if min(distance_vector_abs(g().me.head, p)) == 0]
         v2 = take_first(v2)
 
         #path to v via v2
-        path_1 = [(x,y) for x0,y0 in [g.me.head] for x1,y1 in [v2] for x in irange(x0,x1) for y in irange(y0,y1)]
+        path_1 = [(x,y) for x0,y0 in [g().me.head] for x1,y1 in [v2] for x in irange(x0,x1) for y in irange(y0,y1)]
         path_2 = [(x,y) for x0,y0 in [v2] for x1,y1 in [v] for x in irange(x0,x1) for y in irange(y0,y1)]
         path = path_1 + path_2
         path = [p for p in path if p != v]
@@ -85,7 +81,7 @@ def cut_kill_opportunity(moves):
         if len(oset) > target.length * 1.1:
             continue
 
-        if path_distance_pq(g.me.head, v) != path_distance_pq(g.me.head, v):
+        if path_distance_pq(g().me.head, v) != path_distance_pq(g().me.head, v):
             continue
 
         rects.append((rect, room, v, v2))
@@ -94,18 +90,18 @@ def cut_kill_opportunity(moves):
 
     rect, n, v, v2 = take_first(take_first(lambda a: a[1])(rects))
 
-    g.decision_path.append(f"go cut to {v}")
-    cut_moves = shortest_path_move(g.me.head, v)
+    g().decision_path.append(f"go cut to {v}")
+    cut_moves = shortest_path_move(g().me.head, v)
     cut_moves = prefer_by_rank(lambda a: prefer_by_rank(a, target.head))(cut_moves)
     cut_moves = prefer_by_rank(lambda a: prefer_by_rank(a, v2))(cut_moves)
     return cut_moves
 
 def cut_rectangles(v):
-    width = g.state["board"]["width"]
-    height = g.state["board"]["height"]
+    width = g().state["board"]["width"]
+    height = g().state["board"]["height"]
 
     x0,y0 = v
-    x1,y1 = g.me.head
+    x1,y1 = g().me.head
 
     rectangles = [
         [v, (0,y1)], 

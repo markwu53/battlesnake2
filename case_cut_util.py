@@ -1,6 +1,5 @@
 from __future__ import annotations
-import context
-from models import GameTurn, Snake
+from models import GameTurn, Snake, g
 from utils import *
 
 def preliminary_cut_kill_situation(killer: Snake, target: Snake):
@@ -59,32 +58,32 @@ def preliminary_cut_kill_situation(killer: Snake, target: Snake):
     if cut_set_dim(cut_set) >= 3:
         return False
 
-    occupied = g.occupied_cells[0]+cut_set
+    occupied = g().occupied_cells[0]+cut_set
     oset = path_connected_set(target.head, occupied)
     oset = [p for p in oset if p != target.head]
     oset = sorted(list(set(oset)))
 
     if len(oset) == 0:
-        g.decision_path.append("cut case collision 2")
+        g().decision_path.append("cut case collision 2")
         return False
 
     #no tails
-    if any([snake.tail in oset for snake in g.snakes]):
+    if any([snake.tail in oset for snake in g().snakes]):
         return False
 
     #trimmed
     #oset = trim_aset(oset, target.head, target.head)
     #don't trim
-    factor = 1.2 if killer.name == g.me.name else 1.1
+    factor = 1.2 if killer.name == g().me.name else 1.1
     if len(oset) >= target.length * factor:
         return False
 
-    occupied_border = [p for p in g.occupied_cells[0] if any([a in oset for a in adj_cells(p)])]
-    if any([snake.tail in occupied_border for snake in g.snakes]):
+    occupied_border = [p for p in g().occupied_cells[0] if any([a in oset for a in adj_cells(p)])]
+    if any([snake.tail in occupied_border for snake in g().snakes]):
         #snake tail just on occupied border
         return False
     
-    if any([a in occupied_border for snake in g.snakes for a in adj_cells(snake.tail)]):
+    if any([a in occupied_border for snake in g().snakes for a in adj_cells(snake.tail)]):
         #snake tail is adjacent to occupied border
         return False
 
@@ -93,14 +92,14 @@ def preliminary_cut_kill_situation(killer: Snake, target: Snake):
 
     #try cut other
     #if target oset is bordered by more than killer and target body then no case
-    if killer.name != g.me.name:
-        if len(g.snakes) > 2:
+    if killer.name != g().me.name:
+        if len(g().snakes) > 2:
             oset_border = [q for p in oset for q in adj_cells(p) if q not in oset]
             oset_border = sorted(list(set(oset_border)))
-            others = [snake for snake in g.snakes if snake.name not in [killer.name, target.name]]
+            others = [snake for snake in g().snakes if snake.name not in [killer.name, target.name]]
             if any([a in snake.body for a in oset_border for snake in others]):
                 return False
 
     target.cut_set = cut_set
-    g.decision_path.append(f"preliminary cut kill target: {target.name}")
+    g().decision_path.append(f"preliminary cut kill target: {target.name}")
     return True

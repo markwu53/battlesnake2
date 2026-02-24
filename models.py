@@ -45,3 +45,8 @@ class GameTurn:
         self.max_cut_length = 8
         self.turn = None
         self.vulnerables = []
+
+g_instance = GameTurn()
+
+def g():
+    return g_instance
