@@ -1,6 +1,9 @@
 import time
 import sqlite3
 import random
+from contextvars import ContextVar
+
+
 
 class Snake:
     def __init__(self, name, body, health, id=None):
@@ -48,7 +51,30 @@ class GameTurn:
         self.turn = None
         self.vulnerables = []
 
-g = GameTurn()
+
+_state_var: ContextVar[GameTurn] = ContextVar("game_state")
+
+class _Proxy:
+    """A proxy that always points to the GameTurn in the CURRENT context."""
+    def __getattr__(self, name):
+        try:
+            state = _state_var.get()
+            return getattr(state, name)
+        except LookupError:
+            raise AttributeError(f"Game context not initialized for this instance. Cannot access '{name}'")
+
+    def __setattr__(self, name, value):
+        # Allow setting attributes on the GameTurn object inside the context
+        state = _state_var.get()
+        setattr(state, name, value)
+
+# This is the 'g' everyone imports. 
+# It looks like one object, but it points to different data for different snakes.
+g = _Proxy()
+
+def set_current_state(state: GameTurn):
+    """Call this at the start of main() to 'plug in' the data for THIS snake."""
+    _state_var.set(state)
 
 def main(game_state, log=True, log_db=False):
 
@@ -3629,6 +3655,7 @@ def main(game_state, log=True, log_db=False):
         return
 
     def init_game(game_state):
+        g = GameTurn()
         g.state = game_state
         g.id = game_state["game"]["id"]
         g.turn = game_state["turn"]
@@ -3661,7 +3688,7 @@ def main(game_state, log=True, log_db=False):
         g.log["others"] = [snake.dict() for snake in g.others]
         g.log["food"] = g.food
         
-
+        set_current_state(g)
 
     ######################################################
     # main process
