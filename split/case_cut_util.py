@@ -1,7 +1,9 @@
 from __future__ import annotations
-import context
-from models import GameTurn, Snake
-from utils import *
+from . import context
+from .models import GameTurn, Snake
+from .utils import *
+
+g: GameTurn = context._helper.g
 
 def preliminary_cut_kill_situation(killer: Snake, target: Snake):
 

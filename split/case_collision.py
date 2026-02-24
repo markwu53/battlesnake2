@@ -1,7 +1,7 @@
 from __future__ import annotations
-import context
-from models import GameTurn, Snake
-from utils import *
+from . import context
+from .models import GameTurn, Snake
+from .utils import *
 
 # Setup the shortcut for this module
 g: GameTurn = context._helper.g

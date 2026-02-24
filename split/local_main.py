@@ -1,8 +1,8 @@
 import time
-from models import Snake, GameTurn
-from cases import *
-from decision import decision
-import context
+from . import context
+from .models import Snake, GameTurn
+from .cases import *
+from .decision import decision
 
 g: GameTurn = context._helper.g
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
-import context
-from models import GameTurn, Snake
+from . import context
+from .models import GameTurn, Snake
 
 # This provides the 'g' shortcut for the entire file
 g: GameTurn = context._helper.g

@@ -1,7 +1,7 @@
 from __future__ import annotations
-import context
-from models import GameTurn
-from cases import *
+from . import context
+from .models import GameTurn
+from .cases import *
 
 # Our magic 'g' shortcut for direct access to data
 g: GameTurn = context._helper.g

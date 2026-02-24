@@ -1,17 +1,17 @@
 from __future__ import annotations
-import context
-from models import GameTurn, Snake
-from utils import *
-from case_cut_util import *
-from case_avoids import *
-from case_vulnerable import *
-from case_split_choice import *
-from case_collision import *
-from case_cut_kill import *
-from case_wayout import *
-from case_trap import *
-from case_push import *
-from case_food import *
+from . import context
+from .models import GameTurn, Snake
+from .utils import *
+from .case_cut_util import *
+from .case_avoids import *
+from .case_vulnerable import *
+from .case_split_choice import *
+from .case_collision import *
+from .case_cut_kill import *
+from .case_wayout import *
+from .case_trap import *
+from .case_push import *
+from .case_food import *
 
 # Setup the shortcut for this module
 g: GameTurn = context._helper.g
