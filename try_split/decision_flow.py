@@ -48,9 +48,10 @@ class GameTurn:
         self.turn = None
         self.vulnerables = []
 
+g = GameTurn()
+
 def main(game_state, log=True, log_db=False):
 
-    g = GameTurn()
 
     def ________DECISION_LOGIC________():
         return
