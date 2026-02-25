@@ -2,79 +2,8 @@ import time
 import sqlite3
 import random
 from contextvars import ContextVar
-
-
-
-class Snake:
-    def __init__(self, name, body, health, id=None):
-        self.id = id
-        self.name = name
-        self.body = body
-        self.health = health
-        self.length = len(body)
-        self.head = body[0]
-        self.neck = body[1]
-        self.tail = body[-1]
-        self.allowed_moves = None
-        self.ngroup = None
-        self.territory = None
-        self.head_space = None
-        self.cut_set = None
-        self.cut_space = None
-        self.next = None
-    def dict(self):
-        return {k: self.__dict__[k] for k in ["name", "health", "length", "body", "id", ]}
-    def copy(self):
-        snake = Snake(self.name, [c for c in self.body], self.health)
-        snake.allowed_moves = [a for a in self.allowed_moves]
-        snake.territory = [a for a in self.territory]
-        snake.head_space = [a for a in self.head_space]
-    def set_id(self, id):
-        self.id = id
-        return self
-
-class GameTurn:
-    def __init__(self):
-        self.id = None
-        self.state = None
-        self.me: Snake = None
-        self.other: Snake = None
-        self.others: list[Snake] = None
-        self.snakes: list[Snake] = None
-        self.food = None
-        self.next_coord = None
-        self.occupied_cells = None
-        self.log = {}
-        self.decision_path = []
-        self.target_snake: Snake = None
-        self.max_cut_length = 8
-        self.turn = None
-        self.vulnerables = []
-
-
-_state_var: ContextVar[GameTurn] = ContextVar("game_state")
-
-class _Proxy:
-    """A proxy that always points to the GameTurn in the CURRENT context."""
-    def __getattr__(self, name):
-        try:
-            state = _state_var.get()
-            return getattr(state, name)
-        except LookupError:
-            raise AttributeError(f"Game context not initialized for this instance. Cannot access '{name}'")
-
-    def __setattr__(self, name, value):
-        # Allow setting attributes on the GameTurn object inside the context
-        state = _state_var.get()
-        setattr(state, name, value)
-
-# This is the 'g' everyone imports. 
-# It looks like one object, but it points to different data for different snakes.
-g = _Proxy()
-
-def set_current_state(state: GameTurn):
-    """Call this at the start of main() to 'plug in' the data for THIS snake."""
-    _state_var.set(state)
+from .models import GameTurn, Snake
+from .context import g, set_current_state
 
 def main(game_state, log=True, log_db=False):
 
