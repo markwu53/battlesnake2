@@ -4,7 +4,7 @@ from .context import g, set_current_state
 from .utils import *
 from .scenarios import *
 from .case_food import *
-
+from .case_avoid import *
 
 def decision_flow(moves):
     return seq([
