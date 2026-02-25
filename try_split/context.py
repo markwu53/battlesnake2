@@ -1,5 +1,6 @@
 from contextvars import ContextVar
 from .models import GameTurn
+from typing import cast
 
 _state_var: ContextVar[GameTurn] = ContextVar("game_state")
 
@@ -23,4 +24,4 @@ class _Proxy:
 
 # This is the 'g' everyone imports. 
 # It looks like one object, but it points to different data for different snakes.
-g = _Proxy()
+g: GameTurn = cast("GameTurn", _Proxy())

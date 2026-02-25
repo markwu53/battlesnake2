@@ -71,4 +71,4 @@ if __name__ == "__main__":
     self_name = "mark_snake_test GREEN"
     #game_state = init_from_db_log(id, turn, self_name)
     #game_state = init_from_game_engine_log(log, "mark_snake_test GREEN")
-    main(game_state, log=True, log_db=False)
+    main(game_state, log=True)
