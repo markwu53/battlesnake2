@@ -300,3 +300,8 @@ def board_cells():
 
 def complement(aset):
     return [p for p in board_cells() if p not in aset]
+
+def message(msg):
+    def fn(moves):
+        print(msg, moves)
+    return fn

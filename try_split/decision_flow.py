@@ -3,6 +3,7 @@ from .models import GameTurn, Snake
 from .context import g, set_current_state
 from .utils import *
 from .scenarios import *
+from .case_food import *
 
 
 def decision_flow(moves):
