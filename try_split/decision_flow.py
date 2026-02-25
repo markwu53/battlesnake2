@@ -5,6 +5,7 @@ from .utils import *
 from .scenarios import *
 from .case_food import *
 from .case_avoid import *
+from .case_split_choice import *
 
 def decision_flow(moves):
     return seq([
