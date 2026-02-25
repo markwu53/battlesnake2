@@ -3,6 +3,10 @@ from .models import GameTurn
 
 _state_var: ContextVar[GameTurn] = ContextVar("game_state")
 
+def set_current_state(state: GameTurn):
+    """Call this at the start of main() to 'plug in' the data for THIS snake."""
+    _state_var.set(state)
+
 class _Proxy:
     """A proxy that always points to the GameTurn in the CURRENT context."""
     def __getattr__(self, name):
@@ -20,7 +24,3 @@ class _Proxy:
 # This is the 'g' everyone imports. 
 # It looks like one object, but it points to different data for different snakes.
 g = _Proxy()
-
-def set_current_state(state: GameTurn):
-    """Call this at the start of main() to 'plug in' the data for THIS snake."""
-    _state_var.set(state)
