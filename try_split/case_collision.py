@@ -195,3 +195,24 @@ def single_collision(killer: Snake, target: Snake):
         killer.length > target.length,
         len([a for a in target.allowed_moves if a in killer.allowed_moves]) == 1,
     ])
+
+def type_2_collision_equal_length(moves):
+    nonkillers = [snake for snake in g.others if snake.length == g.me.length and distance_vector_abs(g.me.head, snake.head) == (1,1)]
+    if len(nonkillers) != 1: return
+    nonkiller = take_first(nonkillers)
+
+    avoid = ([a for a in moves if not is_adjacent(a, nonkiller.head)])
+    if len(avoid) != 1: return
+    avoid = take_first(avoid)
+    risk = [a for a in moves if a != avoid]
+    if sum(distance_to_border(avoid)) <= 3:
+        occupied = g.occupied_cells[2]
+        killers = [snake for snake in g.others if snake.length > g.me.length and path_distance_pq(snake.head, g.me.head, occupied) <= 8]
+        if len(killers) != 0:
+            g.decision_path.append("type 2 collision equal length take risk")
+            return risk
+    if on_border(avoid):
+        g.decision_path.append("type 2 collision equal length take risk")
+        return risk
+    g.decision_path.append(f"type 2 collision take equal length avoid point {avoid}")
+    return [avoid]

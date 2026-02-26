@@ -10,6 +10,9 @@ from .case_vulnerable import *
 from .case_wayout import *
 from .case_collision import *
 from .case_cut import *
+from .case_situation import *
+from .case_push import *
+from .case_tail import *
 
 def decision_flow(moves):
     return seq([

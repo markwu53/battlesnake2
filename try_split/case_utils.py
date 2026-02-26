@@ -551,3 +551,34 @@ def preliminary_cut_kill_situation(killer: Snake, target: Snake):
     target.cut_set = cut_set
     g.decision_path.append(f"preliminary cut kill target: {target.name}")
     return True
+
+def coming_to_each_other(snake: Snake, snake2: Snake):
+    if distance_pq(snake.head, snake2.head) != path_distance_pq(snake.head, snake2.head): return False
+    return coming_to(snake, snake2.head) and coming_to(snake2, snake.head)
+
+def aset_components(aset):
+    if len(aset) == 0: return []
+    occupied = complement(aset)
+    pieces = []
+    rest = aset
+    while len(rest) > 0:
+        a = take_first(rest)
+        piece = path_connected_set(a, occupied)
+        piece = sorted(list(piece))
+        pieces.append(piece)
+        rest = [p for p in rest if p not in piece]
+    return pieces
+
+def largest_territory_component(territory):
+    return max(aset_components(territory), key=len)
+
+def new_territory(a):
+    territory = g.me.territory
+    territory_border = [p for p in territory if len([q for q in adj_cells(p) if q not in territory and q not in g.occupied_cells[0] and q != g.me.head]) != 0]
+    lost = [p for p in territory_border if path_distance_pq(a, p) > path_distance_pq(g.me.head, p)]
+    gain = [q for p in territory_border if path_distance_pq(a, p) < path_distance_pq(g.me.head, p)
+            for q in adj_cells(p) if q not in territory and q not in g.occupied_cells[0] and q != g.me.head]
+    new_territory = list(set([p for p in territory if p not in lost] + gain))
+    new_territory = [p for p in new_territory if p != a]
+    largest_component = largest_territory_component(new_territory)
+    return largest_component

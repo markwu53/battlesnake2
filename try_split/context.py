@@ -1,6 +1,6 @@
 from contextvars import ContextVar
-from .models import GameTurn
 from typing import cast
+from .models import GameTurn
 
 _state_var: ContextVar[GameTurn] = ContextVar("game_state")
 
