@@ -379,3 +379,36 @@ def preliminary_trap(killer: Snake, target: Snake):
         if get_adjacent_dir(c, b) == get_adjacent_dir(target.neck, target.head):
             return True
     return False
+
+def coming_to(snake: Snake, p):
+    straight = [a for a in snake.allowed_moves if get_adjacent_dir(snake.head, a) == get_adjacent_dir(snake.neck, snake.head)]
+    if len(straight) == 1:
+        straight = take_first(straight)
+        return distance_pq(straight, p) < distance_pq(snake.head, p)
+    return False
+
+def connected_pieces(cut_set):
+    one_set = connected_to(take_first(cut_set), cut_set)
+    rest_set = [a for a in cut_set if a not in one_set]
+    if len(rest_set) == 0:
+        return [one_set]
+    return [one_set] + connected_pieces(rest_set)
+
+def connected_to(one, cut_set):
+    result = [one]
+    for a in cut_set:
+        if a == one: continue
+        if any([is_adjacent(a, p) for p in result]):
+            result.append(a)
+            continue
+        if any([distance_vector_abs(a, p) == (1,1) for p in result]):
+            result.append(a)
+            continue
+    return sorted(result)
+
+def prefer_less_next_moves(moves):
+    def n_next_moves(a):
+        occupied = complement(g.me.territory)
+        next_moves = [p for p in adj_cells(a) if p not in occupied]
+        return len(next_moves)
+    return prefer_by_rank(n_next_moves)(moves)
