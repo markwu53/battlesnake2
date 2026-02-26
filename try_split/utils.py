@@ -305,3 +305,6 @@ def message(msg):
     def fn(moves):
         print(msg, moves)
     return fn
+
+def irange(a, b):
+    return list([a] if a == b else range(a, b+1) if a < b else range(a,b-1,-1,))

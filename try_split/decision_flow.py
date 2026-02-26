@@ -9,6 +9,7 @@ from .case_split_choice import *
 from .case_vulnerable import *
 from .case_wayout import *
 from .case_collision import *
+from .case_cut import *
 
 def decision_flow(moves):
     return seq([
