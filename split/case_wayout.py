@@ -1,11 +1,15 @@
-from __future__ import annotations
-from . import context
-from .models import GameTurn, Snake
-from .utils import *
+from .case_utils import *
 
-# Setup the shortcut for this module
-g: GameTurn = context._helper.g
-
+def entering_danger(danger):
+    def fn(a):
+        for snake in g.others:
+            for b in snake.allowed_moves:
+                me2 = possible_next_state(g.me, a)
+                snake2 = possible_next_state(snake, b)
+                if danger(snake2, me2):
+                    return True
+        return False
+    return fn
 
 def wayout_longer_cut(moves):
     ngroup = move_connected_group(moves)
@@ -45,7 +49,7 @@ def wayout_tail_food(moves):
     if len(other_food) == 0: return
     g.decision_path.append("meander follow other tail")
     return prefer_less_next_moves(
-        prefer_by_score(lambda a: prefer_by_score(a, snake.tail))(moves)
+        prefer_by_score(lambda a: path_distance_pq(a, snake.tail))(moves)
     )
 
 def wayout(moves):
@@ -106,48 +110,6 @@ def wayout_on_others(moves):
     if wayout_point is not None:
         return wayout_to(wayout_point, moves)
 
-def has_wayout_on_myself(territory):
-    adjacent_indexes = [i
-                    for i,c in enumerate(g.me.body) 
-                    if c != g.me.head
-                    and (is_adjacent(g.me.head, g.me.tail) or c != g.me.tail)
-                    for p in adj_cells(c) if p in territory
-                    ]
-    if len(adjacent_indexes) == 0:
-        return
-    adjacent_indexes = sorted(list(set(adjacent_indexes)))
-    max_index = max(adjacent_indexes)
-    wayout_length = g.me.length - max_index - 1
-    wayout_point = g.me.body[max_index]
-    aset = trim_aset(g.me.territory, g.me.head, wayout_point)
-    if len(aset) >= wayout_length:
-        g.me.wayout_length = wayout_length
-        return wayout_point
-
-def has_wayout_on_others(territory):
-    wayout_choices = []
-    for snake in g.others:
-        adjacent_indexes = [i
-                for i,c in enumerate(snake.body)
-                for p in adj_cells(c) if p in territory
-                ]
-        if len(adjacent_indexes) == 0: continue
-        max_index = max(adjacent_indexes)
-        wayout_length = snake.length - max_index - 1
-        wayout_point = snake.body[max_index]
-        trimmed_aset = trim_aset(territory, g.me.head, wayout_point)
-        enough = len(trimmed_aset) - wayout_length
-        wayout_choices.append((snake, max_index, wayout_length, wayout_point, enough))
-    if len(wayout_choices) == 0: return
-    enough_choices = [item for item in wayout_choices for a,b,c,d,e in [item] if e >= 0]
-    if len(enough_choices) == 0: return
-    min_wayout_length = min([wayout_length for a,b, wayout_length, c, enough in enough_choices])
-    choice = [(a,b, wayout_length, c, enough) for a,b, wayout_length, c, enough in enough_choices if wayout_length == min_wayout_length]
-    snake,b,wayout_length, wayout_point, enough = take_first(choice)
-    g.me.wayout_length = wayout_length
-    g.decision_path.append(f"wayout on {snake.name}")
-    return wayout_point
-
 def wayout_to(wayout_point, moves):
     moves_in_territory = [a for a in moves if a in g.me.territory and path_connected(a, wayout_point)]
     if len(moves_in_territory) == 0:
@@ -166,5 +128,5 @@ def wayout_to(wayout_point, moves):
 
     g.decision_path.append("meander")
     return prefer_less_next_moves(
-        prefer_by_score(lambda a: prefer_by_score(a, wayout_point))(moves_in_territory)
+        prefer_by_score(lambda a: path_distance_pq(a, wayout_point))(moves_in_territory)
     )

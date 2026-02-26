@@ -1,11 +1,4 @@
-from __future__ import annotations
-from . import context
-from .models import GameTurn, Snake
-from .utils import *
-
-# Setup the shortcut for this module
-g: GameTurn = context._helper.g
-
+from .case_utils import *
 
 def split_choice_2(moves):
     return (seq([
@@ -145,7 +138,7 @@ def split_choice(moves):
             if len(snakes) != 0:
                 snake = take_first(snakes)
                 return shortest_path_move(g.me.head, snake.tail)
-        return prefer_by_score(lambda a: len(prefer_by_score(a)))(moves)
+        return prefer_by_score(lambda a: len(path_connected_set(a)))(moves)
     
     occupied = complement(g.me.territory)
     min_aset = min([len(path_connected_set(a, occupied)) for a in moves])
@@ -196,7 +189,7 @@ def split_choose_my_tail(moves):
     ngroup = move_connected_group(moves)
     if ngroup != 2: return
     def has_my_tail(a):
-        aset = path_connected_set(a, path_connected_set(g.me.territory2)+[a for a in g.me.allowed_moves if a not in moves])
+        aset = path_connected_set(a, complement(g.me.territory2)+[a for a in g.me.allowed_moves if a not in moves])
         if g.me.tail in aset:
             return True
         if g.me.body[-2] in aset:
@@ -217,7 +210,7 @@ def split_choose_other_tail(moves):
     ngroup = move_connected_group(moves)
     if ngroup != 2: return
     def has_other_tail(a):
-        aset = path_connected_set(a, path_connected_set(g.me.territory2)+[a for a in g.me.allowed_moves if a not in moves])
+        aset = path_connected_set(a, complement(g.me.territory2)+[a for a in g.me.allowed_moves if a not in moves])
         if any([snake.tail in aset for snake in g.others]):
             return True
         if any([snake.body[-2] in aset for snake in g.others]):
@@ -261,120 +254,3 @@ def split_avoid_preliminary_trap(moves):
         g.decision_path.append("avoid preliminary trap")
     if len(ok_set) != 0:
         return ok_set
-
-def has_wayout_on_myself2(aset, a, factor=1.1):
-    adjacent_indexes = [i
-                    for i,c in enumerate(g.me.body) if c != g.me.head and c != g.me.tail
-                    for p in adj_cells(c) if p in aset and p != a
-                    ]
-    if len(adjacent_indexes) == 0: return
-    max_index = max(adjacent_indexes)
-    wayout_length = g.me.length - max_index - 1
-    wayout_point = g.me.body[max_index]
-
-    aset = trim_aset(aset, a, wayout_point)
-    aset_food = [f for f in g.food if f in aset]
-
-    if len(aset) <= 5:
-        if len(aset) >= wayout_length + len(aset_food):
-            return wayout_point
-    else:
-        if len(aset) >= wayout_length * factor:
-            return wayout_point
-
-def has_wayout_on_others2(aset, a):
-    wayout_choices = []
-    for snake in g.others:
-        adjacent_indexes = [i
-                for i,c in enumerate(snake.body) if i != snake.length-1 #don't count tail
-                for p in adj_cells(c) if p in aset and p != a
-                ]
-        if len(adjacent_indexes) == 0: continue
-        max_index = max(adjacent_indexes)
-        wayout_length = snake.length - max_index - 1
-        wayout_point = snake.body[max_index]
-        wayout_choices.append((snake, max_index, wayout_length, wayout_point))
-    if len(wayout_choices) == 0:
-        return
-    min_wayout_length = min([wayout_length for a,b, wayout_length, c in wayout_choices])
-    choice = [(a,b, wayout_length, c) for a,b, wayout_length, c in wayout_choices if wayout_length == min_wayout_length]
-    snake,max_index,wayout_length, wayout_point = take_first(choice)
-
-    aset = trim_aset(aset, a, wayout_point)
-
-    if len(aset) <= 2:
-        if any([path_distance_pq(snake.head, a) <= 2 for a in g.food]):
-            if len(aset) >= wayout_length+1:
-                return wayout_point
-    elif len(aset) <= 5:
-        if len(aset) >= wayout_length:
-            return wayout_point
-    else:
-        if len(aset) >= wayout_length * 1.1:
-            return wayout_point
-
-def has_wayout(a):
-    occupied = complement(g.me.territory)
-    if a in occupied:
-        return False
-    aset = path_connected_set(a, occupied)
-    if g.me.tail in aset:
-        return True
-    wayout_point = has_wayout_on_myself2(aset, a)
-    if wayout_point is not None:
-        return True
-    wayout_point = has_wayout_on_others2(aset, a)
-    if wayout_point is not None:
-        return True
-    return False
-
-def combined_wayout(a):
-    if no_cut_danger_a(strict=True)(a):
-        return True
-    if has_wayout(a):
-        return True
-    return False
-
-def no_cut_danger_a(strict):
-    def fn(a):
-        occupied = complement(g.me.territory2)
-        if a in occupied:
-            return False
-        aset = path_connected_set(a, occupied)
-        aset = sorted(aset)
-
-        #cut tail is not reliable
-        #if any([p in aset or snake.tail in aset for snake in g.snakes for p in adj_cells(snake.tail)]):
-        if any([snake.body[-2] in aset for snake in g.snakes]):
-            return True
-        #if any([p in aset for snake in g.snakes if snake.health == 100 for p in adj_cells(snake.tail)]): return True
-
-        cut_set = [q for p in aset for q in adj_cells(p) if q not in g.me.territory and q not in g.occupied_cells[0]]
-        cut_set = sorted(list(set(cut_set)))
-
-        cut_set_dimension = cut_set_dim(cut_set)
-        if strict:
-            if cut_set_dimension >= 3:
-                return True
-        else:
-            if cut_set_dimension >= 2:
-                return True
-
-        aset = trim_aset(aset, a)
-
-        factor = 1.1 if strict else 0.3
-        good = len(aset) >= g.me.length * factor
-        return good
-    return fn
-
-def preliminary_trap(killer: Snake, target: Snake):
-    for i,c in enumerate(killer.body):
-        if c in killer.body[-2:]: continue
-        if c == killer.head: continue
-        if not is_adjacent(target.head, c): continue
-        if not on_border(target.head): continue
-        if on_border(c): continue
-        b = killer.body[i-1]
-        if get_adjacent_dir(c, b) == get_adjacent_dir(target.neck, target.head):
-            return True
-    return False

@@ -1,35 +1,27 @@
+from contextvars import ContextVar
+from typing import cast
+from .models import GameTurn
 
-# context.py
-from __future__ import annotations
-from typing import TYPE_CHECKING
+_state_var: ContextVar[GameTurn] = ContextVar("game_state")
 
-if TYPE_CHECKING:
-    from models import GameTurn
+def set_current_state(state: GameTurn):
+    """Call this at the start of main() to 'plug in' the data for THIS snake."""
+    _state_var.set(state)
 
-class _Context:
-    def __init__(self):
-        # We use _state internally to avoid name conflicts
-        self._state: GameTurn | None = None
-
-    @property
-    def g(self):
-        """Returns the proxy itself so 'g' remains a stable reference."""
-        return self
-
+class _Proxy:
+    """A proxy that always points to the GameTurn in the CURRENT context."""
     def __getattr__(self, name):
-        """Forwards all property access (e.g., g.snakes) to the current state."""
-        if self._state is None:
-            raise AttributeError(f"Game context not initialized. Cannot access '{name}'")
-        return getattr(self._state, name)
+        try:
+            state = _state_var.get()
+            return getattr(state, name)
+        except LookupError:
+            raise AttributeError(f"Game context not initialized for this instance. Cannot access '{name}'")
 
     def __setattr__(self, name, value):
-        """Allows setting attributes on the live GameTurn object."""
-        if name == "_state":
-            super().__setattr__(name, value)
-        else:
-            if self._state is None:
-                raise AttributeError(f"Game context not initialized. Cannot set '{name}'")
-            setattr(self._state, name, value)
+        # Allow setting attributes on the GameTurn object inside the context
+        state = _state_var.get()
+        setattr(state, name, value)
 
-# The single instance used across your entire project
-_helper = _Context()
+# This is the 'g' everyone imports. 
+# It looks like one object, but it points to different data for different snakes.
+g: GameTurn = cast("GameTurn", _Proxy())

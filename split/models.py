@@ -1,4 +1,3 @@
-from __future__ import annotations
 
 class Snake:
     def __init__(self, name, body, health, id=None):

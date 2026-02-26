@@ -1,11 +1,4 @@
-from __future__ import annotations
-from . import context
-from .models import GameTurn, Snake
-from .utils import *
-
-# Setup the shortcut for this module
-g: GameTurn = context._helper.g
-
+from .case_utils import *
 
 def confront_push_4(moves):
     snakes = [snake for snake in g.others 
@@ -22,7 +15,7 @@ def confront_push_4(moves):
     snake_move = [a for a in snake.allowed_moves if not on_border(a)]
     if len(snake_move) != 1: return
     snake_move = take_first(snake_move)
-    snake_move_ab = [a for a in adj_cells(snake_move) if adj_cells(a)]
+    snake_move_ab = [a for a in adj_cells(snake_move) if off_border_1(a)]
     if len(snake_move_ab) != 2: return
     occupied = complement(snake.territory)+[snake_move]
     if not all([len(path_connected_set(a, occupied)) <= snake.length for a in snake_move_ab]): return
@@ -53,7 +46,7 @@ def corner_push(moves):
             push_move = [a for a in moves if distance_vector_abs(a, snake_move) in [(0,2), (2,0)]]
             if len(push_move) == 0: return
             push_move = take_first(push_move)
-            push_move_next_step = [a for a in adj_cells(push_move) if adj_cells(push_move, a) == adj_cells(snake.head, snake_move)]
+            push_move_next_step = [a for a in adj_cells(push_move) if get_adjacent_dir(push_move, a) == get_adjacent_dir(snake.head, snake_move)]
             if len(push_move_next_step) != 1: return
             push_move_next_step = take_first(push_move_next_step)
             if push_move_next_step in g.occupied_cells[1]: return
@@ -132,7 +125,7 @@ def center_push(moves):
 
 def push_4(moves):
     if distance_pq(g.me.head, g.other.head) in [4,6]:
-        if path_distance_pq(g.me.head, g.other.head) == path_distance_pq(g.me.head, g.other.head):
+        if path_distance_pq(g.me.head, g.other.head) == distance_pq(g.me.head, g.other.head):
             return par([
                 coming_push,
                 center_push,
@@ -142,7 +135,7 @@ def longer_push(moves):
     #assume 1v1
     #if not coming_to_each_other(g.me, g.other): return
     #if not coming_to(g.other, g.me.head): return
-    if not path_distance_pq(g.other.head, g.me.head) == path_distance_pq(g.other.head, g.me.head): return
+    if not path_distance_pq(g.other.head, g.me.head) == distance_pq(g.other.head, g.me.head): return
     if distance_vector_abs(g.me.head, g.other.head) == (1,1): return
 
     g.decision_path.append("1v1 longer push")

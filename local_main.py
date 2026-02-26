@@ -1,4 +1,4 @@
-from try_split.decision_flow import main
+from split.decision_flow import main
 
 def reverse_coord(cs):
     return [{"x":x, "y":y} for x,y in cs]

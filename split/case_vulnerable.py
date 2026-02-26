@@ -1,11 +1,4 @@
-from __future__ import annotations
-from . import context
-from .models import GameTurn, Snake
-from .utils import *
-
-# Setup the shortcut for this module
-g: GameTurn = context._helper.g
-
+from .case_utils import *
 
 def attack_vulnerables_lower_priority(moves):
     vul = [snake for snake in g.vulnerables if snake.length < g.me.length and distance_pq(snake.head, g.me.head) <= 4]
@@ -63,7 +56,7 @@ def attack_vulnerables_distance_excess(moves):
     snake = g.target_snake
     snake2: Snake = snake.vulnerable_emerge
     if not on_border(snake2.head): return
-    attack_point = [p for a in adj_cells(snake2.head) if not adj_cells(a) for p in adj_cells(a) if p != snake2.head and adj_cells(p, snake2.head) != (1,1)]
+    attack_point = [p for a in adj_cells(snake2.head) if not on_border(a) for p in adj_cells(a) if p != snake2.head and distance_vector_abs(p, snake2.head) != (1,1)]
     if len(attack_point) != 1: return
     attack_point = take_first(attack_point)
     if path_distance_pq(g.me.head, attack_point) < snake.vulnerable_steps:
@@ -86,10 +79,10 @@ def attack_vulnerables_less_distance_go_2(moves):
     snake = g.target_snake
     snake2: Snake = snake.vulnerable_emerge
     if not on_border(snake2.head): return
-    adj_point = [a for a in adj_cells(snake2.head) if not adj_cells(a)]
+    adj_point = [a for a in adj_cells(snake2.head) if not on_border(a)]
     if len(adj_point) != 1: return
     adj_point = take_first(adj_point)
-    attack_point = [a for a in adj_cells(adj_point) if a != snake2.head and adj_cells(a, snake2.head) != (1,1)]
+    attack_point = [a for a in adj_cells(adj_point) if a != snake2.head and distance_vector_abs(a, snake2.head) != (1,1)]
     if len(attack_point) != 1: return
     attack_point = take_first(attack_point)
     if snake.vulnerable_steps >= 10: return
@@ -116,8 +109,8 @@ def attack_vulnerables_path_distance_2(moves):
     if path_distance_pq(g.me.head, snake2.head) == snake.vulnerable_steps + 2:
         if on_border(snake2.head):
             attack_point = [q 
-                            for p in adj_cells(snake2.head) if not adj_cells(p) 
-                            for q in adj_cells(p) if adj_cells(q, snake2.head) in [(0,2), (2,0)]]
+                            for p in adj_cells(snake2.head) if not on_border(p) 
+                            for q in adj_cells(p) if distance_vector_abs(q, snake2.head) in [(0,2), (2,0)]]
             attack_point = take_first(attack_point)
             if path_distance_pq(g.me.head, attack_point) == snake.vulnerable_steps:
                 attack_move = shortest_path_move(g.me.head, attack_point)
@@ -133,8 +126,8 @@ def attack_vulnerables_distance_2(moves):
     if distance_pq(g.me.head, snake2.head) == snake.vulnerable_steps + 2:
         if on_border(snake2.head):
             attack_point = [q 
-                            for p in adj_cells(snake2.head) if not adj_cells(p) 
-                            for q in adj_cells(p) if adj_cells(q, snake2.head) in [(0,2), (2,0)]]
+                            for p in adj_cells(snake2.head) if not on_border(p) 
+                            for q in adj_cells(p) if distance_vector_abs(q, snake2.head) in [(0,2), (2,0)]]
             if len(attack_point) != 0:
                 attack_point = take_first(attack_point)
                 if path_distance_pq(g.me.head, attack_point) == snake.vulnerable_steps:
@@ -150,8 +143,8 @@ def attack_vulnerables_distance_4(moves):
 
     if distance_pq(g.me.head, snake2.head) == snake.vulnerable_steps + 4:
         if on_border(snake2.head):
-            attack_points = [a for a in board_cells() if board_cells(a, snake2.head) in [(2,2), (1,3), (3,1)]]
-            attack_points = [a for a in attack_points if not off_border_1(a) and off_border_1(a, g.me.head)]
+            attack_points = [a for a in board_cells() if distance_vector_abs(a, snake2.head) in [(2,2), (1,3), (3,1)]]
+            attack_points = [a for a in attack_points if not off_border_1(a) and path_connected(a, g.me.head)]
             attack_points = [a for a in attack_points if path_distance_pq(g.me.head, a) == snake.vulnerable_steps]
             attack_points = [a for a in attack_points if coming_to(snake2, a)]
             if len(attack_points) != 0:

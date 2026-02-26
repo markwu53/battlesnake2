@@ -1,15 +1,8 @@
-from __future__ import annotations
-from . import context
-from .models import GameTurn, Snake
-from .utils import *
-
-# Setup the shortcut for this module
-g: GameTurn = context._helper.g
-
+from .case_utils import *
 
 def get_food(moves):
 
-    #food_near = [f for f in g.food if distance_pq(f, g.me.head) <= 8 and distance_pq(f) != (0,0)]
+    #food_near = [f for f in g.food if distance_pq(f, g.me.head) <= 8 and distance_to_border(f) != (0,0)]
     food_good = [f for f in g.food if f in g.me.territory]
     food_good = [f for f in food_good if distance_pq(f, g.me.head) <= 8]
 
@@ -25,7 +18,7 @@ def get_food(moves):
     if len(food_good) == 0:
         return
 
-    food_better = prefer_by_rank(lambda f: prefer_by_rank(f, g.me.head))(food_good)
+    food_better = prefer_by_rank(lambda f: path_distance_pq(f, g.me.head))(food_good)
     food_target = take_first(food_better)
 
     if is_adjacent(g.me.head, food_target):
@@ -39,7 +32,7 @@ def get_food(moves):
     """
     if g.me.length <= 10:
         if on_border(food_target):
-            food_nabor = [a for a in adj_cells(food_target) if adj_cells(a) and a not in g.occupied_cells[0]]
+            food_nabor = [a for a in adj_cells(food_target) if on_border(a) and a not in g.occupied_cells[0]]
             if len(food_nabor) == 2:
                 food_nabor = [a for a in food_nabor if path_distance_pq(g.me.head, a) < path_distance_pq(g.me.head, food_target)]
                 if len(food_nabor) != 0:
@@ -105,3 +98,15 @@ def get_food(moves):
     if len(border_route) != 0:
         g.decision_path.append(f"get food {food_target} via near territory border")
         return border_route
+
+def food1(moves):
+    tail_moves = shortest_path_move(g.me.head, g.me.tail)
+    food1 = [a for a in moves if a in g.food]
+    if len(food1) != 0:
+        food_and_tail = [a for a in food1 if a in tail_moves]
+        if len(food_and_tail) != 0:
+            return food_and_tail
+        food_tail_connect = [a for a in food1 if any([path_connected(a, p) for p in tail_moves])]
+        if len(food_tail_connect) != 0:
+            g.decision_path.append("detour get food1")
+            return food_tail_connect
