@@ -5,13 +5,12 @@ def decision_seq(fs):
     #seq takes in moves and process by fs sequentially
     #seq can return None if all f return None
     def fn(moves):
-        result = None
+        result = moves
         for f in fs:
-            input = result or moves
-            if len(input) > 1:
+            if len(result) > 1:
                 if not g.timeout:
                     start_time = time.time()
-                    output = f(input)
+                    output = f(result)
                     end_time = time.time()
                     if output is not None:
                         result = output
