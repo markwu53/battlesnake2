@@ -1,5 +1,3 @@
-from .context import g
-from .utils import *
 from .case_utils import *
 
 def confined_follow_tail(moves):

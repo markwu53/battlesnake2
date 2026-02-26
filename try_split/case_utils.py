@@ -1,5 +1,4 @@
 from .models import Snake
-from .context import g
 from .utils import *
 
 def possible_next_state(snake, a):

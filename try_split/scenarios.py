@@ -1,6 +1,3 @@
-from .context import g
-from .models import Snake
-from .utils import *
 from .case_utils import *
 
 def self_wayout_calculations(snake: Snake):
