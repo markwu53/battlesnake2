@@ -7,6 +7,7 @@ from .case_food import *
 from .case_avoid import *
 from .case_split_choice import *
 from .case_vulnerable import *
+from .case_wayout import *
 from .case_collision import *
 
 def decision_flow(moves):

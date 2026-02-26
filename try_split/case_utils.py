@@ -412,3 +412,40 @@ def prefer_less_next_moves(moves):
         next_moves = [p for p in adj_cells(a) if p not in occupied]
         return len(next_moves)
     return prefer_by_rank(n_next_moves)(moves)
+
+def cut_set_connected(cut_set):
+    #check if cut_set is connected - no hole to escape
+    #and put cut_set in line order
+
+    cut_set = sorted(list(set(cut_set)))
+
+    if len(cut_set) <= 1: return True
+
+    def connected(a, b):
+        return is_adjacent(a, b) or distance_vector_abs(a,b) == (1,1)
+
+    cut_set_adjacency = [(a, [b for b in cut_set if connected(a, b)]) for a in cut_set ]
+    cut_set_adj_number = [(a, nb) for a,b in cut_set_adjacency for nb in [len(b)]]
+    terminals = [(a,nb) for a,nb in cut_set_adj_number if nb == 1]
+    if len(terminals) != 2:
+        return False
+    inner = [(a,nb) for a,nb in cut_set_adj_number if nb == 2]
+    if len(terminals)+len(inner) != len(cut_set):
+        return False
+
+    #sort cut_set in place by connection
+    cut_set_copy = [a for a in cut_set]
+    start = take_first(sorted([a for a,nb in terminals]))
+    for i in range(len(cut_set)):
+        if i == 0:
+            cut_set[0] = start
+            continue
+        a = cut_set[i-1]
+        b = [b for b in cut_set_copy if b not in cut_set[:i] and connected(a, b)]
+        if len(b) != 1: 
+            g.decision_path.append(f"anomaly cut_set {cut_set}")
+            return False
+        b = take_first(b)
+        cut_set[i] = b
+
+    return True
