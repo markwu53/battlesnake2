@@ -44,3 +44,11 @@ class GameTurn:
         self.max_cut_length = 8
         self.turn = None
         self.vulnerables = []
+
+        self.start_time: float = None
+        self.end_time: float = None
+        self.timeout_threshold: int = 200
+        self.timeout = False
+        self.timing_threshold: int = 30
+        self.timeout_at: str = None
+

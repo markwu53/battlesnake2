@@ -15,7 +15,7 @@ from .case_push import *
 from .case_tail import *
 
 def decision_flow(moves):
-    return seq([
+    return decision_seq([
         some_calculations,
 
         (immediate_kill_opportunity),
@@ -261,7 +261,7 @@ def main(game_state, log=True):
     init_game(game_state)
 
     g.log["module"] = "decision_flow - github"
-    start_time = time.time()
+    g.start_time = time.time()
     #g.e.localtime = time.localtime()
 
     decision()
@@ -272,8 +272,8 @@ def main(game_state, log=True):
     g.log["next_coord"] = g.next_coord
     g.log["next_move"] = next_move
 
-    end_time = time.time()
-    g.log["time"] = f"{end_time-start_time:.3f}s"
+    g.end_time = time.time()
+    g.log["time"] = f"{g.end_time - g.start_time:.3f}s"
 
     if log: 
         #print(g.log)

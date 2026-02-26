@@ -1,11 +1,56 @@
+import time
 from .context import g
 
-######################################################
-# utility functions
-######################################################
+def decision_seq(fs):
+    #seq takes in moves and process by fs sequentially
+    #seq can return None if all f return None
+    def fn(moves):
+        result = None
+        for f in fs:
+            input = result or moves
+            if len(input) > 1:
+                if not g.timeout:
+                    start_time = time.time()
+                    output = f(input)
+                    end_time = time.time()
+                    if output is not None:
+                        result = output
 
-def ________UTILITY_FUNCTIONS________():
-    pass
+                    total_time = end_time - g.start_time
+                    total_time = int(total_time * 1000)
+                    step_time = end_time - start_time
+                    step_time = int(step_time * 1000)
+                    if step_time > g.timing_threshold:
+                        g.decision_path.append(f"timing: {f.__name__} {step_time} ms")
+                    if total_time > g.timeout_threshold:
+                        g.timeout = True
+                        g.decision_path.append(f"timeout at: {f.__name__}")
+
+        return result
+    return fn
+
+def seq(fs):
+    #seq takes in moves and process by fs sequentially
+    #seq can return None if all f return None
+    def fn(moves):
+        result = None
+        for f in fs:
+            input = result or moves
+            if len(input) > 1:
+                output = f(input)
+                if output is not None:
+                    result = output
+        return result
+    return fn
+
+def par(fs):
+    def fn(moves):
+        if len(moves) > 1:
+            for f in fs:
+                result = f(moves)
+                if result is not None:
+                    return result
+    return fn
 
 def get_coord(ds):
     return [(d["x"], d["y"]) for d in ds]
@@ -238,29 +283,6 @@ def take_first(moves):
         print(f"id: {id}, TURN: {turn}")
         raise AssertionError
     return moves[0]
-
-def seq(fs):
-    #seq takes in moves and process by fs sequentially
-    #seq can return None if all f return None
-    def fn(moves):
-        result = None
-        for f in fs:
-            input = result or moves
-            if len(input) > 1:
-                output = f(input)
-                if output is not None:
-                    result = output
-        return result
-    return fn
-
-def par(fs):
-    def fn(moves):
-        if len(moves) > 1:
-            for f in fs:
-                result = f(moves)
-                if result is not None:
-                    return result
-    return fn
 
 def cond(*pred):
     def fn(f):
