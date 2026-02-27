@@ -47,7 +47,7 @@ class GameTurn:
 
         self.start_time: float = None
         self.end_time: float = None
-        self.timeout_threshold: int = 200
+        self.timeout_threshold: int = 300
         self.timeout = False
         self.timing_threshold: int = 30
         self.timeout_at: str = None
