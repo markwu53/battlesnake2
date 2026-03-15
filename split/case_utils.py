@@ -569,7 +569,10 @@ def aset_components(aset):
     return pieces
 
 def largest_territory_component(territory):
-    return max(aset_components(territory), key=len)
+    components = aset_components(territory)
+    if len(components) == 0: 
+        return []
+    return max(components, key=len)
 
 def new_territory(a):
     territory = g.me.territory

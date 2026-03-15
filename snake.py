@@ -1,6 +1,7 @@
 import typing
 #import decision_flow_one.decision_flow as local_main
-import split.decision_flow as local_main
+#import split.decision_flow as local_main
+import territory.territory as local_main
 
 # info is called when you create your Battlesnake on play.battlesnake.com
 # and controls your Battlesnake's appearance

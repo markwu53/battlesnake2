@@ -21,6 +21,8 @@ def decision_seq(fs):
                     step_time = int(step_time * 1000)
                     if step_time > g.timing_threshold:
                         g.decision_path.append(f"timing: {f.__name__} {step_time} ms")
+                    if step_time > 10:
+                        print(f"timing: {f.__name__} {step_time} ms")
                     if total_time > g.timeout_threshold:
                         g.timeout = True
                         g.decision_path.append(f"timeout at: {f.__name__}")
