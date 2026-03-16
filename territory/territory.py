@@ -1150,7 +1150,7 @@ def decision_flow(moves):
         #steps that need territory calculation
         , avoid_suppress_kill
         , suppress_kill
-        , avoid_straight_line_confine_kill(0.5)
+        # , avoid_straight_line_confine_kill(0.5)
         , straight_line_confine_kill(0.8)
 
         #no need territory
