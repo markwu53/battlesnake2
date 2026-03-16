@@ -142,6 +142,12 @@ def cond(*pred):
         return fc
     return fn
 
+def print_moves(f):
+    def fn(moves):
+        print(f"before: {moves}")
+        moves = f(moves)
+        print(f"after: {moves}")
+    return fn
 
 def ________GAME_UTILS________():
     return
@@ -475,89 +481,12 @@ def territory_border_confront(moves):
     g.decision_path.append(f"confront border move {moves}")
     return moves
 
-def killer_border_terminal(moves):
-    if len(g.me.killer_border) == 0: return
-    terminal_points = set()
-    for p in g.me.killer_border:
-        border_connection = [q for q in adj_cells(p) if q in g.me.all_border]
-        if len(border_connection) == 1:
-            q = take_first(border_connection)
-            if g.me.territory_point_level[q] - g.me.territory_point_level[p] == 1:
-                terminal_points.add(p)
-
-    if len(terminal_points) == 0: return
-
-    min_level = min([g.me.territory_point_level[p] for p in terminal_points])
-    target_points = [p for p in terminal_points if g.me.territory_point_level[p] == min_level]
-    shortest_moves = list({a for a in moves for p in target_points if tree_distance(a, p) >= 0})
-    if len(shortest_moves) != 0: 
-        g.decision_path.append(f"go to killer border terminal point {target_points}")
-        return shortest_moves
-
-def territory_move_terminal(moves):
-    subset_border = g.me.all_border
-    if len(g.me.killer_border) != 0:
-        subset_border = g.me.killer_border
-
-    terminal_points = set()
-    for p in subset_border:
-        border_connection = [q for q in adj_cells(p) if q in g.me.all_border]
-        if len(border_connection) == 1:
-            q = take_first(border_connection)
-            if g.me.territory_point_level[q] - g.me.territory_point_level[p] == 1:
-                terminal_points.add(p)
-
-    if len(terminal_points) != 0:
-        min_level = min([g.me.territory_point_level[p] for p in terminal_points])
-        target_points = [p for p in terminal_points if g.me.territory_point_level[p] == min_level]
-        target_point = take_first(target_points)
-        shortest_moves = [a for a in moves if tree_distance(a, target_point) >= 0]
-        if len(shortest_moves) != 0: 
-            g.decision_path.append(f"go to border terminal point {target_points}")
-            return shortest_moves
-
-def territory_move_min(moves):
-    subset_border = g.me.all_border
-    if len(g.me.killer_border) != 0:
-        subset_border = g.me.killer_border
-
-    min_points = set()
-    for p in subset_border:
-        border_connection = [q for q in adj_cells(p) if q in g.me.all_border]
-        if len(border_connection) == 2:
-            a,b = border_connection
-            if g.me.territory_point_level[a] - g.me.territory_point_level[p] == 1:
-                if g.me.territory_point_level[b] - g.me.territory_point_level[p] == 1:
-                    min_points.add(p)
-
-    if len(min_points) != 0:
-        min_level = min([g.me.territory_point_level[p] for p in min_points])
-        target_points = [p for p in min_points if g.me.territory_point_level[p] == min_level]
-        target_point = take_first(target_points)
-        shortest_moves = [a for a in moves if tree_distance(a, target_point) >= 0]
-        if len(shortest_moves) != 0: 
-            g.decision_path.append(f"go to border min point {target_points}")
-            return shortest_moves
-
-def territory_move_avoids(moves):
-    avoids = [a for a in moves if a in g.me.territory and g.me.territory_connection_number[a] == 1]
-    if len(avoids) != 0:
-        moves = [a for a in moves if a not in avoids]
-        g.decision_path.append(f"territory move avoid {avoids}")
-        if len(moves) != 0:
-            return moves
-
-def territory_move(moves):
-    return par([ nothing
-        , territory_move_terminal
-        , territory_move_min
-        , territory_move_avoids
-    ])(moves)
-
 def simple_territory_move(moves):
     if len(g.me.all_border) == 0: return
-    min_distance = min([g.me.territory_point_level[p] for p in g.me.all_border])
-    target = [p for p in g.me.all_border if g.me.territory_point_level[p] == min_distance]
+    border = [a for a in g.me.all_border if g.me.territory_connection_number[a] != 1]
+    if len(border) == 0: return
+    min_distance = min([g.me.territory_point_level[p] for p in border])
+    target = [p for p in border if g.me.territory_point_level[p] == min_distance]
     shortest_moves = list({a for a in moves for p in target if tree_distance(a, p) >= 0})
     if len(shortest_moves) != 0:
         g.decision_path.append(f"simple territory move {target}")
@@ -603,7 +532,7 @@ def kill(moves):
 
 def get_food(moves):
     #if g.me.health >= 80 and g.me.length > 20: return
-    if g.me.length >= max([other.length for other in g.others]) +5 and g.me.health > 50: return
+    if len(g.others) == 1 and g.me.length >= g.other.length +5 and g.me.health > 50: return
 
     good_food = [f for f in g.food if f in g.me.territory and g.me.territory_point_level[f] <= 6]
     if len(good_food) == 0: return
@@ -759,38 +688,6 @@ def avoid_suppress_kill(moves):
     if len(moves) != 0:
         g.decision_path.append(f"avoided")
         return moves
-
-def territory_danger(factor):
-    def fn(moves):
-        killers = [snake for snake in g.others if True
-                    and snake.length > g.me.length
-                    and len(g.me.to_snake_border[snake.head]) != 0
-                    and distance_pq(snake.head, g.me.head) == 6
-                    #and distance_vector_abs(snake.head, g.me.head) not in [(0,4), (4,0)]
-                    ]
-        if len(killers) == 0: return
-        moves_to_avoid = set()
-        danger_snakes = set()
-        for killer in killers:
-            for a in moves:
-                for b in killer.allowed_moves:
-                    if distance_pq(a, b) != 4: continue
-                    me2 = snake_next_step(g.me, a)
-                    killer2 = snake_next_step(killer, b)
-                    ng = next_game_turn([me2, killer2])
-                    flood_game_turn(ng)
-                    if len(me2.territory) <= len(g.me.territory) * factor:
-                        moves_to_avoid.add(a)
-                        danger_snakes.add(killer.name)
-        if len(moves_to_avoid) == 0: return
-        g.avoid_suppress_kill = moves_to_avoid
-        g.decision_path.append(f"territory danger {danger_snakes} avoid {moves_to_avoid}")
-        moves = [a for a in moves if a not in moves_to_avoid]
-        if len(moves) != 0:
-            g.decision_path.append(f"avoided")
-            return moves                        
-
-    return fn
 
 def avoid_straight_line_confine_kill(factor=0.8):
     def fn(moves):
@@ -1181,7 +1078,7 @@ def decision_flow(moves):
         , suppress_kill
         , avoid_single_confront_collision
         , avoid_straight_line_confine_kill(0.5)
-        , straight_line_confine_kill(0.8)
+        , straight_line_confine_kill(1.5)
 
         , avoid_collision
 
@@ -1191,13 +1088,10 @@ def decision_flow(moves):
         , wayout
 
         , territory_border_confront
-        , cond(len(g.others) == 1)(territory_danger(0.8))
 
         , get_food
 
-        , cond(len(g.others) > 1)(killer_border_terminal)
         , simple_territory_move
-        # , territory_move
 
         , undecided
         , prefer_off_border
@@ -1212,6 +1106,10 @@ if __name__ == "__main__":
     log = {'id': 'cb9433eb-f206-47f7-8fc9-4f98758f2b05', 'turn': 41, 'nalive': 4, 'snakes': [{'name': 'mark_snake_test RED', 'health': 67, 'length': 5, 'alive': True, 'delay': 2, 'body': [(8, 3), (8, 2), (7, 2), (6, 2), (6, 3)]}, {'name': 'mark_snake_test BLUE', 'health': 81, 'length': 8, 'alive': True, 'delay': 47, 'body': [(6, 5), (6, 6), (6, 7), (6, 8), (6, 9), (5, 9), (4, 9), (3, 9)]}, {'name': 'mark_snake_test GREEN', 'health': 61, 'length': 4, 'alive': True, 'delay': 61, 'body': [(2, 5), (3, 5), (4, 5), (5, 5)]}, {'name': 'mark_snake_test YELLOW', 'health': 96, 'length': 9, 'alive': True, 'delay': 47, 'body': [(4, 1), (5, 1), (6, 1), (6, 0), (7, 0), (8, 0), (9, 0), (9, 1), (10, 1)]}], 'food': [(2, 1)]}
     log = {'id': 'f7e44305-3ac8-43ec-903a-3d09f502fedd', 'turn': 52, 'nalive': 4, 'snakes': [{'name': 'mark_snake_test RED', 'health': 98, 'length': 7, 'alive': True, 'delay': 5, 'body': [(0, 6), (0, 7), (0, 8), (1, 8), (1, 9), (1, 10), (2, 10)]}, {'name': 'mark_snake_test BLUE', 'health': 99, 'length': 8, 'alive': True, 'delay': 39, 'body': [(8, 4), (8, 5), (8, 6), (8, 7), (8, 8), (7, 8), (6, 8), (5, 8)]}, {'name': 'mark_snake_test GREEN', 'health': 82, 'length': 9, 'alive': True, 'delay': 0, 'body': [(0, 4), (0, 3), (0, 2), (0, 1), (0, 0), (1, 0), (1, 1), (1, 2), (1, 3)]}, {'name': 'mark_snake_test YELLOW', 'health': 94, 'length': 8, 'alive': True, 'delay': 46, 'body': [(2, 4), (2, 3), (2, 2), (2, 1), (3, 1), (3, 2), (4, 2), (5, 2)]}], 'food': [(9, 1)]}
     log = {'id': 'f7e44305-3ac8-43ec-903a-3d09f502fedd', 'turn': 51, 'nalive': 4, 'snakes': [{'name': 'mark_snake_test RED', 'health': 99, 'length': 7, 'alive': True, 'delay': 5, 'body': [(0, 7), (0, 8), (1, 8), (1, 9), (1, 10), (2, 10), (2, 9)]}, {'name': 'mark_snake_test BLUE', 'health': 100, 'length': 8, 'alive': True, 'delay': 37, 'body': [(8, 5), (8, 6), (8, 7), (8, 8), (7, 8), (6, 8), (5, 8), (5, 8)]}, {'name': 'mark_snake_test GREEN', 'health': 83, 'length': 9, 'alive': True, 'delay': 0, 'body': [(0, 3), (0, 2), (0, 1), (0, 0), (1, 0), (1, 1), (1, 2), (1, 3), (1, 4)]}, {'name': 'mark_snake_test YELLOW', 'health': 95, 'length': 8, 'alive': True, 'delay': 0, 'body': [(2, 3), (2, 2), (2, 1), (3, 1), (3, 2), (4, 2), (5, 2), (6, 2)]}], 'food': [(9, 1)]}
+    log = {'id': '51edba76-0b8c-4f62-bf45-34760870c1ec', 'turn': 169, 'nalive': 2, 'snakes': [{'name': 'mark_snake_test RED', 'health': 89, 'length': 16, 'alive': True, 'delay': 7, 'body': [(9, 8), (8, 8), (7, 8), (6, 8), (5, 8), (4, 8), (3, 8), (3, 7), (4, 7), (4, 6), (4, 5), (4, 4), (5, 4), (6, 4), (7, 4), (7, 5)]}, {'name': 'mark_snake_test BLUE', 'health': 95, 'length': 6, 'alive': False, 'delay': 0, 'body': [(7, 6), (6, 6), (6, 5), (5, 5), (5, 6), (4, 6)]}, {'name': 'mark_snake_test GREEN', 'health': 95, 'length': 17, 'alive': True, 'delay': 30, 'body': [(9, 4), (9, 3), (9, 2), (8, 2), (8, 1), (7, 1), (6, 1), (5, 1), (4, 1), (3, 1), (3, 2), (3, 3), (2, 3), (1, 3), (0, 3), (0, 4), (0, 5)]}, {'name': 'mark_snake_test YELLOW', 'health': 95, 'length': 16, 'alive': False, 'delay': 0, 'body': [(7, 9), (7, 10), (7, 9), (7, 8), (7, 7), (6, 7), (6, 8), (6, 9), (6, 10), (5, 10), (4, 10), (3, 10), (2, 10), (1, 10), (0, 10), (0, 9)]}], 'food': [(10, 0), (1, 4)]}
+    log = {'id': '51edba76-0b8c-4f62-bf45-34760870c1ec', 'turn': 168, 'nalive': 2, 'snakes': [{'name': 'mark_snake_test RED', 'health': 90, 'length': 16, 'alive': True, 'delay': 1, 'body': [(8, 8), (7, 8), (6, 8), (5, 8), (4, 8), (3, 8), (3, 7), (4, 7), (4, 6), (4, 5), (4, 4), (5, 4), (6, 4), (7, 4), (7, 5), (7, 6)]}, {'name': 'mark_snake_test BLUE', 'health': 95, 'length': 6, 'alive': False, 'delay': 0, 'body': [(7, 6), (6, 6), (6, 5), (5, 5), (5, 6), (4, 6)]}, {'name': 'mark_snake_test GREEN', 'health': 96, 'length': 17, 'alive': True, 'delay': 35, 'body': [(9, 3), (9, 2), (8, 2), (8, 1), (7, 1), (6, 1), (5, 1), (4, 1), (3, 1), (3, 2), (3, 3), (2, 3), (1, 3), (0, 3), (0, 4), (0, 5), (0, 6)]}, {'name': 'mark_snake_test YELLOW', 'health': 95, 'length': 16, 'alive': False, 'delay': 0, 'body': [(7, 9), (7, 10), (7, 9), (7, 8), (7, 7), (6, 7), (6, 8), (6, 9), (6, 10), (5, 10), (4, 10), (3, 10), (2, 10), (1, 10), (0, 10), (0, 9)]}], 'food': [(10, 0), (1, 4)]}
+    log = {'id': '864f4b66-ae40-486d-b318-269d05366932', 'turn': 130, 'nalive': 4, 'snakes': [{'name': 'mark_snake_test RED', 'health': 75, 'length': 9, 'alive': True, 'delay': 8, 'body': [(0, 8), (0, 9), (1, 9), (2, 9), (3, 9), (4, 9), (5, 9), (6, 9), (6, 8)]}, {'name': 'mark_snake_test BLUE', 'health': 88, 'length': 10, 'alive': True, 'delay': 28, 'body': [(3, 7), (4, 7), (4, 6), (4, 5), (5, 5), (6, 5), (7, 5), (8, 5), (8, 6), (8, 7)]}, {'name': 'mark_snake_test GREEN', 'health': 85, 'length': 15, 'alive': True, 'delay': 0, 'body': [(10, 0), (10, 1), (10, 2), (10, 3), (10, 4), (10, 5), (9, 5), (9, 4), (9, 3), (9, 2), (9, 1), (8, 1), (8, 2), (8, 3), (8, 4)]}, {'name': 'mark_snake_test YELLOW', 'health': 78, 'length': 14, 'alive': True, 'delay': 0, 'body': [(4, 0), (5, 0), (6, 0), (7, 0), (7, 1), (7, 2), (6, 2), (6, 1), (5, 1), (4, 1), (3, 1), (2, 1), (1, 1), (0, 1)]}], 'food': [(0, 10), (1, 7)]}
+    log = {'id': '8e3ce158-4a3e-4e83-acf7-b6a9aabcc363', 'turn': 157, 'nalive': 3, 'snakes': [{'name': 'mark_snake_test RED', 'health': 100, 'length': 20, 'alive': True, 'delay': 9, 'body': [(1, 4), (1, 5), (1, 6), (2, 6), (3, 6), (3, 5), (2, 5), (2, 4), (2, 3), (2, 2), (2, 1), (1, 1), (0, 1), (0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (4, 1), (4, 1)]}, {'name': 'mark_snake_test BLUE', 'health': 76, 'length': 14, 'alive': True, 'delay': 55, 'body': [(7, 6), (7, 5), (7, 4), (7, 3), (7, 2), (7, 1), (8, 1), (9, 1), (10, 1), (10, 2), (10, 3), (10, 4), (10, 5), (10, 6)]}, {'name': 'mark_snake_test GREEN', 'health': 95, 'length': 15, 'alive': True, 'delay': 39, 'body': [(7, 8), (8, 8), (9, 8), (9, 9), (9, 10), (8, 10), (8, 9), (7, 9), (6, 9), (5, 9), (4, 9), (4, 8), (5, 8), (5, 7), (5, 6)]}, {'name': 'mark_snake_test YELLOW', 'health': 98, 'length': 11, 'alive': False, 'delay': 0, 'body': [(10, 5), (10, 6), (10, 5), (10, 4), (10, 3), (9, 3), (9, 4), (9, 5), (9, 6), (9, 7), (10, 7)]}], 'food': [(0, 3)]}
 
 
 
