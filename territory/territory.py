@@ -813,8 +813,10 @@ def avoid_collision(moves):
         if len(other_border) == 0:
             dodge_area = len(g.me.territory) - 1
             if dodge_area < g.me.length /3:
-                g.decision_path.append(f"collision take risk {collision_points}")
-                return collision_points
+                opposite_point = [a for a in collision_points if distance_vector_abs(a, take_first(dodge_point)) != (1,1)]
+                if len(opposite_point) != 0:
+                    g.decision_path.append(f"collision take risk {opposite_point}")
+                    return opposite_point
         g.decision_path.append(f"collision take dodge point {dodge_point}")
         return dodge_point
 
