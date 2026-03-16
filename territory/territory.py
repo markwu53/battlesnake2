@@ -601,7 +601,7 @@ def kill(moves):
 
 def get_food(moves):
     #if g.me.health >= 80 and g.me.length > 20: return
-    if g.me.length >= max([other.length for other in g.others]) +5: return
+    if g.me.length >= max([other.length for other in g.others]) +5 and g.me.health > 50: return
 
     good_food = [f for f in g.food if f in g.me.territory and g.me.territory_point_level[f] <= 6]
     if len(good_food) == 0: return
