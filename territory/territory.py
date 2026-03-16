@@ -468,6 +468,8 @@ def tree_distance(p, q, snake: Snake=None):
 def territory_border_confront(moves):
     border_move = [a for a in moves if a in g.me.killer_border]
     if len(border_move) != 2: return
+    a,b = border_move
+    if distance_vector_abs(a, b) != (1,1): return
     moves = [a for a in moves if a in border_move and g.me.territory_connection_number[a] > 1]
     if len(moves) != 0:
         g.decision_path.append(f"confront border move {moves}")
