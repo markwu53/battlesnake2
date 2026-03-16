@@ -612,8 +612,12 @@ def get_food(moves):
         return moves
 
 def undecided(moves):
-    if len(moves) > 1:
-        g.decision_path.append(f"undecided {moves}")
+    g.decision_path.append(f"undecided {moves}")
+
+def prefer_go_straight(moves):
+    moves = [a for a in moves if get_adjacent_dir(g.me.head, a) == get_adjacent_dir(g.me.neck, g.me.head)]
+    if len(moves) != 0:
+        return moves
 
 def avoid_single_collision(moves):
     snakes = [snake for snake in g.others if snake.length > g.me.length
@@ -1165,6 +1169,7 @@ def decision_flow(moves):
         # , territory_move
 
         , undecided
+        , prefer_go_straight
     ])(moves)
 
 
