@@ -725,7 +725,7 @@ def avoid_suppress_kill(moves):
                     danger_snakes.add(killer.name)
     if len(moves_to_avoid) == 0: return
     g.avoid_suppress_kill = moves_to_avoid
-    g.decision_path.append(f"next step danger {danger_snakes} avoid {moves_to_avoid}")
+    g.decision_path.append(f"next step suppress {danger_snakes} avoid {moves_to_avoid}")
     moves = [a for a in moves if a not in moves_to_avoid]
     if len(moves) != 0:
         g.decision_path.append(f"avoided")
@@ -790,7 +790,7 @@ def avoid_straight_line_confine_kill(factor=0.8):
                         moves_to_avoid.add(a)
                         danger_snakes.add(killer.name)
         if len(moves_to_avoid) == 0: return
-        g.decision_path.append(f"next step danger {danger_snakes} avoid {moves_to_avoid}")
+        g.decision_path.append(f"next step straight line confine {danger_snakes} avoid {moves_to_avoid}")
         moves = [a for a in moves if a not in moves_to_avoid]
         if len(moves) != 0:
             g.decision_path.append(f"avoided")
@@ -1150,7 +1150,7 @@ def decision_flow(moves):
         #steps that need territory calculation
         , avoid_suppress_kill
         , suppress_kill
-        , avoid_straight_line_confine_kill(0.8)
+        , avoid_straight_line_confine_kill(0.5)
         , straight_line_confine_kill(0.8)
 
         #no need territory
@@ -1186,6 +1186,8 @@ if __name__ == "__main__":
     log = {'id': 'ef29d53d-d51a-4e94-8e70-464eb510d4cc', 'turn': 242, 'nalive': 2, 'snakes': [{'name': 'mark_snake_test RED', 'health': 78, 'length': 22, 'alive': True, 'delay': 4, 'body': [(1, 7), (1, 6), (1, 5), (1, 4), (1, 3), (1, 2), (0, 2), (0, 1), (1, 1), (2, 1), (3, 1), (4, 1), (4, 0), (5, 0), (6, 0), (7, 0), (7, 1), (6, 1), (5, 1), (5, 2), (4, 2), (3, 2)]}, {'name': 'mark_snake_test BLUE', 'health': 91, 'length': 12, 'alive': False, 'delay': 0, 'body': [(9, 7), (9, 8), (9, 7), (9, 6), (9, 5), (10, 5), (10, 6), (10, 7), (10, 8), (10, 9), (9, 9), (8, 9)]}, {'name': 'mark_snake_test GREEN', 'health': 97, 'length': 25, 'alive': True, 'delay': 26, 'body': [(6, 8), (7, 8), (8, 8), (9, 8), (10, 8), (10, 7), (10, 6), (10, 5), (10, 4), (10, 3), (9, 3), (9, 2), (8, 2), (8, 3), (7, 3), (7, 2), (6, 2), (6, 3), (5, 3), (4, 3), (4, 4), (4, 5), (5, 5), (5, 6), (6, 6)]}, {'name': 'mark_snake_test YELLOW', 'health': 80, 'length': 13, 'alive': False, 'delay': 0, 'body': [(10, 3), (10, 4), (10, 5), (10, 6), (10, 7), (10, 8), (10, 9), (9, 9), (9, 8), (9, 7), (9, 6), (9, 5), (9, 4)]}], 'food': [(0, 10), (1, 8), (6, 9), (7, 9)]}
     log = {'id': '17a2839f-3de2-4995-aab3-4805ee29c54a', 'turn': 324, 'me': {'name': 'mark_snake', 'health': 78, 'length': 25, 'body': [(6, 4), (7, 4), (7, 3), (7, 2), (6, 2), (6, 1), (7, 1), (8, 1), (8, 2), (9, 2), (10, 2), (10, 3), (10, 4), (10, 5), (10, 6), (9, 6), (9, 7), (10, 7), (10, 8), (9, 8), (8, 8), (8, 9), (7, 9), (7, 8), (7, 7)], 'id': 'gs_pkWSQc8PkVk4MqtTPfjWSGFH'}, 'others': [{'name': 'snakey_wakey', 'health': 100, 'length': 26, 'body': [(3, 7), (2, 7), (1, 7), (1, 8), (0, 8), (0, 7), (0, 6), (0, 5), (1, 5), (1, 4), (2, 4), (2, 5), (3, 5), (3, 4), (4, 4), (5, 4), (5, 5), (5, 6), (6, 6), (7, 6), (8, 6), (8, 5), (9, 5), (9, 4), (9, 3), (9, 3)], 'id': 'gs_g9tpkxwGXbmbVFjcYtQWSkv8'}], 'food': [(4, 6), (2, 10)], 'module': 'territory', 'decision_path': ['1v1', 'wayout to (8, 5) via [(6, 5)]'], 'next_coord': (6, 5), 'next_move': 'up', 'time': '0.003s'}
     log = {'id': '17a2839f-3de2-4995-aab3-4805ee29c54a', 'turn': 323, 'me': {'name': 'mark_snake', 'health': 79, 'length': 25, 'body': [(7, 4), (7, 3), (7, 2), (6, 2), (6, 1), (7, 1), (8, 1), (8, 2), (9, 2), (10, 2), (10, 3), (10, 4), (10, 5), (10, 6), (9, 6), (9, 7), (10, 7), (10, 8), (9, 8), (8, 8), (8, 9), (7, 9), (7, 8), (7, 7), (6, 7)], 'id': 'gs_pkWSQc8PkVk4MqtTPfjWSGFH'}, 'others': [{'name': 'snakey_wakey', 'health': 69, 'length': 25, 'body': [(2, 7), (1, 7), (1, 8), (0, 8), (0, 7), (0, 6), (0, 5), (1, 5), (1, 4), (2, 4), (2, 5), (3, 5), (3, 4), (4, 4), (5, 4), (5, 5), (5, 6), (6, 6), (7, 6), (8, 6), (8, 5), (9, 5), (9, 4), (9, 3), (8, 3)], 'id': 'gs_g9tpkxwGXbmbVFjcYtQWSkv8'}], 'food': [(4, 6), (3, 7), (2, 10)], 'module': 'territory', 'decision_path': ['1v1', 'split take large enough area [(6, 4), (7, 5)]', 'undecided [(6, 4), (7, 5)]'], 'next_coord': (6, 4), 'next_move': 'left', 'time': '0.011s'}
+    log = {'id': 'cd8ebb11-66a8-4d15-9107-61ad50efb868', 'turn': 80, 'me': {'name': 'mark_snake', 'health': 90, 'length': 8, 'body': [(6, 4), (5, 4), (5, 5), (4, 5), (3, 5), (3, 6), (2, 6), (1, 6)], 'id': 'gs_9vb98KRR8hccBtD4dpvBRcYX'}, 'others': [{'name': 'mini snake', 'health': 94, 'length': 8, 'body': [(7, 3), (8, 3), (8, 4), (9, 4), (10, 4), (10, 3), (9, 3), (9, 2)], 'id': 'gs_rQ8v8VcxFJyKqHGyYxfTqRV6'}, {'name': 'SmartyRat', 'health': 90, 'length': 9, 'body': [(8, 6), (8, 5), (7, 5), (7, 6), (6, 6), (5, 6), (5, 7), (4, 7), (4, 8)], 'id': 'gs_tjmW3yjcx8wfdxQpb9VWMScW'}, {'name': 'snakey_wakey', 'health': 95, 'length': 11, 'body': [(2, 4), (2, 3), (2, 2), (3, 2), (3, 1), (3, 0), (4, 0), (5, 0), (5, 1), (5, 2), (5, 3)], 'id': 'gs_6yHHjXgymSWr9WR7pkqq9xkF'}], 'food': [(1, 7)], 'module': 'territory', 'decision_path': ['1vn', 'collision take risk [(7, 4), (6, 3)]', 'split avoid confined moves {(7, 4), (6, 3)}', 'split take larger area undecided', 'undecided [(7, 4), (6, 3)]'], 'next_coord': (7, 4), 'next_move': 'right', 'time': '0.004s'}
+    log = {'id': 'd7562aae-6349-4865-b5b2-23334e35b485', 'turn': 90, 'me': {'name': 'mark_snake', 'health': 100, 'length': 10, 'body': [(3, 9), (4, 9), (4, 10), (5, 10), (5, 9), (5, 8), (5, 7), (4, 7), (3, 7), (3, 7)], 'id': 'gs_SfWMKvXtjdY33JJGJt9pg4B9'}, 'others': [{'name': 'SmartyRat', 'health': 30, 'length': 5, 'body': [(7, 3), (6, 3), (5, 3), (4, 3), (4, 2)], 'id': 'gs_WgSRWjMTVW4XXrxXPYQxHVCK'}, {'name': 'snakey_wakey', 'health': 88, 'length': 12, 'body': [(2, 6), (3, 6), (4, 6), (4, 5), (3, 5), (3, 4), (2, 4), (2, 3), (2, 2), (2, 1), (1, 1), (0, 1)], 'id': 'gs_XPWqfTDtXDxqvfmWHWHFPDHK'}, {'name': 'Red Yarn', 'health': 93, 'length': 10, 'body': [(8, 8), (7, 8), (7, 9), (6, 9), (6, 8), (6, 7), (7, 7), (7, 6), (6, 6), (6, 5)], 'id': 'gs_89kJFC9mMjtvTCrtTCFMTfg4'}], 'food': [(8, 4)], 'module': 'territory', 'decision_path': ['1vn', "next step danger {'snakey_wakey'} avoid {(2, 9)}", 'avoided', 'split take larger area [([(3, 10)], 7)]'], 'next_coord': (3, 10), 'next_move': 'up', 'time': '0.017s'}
 
 
     game_state = init_from_log(log)
