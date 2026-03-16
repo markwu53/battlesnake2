@@ -1145,6 +1145,7 @@ def decision_flow(moves):
         , win
         , avoid_death
         , kill
+        , avoid_single_collision
 
         , territory_calculation
 
@@ -1155,7 +1156,6 @@ def decision_flow(moves):
         , straight_line_confine_kill(0.8)
 
         #no need territory
-        , avoid_single_collision
 
         , avoid_collision
 
