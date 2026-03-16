@@ -465,6 +465,7 @@ def tree_distance(p, q, snake: Snake=None):
     return -1
 
 def territory_border_confront(moves):
+    if len(g.others) > 1: return
     border_move = [a for a in moves if a in g.me.killer_border]
     if len(border_move) == 0: return
     if len(border_move) == 1:
@@ -733,7 +734,7 @@ def avoid_suppress_kill(moves):
 
 def territory_danger(factor):
     def fn(moves):
-        if g.me.length <= 12: return
+        if g.me.length <= 18: return
 
         killers = [snake for snake in g.others if True
                     and snake.length > g.me.length
