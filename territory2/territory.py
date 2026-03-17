@@ -1205,7 +1205,6 @@ def decision_flow(moves):
         , avoid_collision
 
         , (food_correction)
-        , cond(g.me.length >= 15)(protect_my_tail)
 
         , split_choice
         , wayout
@@ -1214,6 +1213,7 @@ def decision_flow(moves):
 
         , get_food
 
+        , cond(g.me.length >= 6)(protect_my_tail)
         , simple_territory_move
 
         , undecided
