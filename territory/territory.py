@@ -28,6 +28,7 @@ class Snake:
         self.reachable_set: dict = None
         self.food_impact: dict = None
         self.move_component: dict = None
+        self.next_turn: dict = None
     def dict(self):
         return {k: self.__dict__[k] for k in ["name", "health", "length", "body", "id", ]}
 
@@ -288,11 +289,37 @@ def flood_game_turn(g: GameTurn):
     flood_territory(g)
     snake_territory(g)
 
+def protect_my_tail(moves):
+    next_turn = dict()
+    moves_to_avoid = []
+    for a in moves:
+        me2 = snake_next_step(g.me, a)
+        ng = next_game_turn([me2])
+        next_turn[a] = ng
+        flood_game_turn(ng)
+        tail_indexes = [i for i,c in enumerate(reversed(ng.me.body)) if c != ng.me.head and c in ng.me.territory]
+        if len(tail_indexes) == 0:
+            moves_to_avoid.append(a)
+
+    g.me.next_turn = next_turn
+
+    if len(moves_to_avoid) != 0:
+        moves = [a for a in moves if a not in moves_to_avoid]
+        if len(moves) != 0:
+            g.decision_path.append(f"protect my tail avoids {moves_to_avoid}")
+            return moves
+        g.decision_path.append(f"CANNOT protect my tail {moves_to_avoid}")
+
 def territory_calculation(moves):
     flood_game_turn(g)
     reachable_set(g)
     move_component()
-    food_compensation()
+    # food_compensation()
+    # ind = list(reversed([i for i,c in enumerate(reversed(g.me.body)) if c != g.me.head and c in g.me.territory]))
+    # ind = -1 if len(ind) == 0 else take_first(ind)
+    # tail_log = (f"tail in territory: {ind}")
+    # g.decision_path.append(tail_log)
+    # print(tail_log)
 
 def food_compensation():
     moves = g.me.allowed_moves
@@ -1072,6 +1099,7 @@ def decision_flow(moves):
         , avoid_single_suppress_collision
 
         , territory_calculation
+        , protect_my_tail
 
         #steps that need territory calculation
         , avoid_suppress_kill
@@ -1082,7 +1110,7 @@ def decision_flow(moves):
 
         , avoid_collision
 
-        , food_correction
+        # , food_correction
 
         , split_choice
         , wayout
@@ -1110,6 +1138,9 @@ if __name__ == "__main__":
     log = {'id': '51edba76-0b8c-4f62-bf45-34760870c1ec', 'turn': 168, 'nalive': 2, 'snakes': [{'name': 'mark_snake_test RED', 'health': 90, 'length': 16, 'alive': True, 'delay': 1, 'body': [(8, 8), (7, 8), (6, 8), (5, 8), (4, 8), (3, 8), (3, 7), (4, 7), (4, 6), (4, 5), (4, 4), (5, 4), (6, 4), (7, 4), (7, 5), (7, 6)]}, {'name': 'mark_snake_test BLUE', 'health': 95, 'length': 6, 'alive': False, 'delay': 0, 'body': [(7, 6), (6, 6), (6, 5), (5, 5), (5, 6), (4, 6)]}, {'name': 'mark_snake_test GREEN', 'health': 96, 'length': 17, 'alive': True, 'delay': 35, 'body': [(9, 3), (9, 2), (8, 2), (8, 1), (7, 1), (6, 1), (5, 1), (4, 1), (3, 1), (3, 2), (3, 3), (2, 3), (1, 3), (0, 3), (0, 4), (0, 5), (0, 6)]}, {'name': 'mark_snake_test YELLOW', 'health': 95, 'length': 16, 'alive': False, 'delay': 0, 'body': [(7, 9), (7, 10), (7, 9), (7, 8), (7, 7), (6, 7), (6, 8), (6, 9), (6, 10), (5, 10), (4, 10), (3, 10), (2, 10), (1, 10), (0, 10), (0, 9)]}], 'food': [(10, 0), (1, 4)]}
     log = {'id': '864f4b66-ae40-486d-b318-269d05366932', 'turn': 130, 'nalive': 4, 'snakes': [{'name': 'mark_snake_test RED', 'health': 75, 'length': 9, 'alive': True, 'delay': 8, 'body': [(0, 8), (0, 9), (1, 9), (2, 9), (3, 9), (4, 9), (5, 9), (6, 9), (6, 8)]}, {'name': 'mark_snake_test BLUE', 'health': 88, 'length': 10, 'alive': True, 'delay': 28, 'body': [(3, 7), (4, 7), (4, 6), (4, 5), (5, 5), (6, 5), (7, 5), (8, 5), (8, 6), (8, 7)]}, {'name': 'mark_snake_test GREEN', 'health': 85, 'length': 15, 'alive': True, 'delay': 0, 'body': [(10, 0), (10, 1), (10, 2), (10, 3), (10, 4), (10, 5), (9, 5), (9, 4), (9, 3), (9, 2), (9, 1), (8, 1), (8, 2), (8, 3), (8, 4)]}, {'name': 'mark_snake_test YELLOW', 'health': 78, 'length': 14, 'alive': True, 'delay': 0, 'body': [(4, 0), (5, 0), (6, 0), (7, 0), (7, 1), (7, 2), (6, 2), (6, 1), (5, 1), (4, 1), (3, 1), (2, 1), (1, 1), (0, 1)]}], 'food': [(0, 10), (1, 7)]}
     log = {'id': '8e3ce158-4a3e-4e83-acf7-b6a9aabcc363', 'turn': 157, 'nalive': 3, 'snakes': [{'name': 'mark_snake_test RED', 'health': 100, 'length': 20, 'alive': True, 'delay': 9, 'body': [(1, 4), (1, 5), (1, 6), (2, 6), (3, 6), (3, 5), (2, 5), (2, 4), (2, 3), (2, 2), (2, 1), (1, 1), (0, 1), (0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (4, 1), (4, 1)]}, {'name': 'mark_snake_test BLUE', 'health': 76, 'length': 14, 'alive': True, 'delay': 55, 'body': [(7, 6), (7, 5), (7, 4), (7, 3), (7, 2), (7, 1), (8, 1), (9, 1), (10, 1), (10, 2), (10, 3), (10, 4), (10, 5), (10, 6)]}, {'name': 'mark_snake_test GREEN', 'health': 95, 'length': 15, 'alive': True, 'delay': 39, 'body': [(7, 8), (8, 8), (9, 8), (9, 9), (9, 10), (8, 10), (8, 9), (7, 9), (6, 9), (5, 9), (4, 9), (4, 8), (5, 8), (5, 7), (5, 6)]}, {'name': 'mark_snake_test YELLOW', 'health': 98, 'length': 11, 'alive': False, 'delay': 0, 'body': [(10, 5), (10, 6), (10, 5), (10, 4), (10, 3), (9, 3), (9, 4), (9, 5), (9, 6), (9, 7), (10, 7)]}], 'food': [(0, 3)]}
+    log = {'id': '8e3ce158-4a3e-4e83-acf7-b6a9aabcc363', 'turn': 156, 'nalive': 3, 'snakes': [{'name': 'mark_snake_test RED', 'health': 80, 'length': 20, 'alive': True, 'delay': 9, 'body': [(1, 5), (1, 6), (2, 6), (3, 6), (3, 5), (2, 5), (2, 4), (2, 3), (2, 2), (2, 1), (1, 1), (0, 1), (0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (4, 1)]}, {'name': 'mark_snake_test BLUE', 'health': 76, 'length': 14, 'alive': True, 'delay': 55, 'body': [(7, 5), (7, 4), (7, 3), (7, 2), (7, 1), (8, 1), (9, 1), (10, 1), (10, 2), (10, 3), (10, 4), (10, 5), (10, 6), (10,6)]}, {'name': 'mark_snake_test GREEN', 'health': 95, 'length': 15, 'alive': True, 'delay': 39, 'body': [(8, 8), (9, 8), (9, 9), (9, 10), (8, 10), (8, 9), (7, 9), (6, 9), (5, 9), (4, 9), (4, 8), (5, 8), (5, 7), (5, 6), (5,6)]}, {'name': 'mark_snake_test YELLOW', 'health': 98, 'length': 11, 'alive': False, 'delay': 0, 'body': [(10, 5), (10, 6), (10, 5), (10, 4), (10, 3), (9, 3), (9, 4), (9, 5), (9, 6), (9, 7), (10, 7)]}], 'food': [(0, 3)]}
+    log = {'id': '8e3ce158-4a3e-4e83-acf7-b6a9aabcc363', 'turn': 155, 'nalive': 3, 'snakes': [{'name': 'mark_snake_test RED', 'health': 80, 'length': 20, 'alive': True, 'delay': 9, 'body': [(1, 6), (2, 6), (3, 6), (3, 5), (2, 5), (2, 4), (2, 3), (2, 2), (2, 1), (1, 1), (0, 1), (0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (4, 1), (4,1)]}, {'name': 'mark_snake_test BLUE', 'health': 76, 'length': 14, 'alive': True, 'delay': 55, 'body': [(7, 4), (7, 3), (7, 2), (7, 1), (8, 1), (9, 1), (10, 1), (10, 2), (10, 3), (10, 4), (10, 5), (10, 6), (10,6), (10,6)]}, {'name': 'mark_snake_test GREEN', 'health': 95, 'length': 15, 'alive': True, 'delay': 39, 'body': [(9, 8), (9, 9), (9, 10), (8, 10), (8, 9), (7, 9), (6, 9), (5, 9), (4, 9), (4, 8), (5, 8), (5, 7), (5, 6), (5,6), (5,6)]}, {'name': 'mark_snake_test YELLOW', 'health': 98, 'length': 11, 'alive': False, 'delay': 0, 'body': [(10, 5), (10, 6), (10, 5), (10, 4), (10, 3), (9, 3), (9, 4), (9, 5), (9, 6), (9, 7), (10, 7)]}], 'food': [(0, 3)]}
+    log = {'id': '44101d63-c21d-4d99-884a-2b4bf2cf2cfd', 'turn': 88, 'nalive': 3, 'snakes': [{'name': 'mark_snake_test RED', 'health': 100, 'length': 13, 'alive': True, 'delay': 5, 'body': [(0, 6), (0, 7), (0, 8), (0, 9), (1, 9), (2, 9), (3, 9), (4, 9), (4, 8), (4, 7), (4, 6), (4, 5), (4, 5)]}, {'name': 'mark_snake_test BLUE', 'health': 97, 'length': 15, 'alive': True, 'delay': 21, 'body': [(8, 6), (8, 5), (8, 4), (8, 3), (9, 3), (9, 2), (9, 1), (9, 0), (8, 0), (7, 0), (6, 0), (5, 0), (4, 0), (3, 0), (2, 0)]}, {'name': 'mark_snake_test GREEN', 'health': 89, 'length': 11, 'alive': True, 'delay': 12, 'body': [(1, 1), (2, 1), (2, 2), (1, 2), (0, 2), (0, 3), (1, 3), (2, 3), (3, 3), (3, 4), (4, 4)]}, {'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 6, 'alive': False, 'delay': 0, 'body': [(1, 1), (0, 1), (0, 0), (1, 0), (2, 0), (2, 1)]}], 'food': [(0, 10), (10, 9), (0, 0), (6, 7)]}
 
 
 
