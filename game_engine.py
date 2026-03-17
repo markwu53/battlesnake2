@@ -93,7 +93,7 @@ class GameEngine:
         if snake.name in [
             "mark_snake_test RED",
         ]:
-            dfv3.main(game_state, log=True) 
+            dfv3.main(game_state, log=False) 
             return {"move": game_state["next_move"]}
         else:
             df_split.main(game_state, log=False)
