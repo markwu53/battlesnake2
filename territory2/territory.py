@@ -1215,8 +1215,8 @@ def decision_flow(moves):
 
         , get_food
 
-        , (cond(g.me.length >= 9)(protect_my_tail))
-        , cond(g.me.length >= 9)(simple_territory_move)
+        , (cond(g.me.length >= 6)(protect_my_tail))
+        , (simple_territory_move)
 
         , undecided
         , prefer_off_border
