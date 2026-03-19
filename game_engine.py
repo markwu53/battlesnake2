@@ -94,11 +94,9 @@ class GameEngine:
         if snake.name in [
             "mark_snake_test RED",
         ]:
-            territory.main(game_state, log=False) 
+            territory2.main(game_state, log=True) 
             return {"move": game_state["next_move"]}
-        elif snake.name in [
-            "mark_snake_test YELLOW",
-        ]:
+        elif snake.name in [ ]:
             territory2.main(game_state, log=False) 
             return {"move": game_state["next_move"]}
         else:

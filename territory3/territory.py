@@ -615,6 +615,16 @@ def simple_territory_move(moves):
         g.decision_path.append(f"simple territory move {target}")
         return shortest_moves
 
+def coiled(moves):
+    if any([c in g.me.territory for c in g.me.body if c != g.me.head]): return
+    g.decision_path.append(f"coiled")
+    next_to_body = [a for a in moves if any([is_adjacent(a, c) for c in g.me.body if c != g.me.neck])]
+    if len(next_to_body) != 0:
+        return next_to_body
+    no_straight = [a for a in moves if not is_straight(a)]
+    if len(no_straight) != 0:
+        return no_straight
+
 def ________OTHER_MOVE________():
     return
 
@@ -673,9 +683,16 @@ def prefer_off_border(moves):
     moves = [a for a in moves if not on_border(a)]
     if len(moves) != 0:
         return moves
-        
+
+def is_straight(a):
+    return (True 
+            and a not in [g.me.head, g.me.neck]
+            and is_adjacent(g.me.head, a)
+            and get_adjacent_dir(g.me.head, a) == get_adjacent_dir(g.me.neck, g.me.head)
+    )
+
 def prefer_go_straight(moves):
-    moves = [a for a in moves if get_adjacent_dir(g.me.head, a) == get_adjacent_dir(g.me.neck, g.me.head)]
+    moves = [a for a in moves if is_straight(a)]
     if len(moves) != 0:
         return moves
 
@@ -1213,9 +1230,11 @@ def decision_flow(moves):
 
         , territory_border_confront
 
+        , coiled
+
         , get_food
 
-        #, (cond(g.me.length >= 6)(protect_my_tail))
+        , (cond(g.me.length >= 6)(protect_my_tail))
         , (simple_territory_move)
 
         , undecided
