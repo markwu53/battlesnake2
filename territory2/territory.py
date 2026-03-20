@@ -1223,7 +1223,7 @@ def decision_flow(moves):
         , suppress_kill
         , avoid_single_confront_collision
         , cond(len(g.others) <= 2)(avoid_straight_line_confine_kill(0.5))
-        , straight_line_confine_kill(1.5)
+        , straight_line_confine_kill(1.2)
 
         , avoid_collision
 
