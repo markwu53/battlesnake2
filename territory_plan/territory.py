@@ -81,7 +81,7 @@ def main(game_state, log=True):
             , suppress_kill
             , avoid_single_confront_collision
             , cond(len(g.others) <= 2)(avoid_straight_line_confine_kill(0.5))
-            , straight_line_confine_kill(1.5)
+            , straight_line_confine_kill(1.2)
 
             , avoid_collision
 
@@ -772,7 +772,7 @@ def main(game_state, log=True):
 
         g.straight_line_confine = True
         if len(target.territory) > target.length * factor: return
-        return first_point
+        return first_point, last_point
 
     def suppress_kill(moves):
         for snake in g.others:
@@ -793,8 +793,10 @@ def main(game_state, log=True):
 
             for snake in g.others:
                 if snake.length <= 6: continue
-                first_point = confine_situation(g.me, snake, factor)
-                if not first_point: continue
+                result = confine_situation(g.me, snake, factor)
+                if not result: continue
+                first_point, last_point = result
+                if g.me.territory_connection_number[last_point] == 1: continue
                 if g.me.length <= snake.length:
                     first_point = backtrack(first_point)
                 shortest_moves = [a for a in g.me.allowed_moves if tree_distance(a, first_point) >= 0]
