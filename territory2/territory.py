@@ -247,6 +247,9 @@ def prefer(decide):
         return 0 if decide(a) else 1
     return take_first_group(key)
 
+def stick_to_body(a):
+    return any([is_adjacent(a, c) for c in g.me.body if c != g.me.head])
+
 def ________TERRITORY________():
     return
 
@@ -340,131 +343,6 @@ def next_game_turn(snakes: list[Snake]):
     if len(ng.others) == 1:
         ng.other = take_first(ng.others)
     return ng
-
-def probable_next_game_turns(moves):
-    def prefer_by_rank(index):
-        def fn(moves):
-            if len(moves) == 0: return moves
-            moves_ext = [(a, index(a)) for a in moves]
-            min_index = min([ind for a,ind in moves_ext])
-            moves = [a for a,ind in moves_ext if ind == min_index]
-            return moves
-        return fn
-
-    def prefer(answer):
-        def index(a):
-            return 0 if answer(a) else 1
-        return prefer_by_rank(index)
-
-    def prefer_food(moves):
-        def answer(a):
-            return a in g.food
-        return prefer(answer)(moves)
-    
-    def prefer_straight(snake: Snake):
-        def answer(a):
-            return get_adjacent_dir(snake.head, a) == get_adjacent_dir(snake.neck, snake.head)
-        return prefer(answer)
-
-    def prefer_come_near(snake: Snake):
-        def answer(a):
-            return distance_pq(a, g.me.head) < distance_pq(snake.head, g.me.head)
-        return prefer(answer)
-    
-    def prefer_away_from_me(snake: Snake):
-        def answer(a):
-            return a not in g.me.allowed_moves
-        return prefer(answer)
-    
-    snakes = sorted(g.snakes, key=lambda s: s.length, reverse=True)
-    all_moves = []
-    for snake in snakes:
-        if snake.head == g.me.head:
-            snake_moves = moves
-            all_moves.append(snake_moves)
-            continue
-        if distance_pq(snake.head, g.me.head) > 4:
-            snake_moves = prefer_straight(snake)(prefer_food(snake.allowed_moves))
-            if len(snake_moves) != 0: 
-                snake_moves = [take_first(snake_moves)]
-            all_moves.append(snake_moves)
-            continue
-        if distance_pq(snake.head, g.me.head) == 4 and snake.length <= g.me.length:
-            snake_moves = prefer_straight(snake)(prefer_food(snake.allowed_moves))
-            if len(snake_moves) != 0: 
-                snake_moves = [take_first(snake_moves)]
-            all_moves.append(snake_moves)
-            continue
-        if distance_pq(snake.head, g.me.head) == 4 and len(g.me.to_snake_border[snake.head]) == 0:
-            snake_moves = prefer_straight(snake)(prefer_food(snake.allowed_moves))
-            if len(snake_moves) != 0: 
-                snake_moves = [take_first(snake_moves)]
-            all_moves.append(snake_moves)
-            continue
-        if distance_pq(snake.head, g.me.head) == 4 and len(g.me.to_snake_border[snake.head]) != 0 and snake.length > g.me.length:
-            snake_moves = prefer_come_near(snake)(snake.allowed_moves)
-            all_moves.append(snake_moves)
-            continue
-        if distance_pq(snake.head, g.me.head) == 2:
-            collisions = [a for a in g.me.allowed_moves if a in snake.allowed_moves]
-            if len(collisions) == 0:
-                snake_moves = prefer_straight(snake)(prefer_food(snake.allowed_moves))
-                if len(snake_moves) != 0: 
-                    snake_moves = [take_first(snake_moves)]
-                all_moves.append(snake_moves)
-                continue
-            if snake.length == g.me.length:
-                snake_moves = prefer_away_from_me(snake)(prefer_food(snake.allowed_moves))
-                all_moves.append(snake_moves)
-                continue
-            if snake.length < g.me.length:
-                snake_moves = prefer_food(prefer_away_from_me(snake)(snake.allowed_moves))
-                all_moves.append(snake_moves)
-                continue
-            if snake.length > g.me.length:
-                snake_moves = snake.allowed_moves
-                all_moves.append(snake_moves)
-                continue
-
-    combinations = list(itertools.product(*all_moves))
-    combinations = [comb for comb in combinations if len(set(comb)) == len(all_moves)]
-    game_turns = [
-        next_game_turns_literal([snake_next_step(snake, a) for snake, a in zip(snakes, comb)])
-        for comb in combinations ]
-
-    for ng in game_turns:
-        flood_game_turn(ng)
-    return game_turns
-
-def next_game_turns_literal(snakes: list[Snake]):
-    ng = GameTurn()
-    ng.snakes = snakes
-    ng.me = take_first([snake for snake in snakes if snake.neck == g.me.head])
-    ng.others = [snake for snake in snakes if snake.neck != g.me.head]
-    if len(ng.others) == 1:
-        ng.other = take_first(ng.others)
-    return ng
-
-def protect_my_tail(moves):
-    #if len(g.others) == 1: return
-    #if g.me.length < 15: return
-    #if g.me.length < max([snake.length for snake in g.others]) -2: return
-
-    game_turns = probable_next_game_turns(moves)
-    #print(f"number of next game turns: {len(game_turns)}")
-
-    moves_to_avoid = set()
-    for ng in game_turns:
-        tail_indexes = [i for i,c in enumerate(reversed(ng.me.body)) if c != ng.me.head and c in ng.me.territory]
-        if len(tail_indexes) == 0:
-            moves_to_avoid.add(ng.me.head)
-
-    if len(moves_to_avoid) != 0:
-        moves = [a for a in moves if a not in moves_to_avoid]
-        if len(moves) != 0:
-            g.decision_path.append(f"protect my tail avoids {moves_to_avoid}")
-            return moves
-        g.decision_path.append(f"CANNOT protect my tail {moves_to_avoid}")
 
 def reachable_set(g: GameTurn):
     g.me.reachable_set = {a: {p for layer in tree_sublayers(a) for p in layer} for a in g.me.allowed_moves}
@@ -1238,12 +1116,12 @@ def decision_flow(moves):
 
         , get_food
 
-        #, (cond(g.me.length >= 6)(protect_my_tail))
         , (simple_territory_move)
 
         , undecided
         , prefer_off_border
         # , prefer_go_straight
+        , prefer(stick_to_body)
     ])(moves)
 
 
