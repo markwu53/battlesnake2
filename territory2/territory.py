@@ -234,6 +234,19 @@ def message(msg):
         print(f"{msg}: {moves}")
     return fn
 
+def take_first_group(key):
+    def fn(lst):
+        if len(lst) == 0: return lst
+        lst_ext = [(a, key(a)) for a in lst]
+        min_eval = min([v for a,v in lst_ext])
+        return [a for a,v in lst_ext if v == min_eval]
+    return fn
+
+def prefer(decide):
+    def key(a):
+        return 0 if decide(a) else 1
+    return take_first_group(key)
+
 def ________TERRITORY________():
     return
 
@@ -678,6 +691,11 @@ def prefer_go_straight(moves):
     moves = [a for a in moves if get_adjacent_dir(g.me.head, a) == get_adjacent_dir(g.me.neck, g.me.head)]
     if len(moves) != 0:
         return moves
+
+def prefer_stick_to_body(moves):
+    def stick_to_body(a):
+        return any([is_adjacent(a, c) for c in g.me.body if c != g.me.head])
+    return prefer(stick_to_body)(moves)
 
 def avoid_single_suppress_collision(moves):
     snakes = [snake for snake in g.others if snake.length > g.me.length
@@ -1220,7 +1238,7 @@ def decision_flow(moves):
 
         , undecided
         , prefer_off_border
-        , prefer_go_straight
+        # , prefer_go_straight
     ])(moves)
 
 

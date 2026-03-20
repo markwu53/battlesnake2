@@ -234,6 +234,12 @@ def message(msg):
         print(f"{msg}: {moves}")
     return fn
 
+def take_first_group(lst, key):
+    if len(lst) == 0: return lst
+    lst_ext = [(a, key(a)) for a in lst]
+    min_eval = min([v for a,v in lst_ext])
+    return [a for a,v in lst_ext if v == min_eval]
+
 def ________TERRITORY________():
     return
 
@@ -615,15 +621,48 @@ def simple_territory_move(moves):
         g.decision_path.append(f"simple territory move {target}")
         return shortest_moves
 
+def attitude_evaluation():
+    def sort_key(t):
+        p = t[0]
+        snake: Snake = t[1]
+        return (snake.territory_point_level[p], -snake.length)
+
+    good_cells = set()
+    for c in g.me.body:
+        if c in g.me.territory:
+            good_cells.add(c)
+            continue
+        ps = [(p, snake) for p in adj_cells(c) for snake in g.snakes if p in snake.territory]
+        if len(ps) == 0: continue
+        ps = take_first_group(ps, key=sort_key)
+        if len(ps) == 1:
+            p, snake = take_first(ps)
+            if snake.head == g.me.head:
+                good_cells.add(c)
+                continue
+
+    good_percentage = len(good_cells) / g.me.length
+    return good_percentage
+
 def coiled(moves):
     if any([c in g.me.territory for c in g.me.body if c != g.me.head]): return
     g.decision_path.append(f"coiled")
-    next_to_body = [a for a in moves if any([is_adjacent(a, c) for c in g.me.body if c != g.me.neck])]
+    next_to_body = [a for a in moves if any([is_adjacent(a, c) for c in g.me.body if c != g.me.head])]
     if len(next_to_body) != 0:
         return next_to_body
     no_straight = [a for a in moves if not is_straight(a)]
     if len(no_straight) != 0:
         return no_straight
+
+def coiled(moves):
+
+    if g.me.length <= 12: return
+
+    percentage = attitude_evaluation()
+    percentage = int(percentage * 100)
+    msg = f"({g.turn}, {g.me.length}, {percentage})\n"
+    with open("attitude.txt", "a") as fd:
+        fd.write(msg)
 
 def ________OTHER_MOVE________():
     return
@@ -1230,11 +1269,11 @@ def decision_flow(moves):
 
         , territory_border_confront
 
-        , coiled
+        # , (coiled)
 
         , get_food
 
-        , (cond(g.me.length >= 6)(protect_my_tail))
+        #, (cond(g.me.length >= 6)(protect_my_tail))
         , (simple_territory_move)
 
         , undecided
@@ -1253,12 +1292,13 @@ if __name__ == "__main__":
     log = {'id': 'd1173ece-ce08-41f7-befa-cf56035a055d', 'turn': 182, 'nalive': 2, 'snakes': [{'name': 'mark_snake_test RED', 'health': 94, 'length': 4, 'alive': False, 'delay': 9, 'body': [(5, 3), (5, 4), (4, 4), (4, 3)]}, {'name': 'mark_snake_test BLUE', 'health': 88, 'length': 15, 'alive': False, 'delay': 0, 'body': [(7, 9), (8, 9), (9, 9), (9, 8), (8, 8), (7, 8), (7, 7), (8, 7), (9, 7), (10, 7), (10, 8), (10, 9), (10, 10), (9, 10), (8, 10)]}, {'name': 'mark_snake_test GREEN', 'health': 99, 'length': 23, 'alive': True, 'delay': 25, 'body': [(5, 3), (6, 3), (7, 3), (8, 3), (9, 3), (10, 3), (10, 4), (10, 5), (10, 6), (9, 6), (8, 6), (8, 5), (7, 5), (6, 5), (6, 6), (6, 7), (6, 8), (6, 9), (6, 10), (5, 10), (4, 10), (3, 10), (2, 10)]}, {'name': 'mark_snake_test YELLOW', 'health': 89, 'length': 19, 'alive': True, 'delay': 6, 'body': [(0, 2), (1, 2), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (6, 1), (7, 1), (8, 1), (8, 0), (9, 0), (9, 1), (9, 2), (8, 2), (7, 2), (6, 2), (5, 2), (4, 2)]}], 'food': [(10, 0), (0, 0), (4, 7), (0, 9), (7, 6), (4, 9)]}
     log = {'id': 'd1173ece-ce08-41f7-befa-cf56035a055d', 'turn': 183, 'nalive': 2, 'snakes': [{'name': 'mark_snake_test RED', 'health': 94, 'length': 4, 'alive': False, 'delay': 9, 'body': [(5, 3), (5, 4), (4, 4), (4, 3)]}, {'name': 'mark_snake_test BLUE', 'health': 88, 'length': 15, 'alive': False, 'delay': 0, 'body': [(7, 9), (8, 9), (9, 9), (9, 8), (8, 8), (7, 8), (7, 7), (8, 7), (9, 7), (10, 7), (10, 8), (10, 9), (10, 10), (9, 10), (8, 10)]}, {'name': 'mark_snake_test GREEN', 'health': 98, 'length': 23, 'alive': True, 'delay': 22, 'body': [(4, 3), (5, 3), (6, 3), (7, 3), (8, 3), (9, 3), (10, 3), (10, 4), (10, 5), (10, 6), (9, 6), (8, 6), (8, 5), (7, 5), (6, 5), (6, 6), (6, 7), (6, 8), (6, 9), (6, 10), (5, 10), (4, 10), (3, 10)]}, {'name': 'mark_snake_test YELLOW', 'health': 88, 'length': 19, 'alive': True, 'delay': 3, 'body': [(0, 3), (0, 2), (1, 2), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (6, 1), (7, 1), (8, 1), (8, 0), (9, 0), (9, 1), (9, 2), (8, 2), (7, 2), (6, 2), (5, 2)]}], 'food': [(10, 0), (0, 0), (4, 7), (0, 9), (7, 6), (4, 9)]}
     log = {'id': '0f36f9e2-daaa-4619-a4dc-1e017b65ca6b', 'turn': 62, 'me': {'name': 'mark_snake', 'health': 75, 'length': 5, 'body': [(8, 8), (9, 8), (10, 8), (10, 7), (9, 7)], 'id': 'gs_K8SY99KM3tvkKg7gRkyqBkp3'}, 'others': [{'name': 'snakey_wakey', 'health': 87, 'length': 11, 'body': [(2, 4), (3, 4), (3, 3), (4, 3), (5, 3), (5, 4), (6, 4), (6, 3), (7, 3), (8, 3), (9, 3)], 'id': 'gs_xpb3RbSMchGH3CmYhqpKCQcH'}, {'name': 'SnattleBake_v027c', 'health': 89, 'length': 9, 'body': [(10, 4), (9, 4), (9, 5), (9, 6), (8, 6), (7, 6), (6, 6), (5, 6), (4, 6)], 'id': 'gs_xqRmCKPPBf6KPYYFvvp7p4cJ'}, {'name': '@~~~~@', 'health': 93, 'length': 6, 'body': [(0, 4), (0, 3), (0, 2), (1, 2), (1, 3), (2, 3)], 'id': 'gs_bbRKGMVpqydYpvSrvRyHWGkd'}], 'food': [(1, 1)], 'module': 'territory', 'decision_path': ['1vn', 'simple territory move [(10, 9)]'], 'next_coord': (8, 9), 'next_move': 'up', 'time': '0.004s'}
+    log = {'id': '0dcaf52c-5a05-4676-a5be-7dcf2ee019d9', 'turn': 179, 'nalive': 3, 'snakes': [{'name': 'mark_snake_test RED', 'health': 79, 'length': 17, 'alive': True, 'delay': 0, 'body': [(3, 2), (2, 2), (2, 3), (2, 4), (2, 5), (2, 6), (2, 7), (3, 7), (4, 7), (5, 7), (6, 7), (7, 7), (8, 7), (9, 7), (10, 7), (10, 6), (9, 6)]}, {'name': 'mark_snake_test BLUE', 'health': 63, 'length': 14, 'alive': True, 'delay': 22, 'body': [(4, 1), (3, 1), (2, 1), (1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (0, 9), (0, 8)]}, {'name': 'mark_snake_test GREEN', 'health': 80, 'length': 17, 'alive': True, 'delay': 0, 'body': [(7, 8), (6, 8), (5, 8), (5, 9), (4, 9), (3, 9), (2, 9), (2, 10), (3, 10), (4, 10), (5, 10), (6, 10), (6, 9), (7, 9), (8, 9), (9, 9), (9, 8)]}, {'name': 'mark_snake_test YELLOW', 'health': 78, 'length': 6, 'alive': False, 'delay': 0, 'body': [(1, 10), (0, 10), (0, 9), (0, 8), (0, 7), (0, 6)]}], 'food': [(5, 0)]}
 
 
 
-    game_state = init_from_log(log)
-    self_name = "mark_snake_test YELLOW"
+    #game_state = init_from_log(log)
+    self_name = "mark_snake_test RED"
     #game_state = init_from_db_log(id, turn, self_name)
-    #game_state = init_from_game_engine_log(log, self_name)
+    game_state = init_from_game_engine_log(log, self_name)
     main(game_state, log=True)
 

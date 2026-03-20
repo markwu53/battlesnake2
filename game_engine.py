@@ -3,6 +3,8 @@
 from territory.territory import Snake
 import territory.territory as territory
 import territory2.territory as territory2
+import territory3.territory as territory3
+import territory_plan.territory as territory_plan
 
 import random, time, uuid
 import split.decision_flow as df_split
@@ -94,7 +96,7 @@ class GameEngine:
         if snake.name in [
             "mark_snake_test RED",
         ]:
-            territory2.main(game_state, log=True) 
+            territory_plan.main(game_state, log=True) 
             return {"move": game_state["next_move"]}
         elif snake.name in [ ]:
             territory2.main(game_state, log=False) 
