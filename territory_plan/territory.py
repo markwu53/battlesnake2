@@ -463,8 +463,8 @@ def main(game_state, log=True):
     def territory_connection_number(g: GameTurn):
         for snake in g.snakes:
             for p in snake.territory:
-                connected_points = {q for q in adj_cells(p) if q in snake.territory 
-                                    and abs(snake.territory_point_level[p]-snake.territory_point_level[q]) == 1}
+                connected_points = {q for q in adj_cells(p) if q in snake.territory
+                                    and snake.territory_point_level[q] <= snake.territory_point_level[p]+1 }
                 snake.territory_connection_points[p] = connected_points
                 snake.territory_connection_number[p] = len(connected_points)
                 snake.territory_connected_from[p] = [q for q in connected_points if snake.territory_point_level[q] < snake.territory_point_level[p]]
@@ -601,6 +601,9 @@ def main(game_state, log=True):
             g.decision_path.append(f"get food {food_target} via {moves}")
             return moves
 
+    def food_path(food_target):
+        pass
+
     def get_food(moves):
         #if g.me.health >= 80 and g.me.length > 20: return
         if len(g.others) == 1 and g.me.length >= g.other.length +5 and g.me.health > 50: return
@@ -611,6 +614,7 @@ def main(game_state, log=True):
         food_target = take_first(best_food)[0]
 
         if g.me.territory_connection_number[food_target] == 1: return
+        print(g.me.territory_connection_number[(0,2)])
 
         back_path = []
         move = food_target
@@ -1169,6 +1173,7 @@ if __name__ == "__main__":
     log = {'id': 'ee6a2b25-ce4c-4ce9-a7a0-b750c0764b13', 'turn': 3, 'me': {'name': 'mark_snake_test RED', 'health': 99, 'length': 4, 'body': [(4, 1), (4, 0), (5, 0), (5, 1)], 'id': 'mark_snake_test RED'}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 99, 'length': 4, 'body': [(10, 3), (10, 4), (10, 5), (9, 5)], 'id': 'mark_snake_test BLUE'}, {'name': 'mark_snake_test GREEN', 'health': 99, 'length': 4, 'body': [(7, 10), (6, 10), (6, 9), (5, 9)], 'id': 'mark_snake_test GREEN'}, {'name': 'mark_snake_test YELLOW', 'health': 97, 'length': 3, 'body': [(1, 6), (2, 6), (2, 5)], 'id': 'mark_snake_test YELLOW'}], 'food': [(0, 6), (5, 5)], 'module': 'territory', 'decision_path': ['1vn', 'made a food plan [(4, 2), (4, 3), (4, 4), (4, 5), (5, 5)]', 'simple territory move [(6, 2), (7, 1), (5, 3)]', 'undecided [(5, 1), (4, 2)]'], 'next_coord': (4, 2), 'next_move': 'up', 'time': '0.005s'}
     log = {'id': 'f1158780-769b-4868-b9e0-07f0b6674054', 'turn': 203, 'me': {'name': 'mark_snake_test RED', 'health': 88, 'length': 21, 'body': [(5, 0), (6, 0), (7, 0), (7, 1), (6, 1), (6, 2), (5, 2), (5, 3), (5, 4), (5, 5), (5, 6), (5, 7), (6, 7), (6, 6), (7, 6), (8, 6), (9, 6), (10, 6), (10, 5), (9, 5), (9, 4)], 'id': 'mark_snake_test RED'}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 91, 'length': 18, 'body': [(1, 6), (0, 6), (0, 5), (0, 4), (0, 3), (0, 2), (1, 2), (1, 1), (2, 1), (2, 2), (3, 2), (3, 3), (3, 4), (3, 5), (4, 5), (4, 6), (3, 6), (2, 6)], 'id': 'mark_snake_test BLUE'}], 'food': [(0, 1), (2, 8), (6, 9)], 'module': 'territory', 'decision_path': ['1v1', 'made a food plan [(5, 0), (4, 0), (3, 0), (2, 0), (1, 0), (0, 0), (0, 1)]'], 'next_coord': (4, 0), 'next_move': 'left', 'time': '0.001s'}
     log = {'id': 'f1158780-769b-4868-b9e0-07f0b6674054', 'turn': 201, 'me': {'name': 'mark_snake_test RED', 'health': 90, 'length': 21, 'body': [(7, 0), (7, 1), (6, 1), (6, 2), (5, 2), (5, 3), (5, 4), (5, 5), (5, 6), (5, 7), (6, 7), (6, 6), (7, 6), (8, 6), (9, 6), (10, 6), (10, 5), (9, 5), (9, 4), (9, 3), (9, 2)], 'id': 'mark_snake_test RED'}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 93, 'length': 18, 'body': [(0, 5), (0, 4), (0, 3), (0, 2), (1, 2), (1, 1), (2, 1), (2, 2), (3, 2), (3, 3), (3, 4), (3, 5), (4, 5), (4, 6), (3, 6), (2, 6), (1, 6), (0, 6)], 'id': 'mark_snake_test BLUE'}], 'food': [(0, 1), (2, 8), (6, 9)], 'module': 'territory', 'decision_path': ['1v1', 'split take large enough area [(8, 0), (6, 0)]', 'simple territory move [(4, 4)]'], 'next_coord': (6, 0), 'next_move': 'left', 'time': '0.003s'}
+    log = {'id': '210a07a2-c17e-4277-a649-89f6a6e95375', 'turn': 28, 'me': {'name': 'mark_snake_test RED', 'health': 100, 'length': 10, 'body': [(1, 5), (1, 4), (1, 3), (1, 2), (0, 2), (0, 1), (1, 1), (2, 1), (3, 1), (3, 1)], 'id': 'mark_snake_test RED'}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 98, 'length': 5, 'body': [(8, 6), (8, 5), (9, 5), (9, 6), (9, 7)], 'id': 'mark_snake_test BLUE'}, {'name': 'mark_snake_test GREEN', 'health': 93, 'length': 6, 'body': [(6, 4), (6, 5), (6, 6), (6, 7), (6, 8), (6, 9)], 'id': 'mark_snake_test GREEN'}, {'name': 'mark_snake_test YELLOW', 'health': 92, 'length': 5, 'body': [(3, 5), (4, 5), (4, 6), (4, 7), (4, 8)], 'id': 'mark_snake_test YELLOW'}], 'food': [(0, 3), (0, 4), (2, 2)], 'module': 'territory', 'decision_path': ['1vn', 'made a food plan [(1, 5), (0, 5), (0, 4)]'], 'next_coord': (0, 5), 'next_move': 'left', 'time': '0.001s'}
 
 
 

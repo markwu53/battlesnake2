@@ -543,8 +543,8 @@ def territory_border(itself: Snake, snake: Snake):
 def territory_connection_number(g: GameTurn):
     for snake in g.snakes:
         for p in snake.territory:
-            connected_points = {q for q in adj_cells(p) if q in snake.territory 
-                                and abs(snake.territory_point_level[p]-snake.territory_point_level[q]) == 1}
+            connected_points = {q for q in adj_cells(p) if q in snake.territory
+                                and snake.territory_point_level[q] <= snake.territory_point_level[p]+1 }
             snake.territory_connection_points[p] = connected_points
             snake.territory_connection_number[p] = len(connected_points)
 
