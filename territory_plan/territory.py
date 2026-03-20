@@ -99,7 +99,7 @@ def main(game_state, log=True):
             , undecided
             , prefer_off_border
             # , prefer_go_straight
-            , prefer_stick_to_body
+            , prefer(stick_to_body)
         ])(moves)
 
     def ________CONTROL_FLOW________():
@@ -260,6 +260,11 @@ def main(game_state, log=True):
             lst_ext = [(a, key(a)) for a in lst]
             min_eval = min([v for a,v in lst_ext])
             return [a for a,v in lst_ext if v == min_eval]
+        return fn
+
+    def pick(decide):
+        def fn(lst):
+            return [a for a in lst if decide(a)]
         return fn
 
     def prefer(decide):
@@ -605,20 +610,22 @@ def main(game_state, log=True):
         best_food = sorted([(f, g.me.territory_point_level[f]) for f in good_food], key=lambda a: a[1])
         food_target = take_first(best_food)[0]
 
+        if g.me.territory_connection_number[food_target] == 1: return
+
         back_path = []
         move = food_target
         while move != g.me.head:
             back_path.append(move)
-            move = take_first(list(g.me.territory_connected_from[move]))
-        if len(back_path) == 1:
-            return back_path
-        
-        plan.extend(list(reversed(back_path)))
+            move = take_first(prefer(stick_to_body)(g.me.territory_connected_from[move]))
+        back_path.append(g.me.head)
+        path = list(reversed(back_path))
 
-        if len(plan) != 0:
+        if len(path) < 2: return
+        if len(path) > 2:
+            plan.extend(path)
             g.decision_path.append(f"made a food plan {plan}")
-            return plan[:1]
-
+        return [path[1]]
+        
     def undecided(moves):
         g.decision_path.append(f"undecided {moves}")
 
@@ -639,10 +646,8 @@ def main(game_state, log=True):
         if len(moves) != 0:
             return moves
 
-    def prefer_stick_to_body(moves):
-        def stick_to_body(a):
-            return any([is_adjacent(a, c) for c in g.me.body if c != g.me.head])
-        return prefer(stick_to_body)(moves)
+    def stick_to_body(a):
+        return any([is_adjacent(a, c) for c in g.me.body if c != g.me.head])
 
     def avoid_single_suppress_collision(moves):
         snakes = [snake for snake in g.others if snake.length > g.me.length
@@ -1162,6 +1167,8 @@ if __name__ == "__main__":
     log = {'id': '0dcaf52c-5a05-4676-a5be-7dcf2ee019d9', 'turn': 179, 'nalive': 3, 'snakes': [{'name': 'mark_snake_test RED', 'health': 79, 'length': 17, 'alive': True, 'delay': 0, 'body': [(3, 2), (2, 2), (2, 3), (2, 4), (2, 5), (2, 6), (2, 7), (3, 7), (4, 7), (5, 7), (6, 7), (7, 7), (8, 7), (9, 7), (10, 7), (10, 6), (9, 6)]}, {'name': 'mark_snake_test BLUE', 'health': 63, 'length': 14, 'alive': True, 'delay': 22, 'body': [(4, 1), (3, 1), (2, 1), (1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (0, 9), (0, 8)]}, {'name': 'mark_snake_test GREEN', 'health': 80, 'length': 17, 'alive': True, 'delay': 0, 'body': [(7, 8), (6, 8), (5, 8), (5, 9), (4, 9), (3, 9), (2, 9), (2, 10), (3, 10), (4, 10), (5, 10), (6, 10), (6, 9), (7, 9), (8, 9), (9, 9), (9, 8)]}, {'name': 'mark_snake_test YELLOW', 'health': 78, 'length': 6, 'alive': False, 'delay': 0, 'body': [(1, 10), (0, 10), (0, 9), (0, 8), (0, 7), (0, 6)]}], 'food': [(5, 0)]}
     log = {'id': 'fb02fda3-ae32-40b6-8ee6-1f7d3a36a622', 'turn': 1, 'nalive': 4, 'snakes': [{'name': 'mark_snake_test RED', 'health': 99, 'length': 3, 'alive': True, 'delay': 0, 'body': [(5, 0), (5, 1), (5, 1)]}, {'name': 'mark_snake_test BLUE', 'health': 99, 'length': 3, 'alive': True, 'delay': 0, 'body': [(10, 5), (9, 5), (9, 5)]}, {'name': 'mark_snake_test GREEN', 'health': 99, 'length': 3, 'alive': True, 'delay': 0, 'body': [(6, 9), (5, 9), (5, 9)]}, {'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 3, 'alive': True, 'delay': 0, 'body': [(2, 5), (1, 5), (1, 5)]}], 'food': [(4, 0), (10, 4), (6, 10), (0, 6), (5, 5)]}
     log = {'id': 'ee6a2b25-ce4c-4ce9-a7a0-b750c0764b13', 'turn': 3, 'me': {'name': 'mark_snake_test RED', 'health': 99, 'length': 4, 'body': [(4, 1), (4, 0), (5, 0), (5, 1)], 'id': 'mark_snake_test RED'}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 99, 'length': 4, 'body': [(10, 3), (10, 4), (10, 5), (9, 5)], 'id': 'mark_snake_test BLUE'}, {'name': 'mark_snake_test GREEN', 'health': 99, 'length': 4, 'body': [(7, 10), (6, 10), (6, 9), (5, 9)], 'id': 'mark_snake_test GREEN'}, {'name': 'mark_snake_test YELLOW', 'health': 97, 'length': 3, 'body': [(1, 6), (2, 6), (2, 5)], 'id': 'mark_snake_test YELLOW'}], 'food': [(0, 6), (5, 5)], 'module': 'territory', 'decision_path': ['1vn', 'made a food plan [(4, 2), (4, 3), (4, 4), (4, 5), (5, 5)]', 'simple territory move [(6, 2), (7, 1), (5, 3)]', 'undecided [(5, 1), (4, 2)]'], 'next_coord': (4, 2), 'next_move': 'up', 'time': '0.005s'}
+    log = {'id': 'f1158780-769b-4868-b9e0-07f0b6674054', 'turn': 203, 'me': {'name': 'mark_snake_test RED', 'health': 88, 'length': 21, 'body': [(5, 0), (6, 0), (7, 0), (7, 1), (6, 1), (6, 2), (5, 2), (5, 3), (5, 4), (5, 5), (5, 6), (5, 7), (6, 7), (6, 6), (7, 6), (8, 6), (9, 6), (10, 6), (10, 5), (9, 5), (9, 4)], 'id': 'mark_snake_test RED'}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 91, 'length': 18, 'body': [(1, 6), (0, 6), (0, 5), (0, 4), (0, 3), (0, 2), (1, 2), (1, 1), (2, 1), (2, 2), (3, 2), (3, 3), (3, 4), (3, 5), (4, 5), (4, 6), (3, 6), (2, 6)], 'id': 'mark_snake_test BLUE'}], 'food': [(0, 1), (2, 8), (6, 9)], 'module': 'territory', 'decision_path': ['1v1', 'made a food plan [(5, 0), (4, 0), (3, 0), (2, 0), (1, 0), (0, 0), (0, 1)]'], 'next_coord': (4, 0), 'next_move': 'left', 'time': '0.001s'}
+    log = {'id': 'f1158780-769b-4868-b9e0-07f0b6674054', 'turn': 201, 'me': {'name': 'mark_snake_test RED', 'health': 90, 'length': 21, 'body': [(7, 0), (7, 1), (6, 1), (6, 2), (5, 2), (5, 3), (5, 4), (5, 5), (5, 6), (5, 7), (6, 7), (6, 6), (7, 6), (8, 6), (9, 6), (10, 6), (10, 5), (9, 5), (9, 4), (9, 3), (9, 2)], 'id': 'mark_snake_test RED'}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 93, 'length': 18, 'body': [(0, 5), (0, 4), (0, 3), (0, 2), (1, 2), (1, 1), (2, 1), (2, 2), (3, 2), (3, 3), (3, 4), (3, 5), (4, 5), (4, 6), (3, 6), (2, 6), (1, 6), (0, 6)], 'id': 'mark_snake_test BLUE'}], 'food': [(0, 1), (2, 8), (6, 9)], 'module': 'territory', 'decision_path': ['1v1', 'split take large enough area [(8, 0), (6, 0)]', 'simple territory move [(4, 4)]'], 'next_coord': (6, 0), 'next_move': 'left', 'time': '0.003s'}
 
 
 

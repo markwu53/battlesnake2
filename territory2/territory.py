@@ -674,6 +674,9 @@ def get_food(moves):
     if len(good_food) == 0: return
     best_food = sorted([(f, g.me.territory_point_level[f]) for f in good_food], key=lambda a: a[1])
     food_target = take_first(best_food)[0]
+
+    if g.me.territory_connection_number[food_target] == 1: return
+
     moves = [a for a in moves if tree_distance(a, food_target) >= 0]
     if len(moves) != 0:
         g.decision_path.append(f"get food {food_target} via {moves}")
