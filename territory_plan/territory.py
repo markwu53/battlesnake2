@@ -570,7 +570,7 @@ def main(game_state, log=True):
             return [move]
 
     def avoid_death(moves):
-        snakes = [snake for snake in g.others if len(snake.allowed_moves) == 1 and snake.length > g.me.length]
+        snakes = [snake for snake in g.others if len(snake.allowed_moves) == 1 and snake.length >= g.me.length]
         if len(snakes) == 0: return
         moves_to_avoid = [a for snake in snakes for a in snake.allowed_moves if a in moves]
         if len(moves_to_avoid) == 0: return
