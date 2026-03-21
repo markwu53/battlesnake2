@@ -88,11 +88,11 @@ def main(game_state, log=True):
             , split_choice
             , wayout
 
-            , killer_confront
+            , cond(g.me.length >= 8)(killer_confront)
 
             , get_food
 
-            , cond(g.me.length <= 6)(prefer_not(on_border))
+            , cond(g.me.length <= 7)(prefer_not(on_border))
             , cond(g.me.length >= 8)(simple_territory_move)
             , cond(g.me.length >= 8)(prefer(stick_to_body))
             , prefer(is_straight)
@@ -268,10 +268,6 @@ def main(game_state, log=True):
         npos = [p for p in npos if pos_on_board(p)]
         return npos
 
-    def occupied_cells(step):
-        cells = [c for s in g.snakes for c in s.body[:-step] ]
-        return set(cells)
-
     def message(msg):
         def fn(moves):
             print(f"{msg}: {moves}")
@@ -283,8 +279,32 @@ def main(game_state, log=True):
     def stick_to_body(a):
         return any([is_adjacent(a, c) for c in g.me.body if c != g.me.head])
 
+
     def ________TERRITORY________():
         return
+
+    def flood_wayout(start, area):
+        #start is a set of starting points
+        #area is total area - total set of points
+        #result is layers each of which is a dict key by points in this layer values are two list
+        #one is points from previous layer one is points to next layer
+
+        front = start
+        remaining = {p for p in area} #need a copy
+        layer = {q: ([], []) for q in front}
+        layers = [layer]
+
+        while True:
+            front_pair = [(p, q) for p in front for q in adj_cells(p) if q in remaining]
+            if len(front_pair) == 0: break
+            front = {q for p,q in front_pair}
+            remaining -= front
+            layer = {q: ([], []) for q in front}
+            for p,q in front_pair:
+                layer[q][0].append(p)
+                layers[-1][p][1].append(q)
+            layers.append(layer)
+        return layers, remaining
 
     def flood_territory(g: GameTurn):
         snakes = g.snakes
@@ -320,38 +340,9 @@ def main(game_state, log=True):
 
         g.territories = {p: (layer[p], i) for i,layer in enumerate(layers) for p in layer}
 
-    def food_correction(moves):
-        if not any([a in g.food for a in moves]) and not any([a in g.food for snake in g.others for a in snake.allowed_moves]): return
-
-        food_impact = dict()
-        for a in moves:
-            me2 = snake_next_step(g.me, a)
-            ng = next_game_turn([me2])
-            food_impact[a] = ng
-            flood_game_turn(ng)
-
-        factor = 0.5
-        def impacted(a):
-            before = set()
-            if a in g.me.move_component:
-                before = g.me.move_component[a]
-            ng: GameTurn = food_impact[a]
-            after = ng.me.territory
-            return  len(after) <= len(before) * factor
-        avoid_moves = [a for a in moves if impacted(a)]
-
-        if len(avoid_moves) == 0: return
-        moves = [a for a in moves if a not in avoid_moves]
-        if len(moves) != 0:
-            g.decision_path.append(f"food impact {avoid_moves}")
-            return moves
-
     def flood_game_turn(g: GameTurn):
         flood_territory(g)
         snake_territory(g)
-
-    def territory_calculation(moves):
-        flood_game_turn(g)
 
     def hypo_game_turn(snakes: list[Snake]):
         ng = GameTurn()
@@ -531,17 +522,124 @@ def main(game_state, log=True):
                 return i
         return -1
 
-    def territory_border_confront(moves):
-        moves = [a for a in moves if a in g.me.killer_border]
-        if len(moves) != 2: return
-        a,b = moves
-        if distance_vector_abs(a, b) != (1,1): return
-        moves = [a for a in moves if g.me.territory_connection_number[a] != 1]
-        if len(moves) == 0: return
-        max_component = max([len(g.me.move_component[a]) for a in moves])
-        moves = [a for a in moves if len(g.me.move_component[a]) == max_component]
-        g.decision_path.append(f"confront border move {moves}")
+    def ________MOVES________():
+        return
+
+    def undecided(moves):
+        g.decision_path.append(f"undecided {moves}")
+
+    def turn_0(moves):
+        if g.turn != 0: return
+        border_move = [a for a in moves if on_border(a)]
+        if len(border_move) != 0:
+            return border_move
         return moves
+
+    def win(moves):
+        if len(g.others) != 1: return
+        if len(g.other.allowed_moves) != 1: return
+        if g.me.length <= g.other.length: return
+        move = g.other.allowed_moves[0]
+        if move in moves:
+            g.decision_path.append("win")
+            return [move]
+
+    def avoid_death(moves):
+        snakes = [snake for snake in g.others if len(snake.allowed_moves) == 1 and snake.length >= g.me.length]
+        if len(snakes) == 0: return
+        moves_to_avoid = [a for snake in snakes for a in snake.allowed_moves if a in moves]
+        if len(moves_to_avoid) == 0: return
+        moves = [a for a in moves if a not in moves_to_avoid]
+        if len(moves) != 0:
+            g.decision_path.append("avoid death")
+            return moves
+
+    def kill(moves):
+        for snake in g.others:
+            if snake.length >= g.me.length: continue
+            if len(snake.allowed_moves) != 1: continue
+            kill_move = take_first(snake.allowed_moves)
+            if kill_move not in moves: continue
+            g.decision_path.append(f"kill {snake.name} at {kill_move}")
+            return [kill_move]
+
+    def territory_calculation(moves):
+        flood_game_turn(g)
+
+    def food_correction(moves):
+        if not any([a in g.food for a in moves]) and not any([a in g.food for snake in g.others for a in snake.allowed_moves]): return
+
+        food_impact = dict()
+        for a in moves:
+            me2 = snake_next_step(g.me, a)
+            ng = next_game_turn([me2])
+            food_impact[a] = ng
+            flood_game_turn(ng)
+
+        factor = 0.5
+        def impacted(a):
+            before = set()
+            if a in g.me.move_component:
+                before = g.me.move_component[a]
+            ng: GameTurn = food_impact[a]
+            after = ng.me.territory
+            return  len(after) <= len(before) * factor
+        avoid_moves = [a for a in moves if impacted(a)]
+
+        if len(avoid_moves) == 0: return
+        moves = [a for a in moves if a not in avoid_moves]
+        if len(moves) != 0:
+            g.decision_path.append(f"food impact {avoid_moves}")
+            return moves
+
+    def get_food(moves):
+        #if g.me.health >= 80 and g.me.length > 20: return
+        if len(g.others) == 1 and g.me.length >= g.other.length +5 and g.me.health > 50: return
+
+        good_food = [f for f in g.food if f in g.me.territory and g.me.territory_point_level[f] <= 6]
+        if len(good_food) == 0: return
+        best_food = sorted([(f, g.me.territory_point_level[f]) for f in good_food], key=lambda a: a[1])
+        food_target = take_first(best_food)[0]
+
+        if g.me.territory_connection_number[food_target] == 1: return
+
+        moves = [a for a in moves if tree_distance(a, food_target) >= 0]
+        if len(moves) != 0:
+            g.decision_path.append(f"get food {food_target} via {moves}")
+            return moves
+
+    def avoid_single_suppress_collision(moves):
+        snakes = [snake for snake in g.others if snake.length > g.me.length
+                and distance_pq(snake.head, g.me.head) == 2
+                and distance_vector_abs(snake.head, g.me.head) == (1,1)
+                and len([a for a in g.me.allowed_moves if a in snake.allowed_moves]) == 1 ]
+        if len(snakes) == 0: return
+        moves_to_avoid = [a for snake in snakes for a in moves if a in snake.allowed_moves]
+        if len(moves_to_avoid) == 0: return
+        moves = [a for a in moves if a not in moves_to_avoid]
+        if len(moves) != 0:
+            g.decision_path.append(f"avoid single suppress collision {moves_to_avoid}")
+            return moves
+
+    def avoid_single_confront_collision(moves):
+        snakes = [snake for snake in g.others if snake.length > g.me.length
+                and distance_pq(snake.head, g.me.head) == 2
+                and distance_vector_abs(snake.head, g.me.head) != (1,1)
+                and len([a for a in g.me.allowed_moves if a in snake.allowed_moves]) == 1 ]
+        if len(snakes) == 0: return
+        moves_to_avoid = [a for snake in snakes for a in moves if a in snake.allowed_moves]
+        if len(moves_to_avoid) == 0: return
+        moves = [a for a in moves if a not in moves_to_avoid]
+        if len(moves) != 0:
+            g.decision_path.append(f"avoid single confront collision {moves_to_avoid}")
+            return moves
+
+    def snake_next_step(snake: Snake, move):
+        snake2 = Snake(snake.name, [move]+snake.body[:-1], snake.health-1)
+        if move in g.food:
+            snake2.body.append(snake2.tail)
+            snake2.health = 100
+        return snake2
 
     def killer_confront(moves):
         killers = [snake for snake in g.others if True
@@ -606,96 +704,6 @@ def main(game_state, log=True):
         if len(shortest_moves) != 0:
             g.decision_path.append(f"simple territory move {target}")
             return shortest_moves
-
-    def ________OTHER_MOVE________():
-        return
-
-    def turn_0(moves):
-        if g.turn != 0: return
-        border_move = [a for a in moves if on_border(a)]
-        if len(border_move) != 0:
-            return border_move
-        return moves
-
-    def win(moves):
-        if len(g.others) != 1: return
-        if len(g.other.allowed_moves) != 1: return
-        if g.me.length <= g.other.length: return
-        move = g.other.allowed_moves[0]
-        if move in moves:
-            g.decision_path.append("win")
-            return [move]
-
-    def avoid_death(moves):
-        snakes = [snake for snake in g.others if len(snake.allowed_moves) == 1 and snake.length >= g.me.length]
-        if len(snakes) == 0: return
-        moves_to_avoid = [a for snake in snakes for a in snake.allowed_moves if a in moves]
-        if len(moves_to_avoid) == 0: return
-        moves = [a for a in moves if a not in moves_to_avoid]
-        if len(moves) != 0:
-            g.decision_path.append("avoid death")
-            return moves
-
-    def kill(moves):
-        for snake in g.others:
-            if snake.length >= g.me.length: continue
-            if len(snake.allowed_moves) != 1: continue
-            kill_move = take_first(snake.allowed_moves)
-            if kill_move not in moves: continue
-            g.decision_path.append(f"kill {snake.name} at {kill_move}")
-            return [kill_move]
-
-    def get_food(moves):
-        #if g.me.health >= 80 and g.me.length > 20: return
-        if len(g.others) == 1 and g.me.length >= g.other.length +5 and g.me.health > 50: return
-
-        good_food = [f for f in g.food if f in g.me.territory and g.me.territory_point_level[f] <= 6]
-        if len(good_food) == 0: return
-        best_food = sorted([(f, g.me.territory_point_level[f]) for f in good_food], key=lambda a: a[1])
-        food_target = take_first(best_food)[0]
-
-        if g.me.territory_connection_number[food_target] == 1: return
-
-        moves = [a for a in moves if tree_distance(a, food_target) >= 0]
-        if len(moves) != 0:
-            g.decision_path.append(f"get food {food_target} via {moves}")
-            return moves
-
-    def undecided(moves):
-        g.decision_path.append(f"undecided {moves}")
-
-    def avoid_single_suppress_collision(moves):
-        snakes = [snake for snake in g.others if snake.length > g.me.length
-                and distance_pq(snake.head, g.me.head) == 2
-                and distance_vector_abs(snake.head, g.me.head) == (1,1)
-                and len([a for a in g.me.allowed_moves if a in snake.allowed_moves]) == 1 ]
-        if len(snakes) == 0: return
-        moves_to_avoid = [a for snake in snakes for a in moves if a in snake.allowed_moves]
-        if len(moves_to_avoid) == 0: return
-        moves = [a for a in moves if a not in moves_to_avoid]
-        if len(moves) != 0:
-            g.decision_path.append(f"avoid single suppress collision {moves_to_avoid}")
-            return moves
-
-    def avoid_single_confront_collision(moves):
-        snakes = [snake for snake in g.others if snake.length > g.me.length
-                and distance_pq(snake.head, g.me.head) == 2
-                and distance_vector_abs(snake.head, g.me.head) != (1,1)
-                and len([a for a in g.me.allowed_moves if a in snake.allowed_moves]) == 1 ]
-        if len(snakes) == 0: return
-        moves_to_avoid = [a for snake in snakes for a in moves if a in snake.allowed_moves]
-        if len(moves_to_avoid) == 0: return
-        moves = [a for a in moves if a not in moves_to_avoid]
-        if len(moves) != 0:
-            g.decision_path.append(f"avoid single confront collision {moves_to_avoid}")
-            return moves
-
-    def snake_next_step(snake: Snake, move):
-        snake2 = Snake(snake.name, [move]+snake.body[:-1], snake.health-1)
-        if move in g.food:
-            snake2.body.append(snake2.tail)
-            snake2.health = 100
-        return snake2
 
     def ________KILLS________():
         return
@@ -901,16 +909,6 @@ def main(game_state, log=True):
 
         return len(g.me.move_groups)
 
-    def group_territory(move_group):
-        if len(move_group) == 1:
-            a = take_first(move_group)
-            return g.me.reachable_set[a]
-        #two elements
-        a,b = move_group
-        set_a = g.me.reachable_set[a]
-        set_b = g.me.reachable_set[b]
-        return set_a.union(set_b)
-
     def split_choice(moves):
         if ngroup(moves) <= 1: return
 
@@ -976,29 +974,6 @@ def main(game_state, log=True):
         if len(good_moves) != 0:
             g.decision_path.append(f"split take large enough area {good_moves}")
             return good_moves
-
-    def flood_wayout(start, area):
-        #start is a set of starting points
-        #area is total area - total set of points
-        #result is layers each of which is a dict key by points in this layer values are two list
-        #one is points from previous layer one is points to next layer
-
-        front = start
-        remaining = {p for p in area} #need a copy
-        layer = {q: ([], []) for q in front}
-        layers = [layer]
-
-        while True:
-            front_pair = [(p, q) for p in front for q in adj_cells(p) if q in remaining]
-            if len(front_pair) == 0: break
-            front = {q for p,q in front_pair}
-            remaining -= front
-            layer = {q: ([], []) for q in front}
-            for p,q in front_pair:
-                layer[q][0].append(p)
-                layers[-1][p][1].append(q)
-            layers.append(layer)
-        return layers, remaining
 
     def wayout(moves):
         #if len(g.me.all_border) != 0: return
