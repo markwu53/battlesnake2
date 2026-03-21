@@ -92,12 +92,13 @@ def main(game_state, log=True):
 
             , get_food
 
-            , (simple_territory_move)
+            , cond(g.me.length <= 6)(prefer_not(on_border))
+            , cond(g.me.length >= 8)(simple_territory_move)
+            , cond(g.me.length >= 8)(prefer(stick_to_body))
+            , prefer(is_straight)
 
             , undecided
-            # , prefer_off_border
-            , prefer(stick_to_body)
-            , prefer(is_straight)
+
         ])(moves)
 
     def ________CONTROL_FLOW________():
@@ -165,6 +166,30 @@ def main(game_state, log=True):
             return fc
         return fn
 
+    def take_first_group(key):
+        def fn(lst):
+            if len(lst) == 0: return lst
+            lst_ext = [(a, key(a)) for a in lst]
+            min_eval = min([v for a,v in lst_ext])
+            return [a for a,v in lst_ext if v == min_eval]
+        return fn
+
+    def negate(decide):
+        def fn(a):
+            return not decide(a)
+        return fn
+
+    def prefer_not(decide):
+        return prefer(negate(decide))
+
+    def prefer(decide):
+        def key(a):
+            return 0 if decide(a) else 1
+        return take_first_group(key)
+
+    def ________GAME_UTILS________():
+        return
+
     def print_moves(f):
         def fn(moves):
             msg = (f"before: {moves}")
@@ -173,9 +198,6 @@ def main(game_state, log=True):
             print(msg)
             return moves
         return fn
-
-    def ________GAME_UTILS________():
-        return
 
     def pos_on_board(pos):
         x,y = pos
@@ -254,19 +276,6 @@ def main(game_state, log=True):
         def fn(moves):
             print(f"{msg}: {moves}")
         return fn
-
-    def take_first_group(key):
-        def fn(lst):
-            if len(lst) == 0: return lst
-            lst_ext = [(a, key(a)) for a in lst]
-            min_eval = min([v for a,v in lst_ext])
-            return [a for a,v in lst_ext if v == min_eval]
-        return fn
-
-    def prefer(decide):
-        def key(a):
-            return 0 if decide(a) else 1
-        return take_first_group(key)
 
     def is_straight(a):
         return get_adjacent_dir(g.me.head, a) == get_adjacent_dir(g.me.neck, g.me.head)
@@ -654,16 +663,6 @@ def main(game_state, log=True):
 
     def undecided(moves):
         g.decision_path.append(f"undecided {moves}")
-
-    def prefer_off_border(moves):
-        moves = [a for a in moves if not on_border(a)]
-        if len(moves) != 0:
-            return moves
-            
-    def prefer_stick_to_body(moves):
-        def stick_to_body(a):
-            return any([is_adjacent(a, c) for c in g.me.body if c != g.me.head])
-        return prefer(stick_to_body)(moves)
 
     def avoid_single_suppress_collision(moves):
         snakes = [snake for snake in g.others if snake.length > g.me.length
