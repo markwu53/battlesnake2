@@ -247,6 +247,9 @@ def prefer(decide):
         return 0 if decide(a) else 1
     return take_first_group(key)
 
+def is_straight(a):
+    return get_adjacent_dir(g.me.head, a) == get_adjacent_dir(g.me.neck, g.me.head)
+
 def stick_to_body(a):
     return any([is_adjacent(a, c) for c in g.me.body if c != g.me.head])
 
@@ -568,11 +571,6 @@ def prefer_off_border(moves):
     if len(moves) != 0:
         return moves
         
-def prefer_go_straight(moves):
-    moves = [a for a in moves if get_adjacent_dir(g.me.head, a) == get_adjacent_dir(g.me.neck, g.me.head)]
-    if len(moves) != 0:
-        return moves
-
 def prefer_stick_to_body(moves):
     def stick_to_body(a):
         return any([is_adjacent(a, c) for c in g.me.body if c != g.me.head])
@@ -1120,8 +1118,8 @@ def decision_flow(moves):
 
         , undecided
         # , prefer_off_border
-        # , prefer_go_straight
         , prefer(stick_to_body)
+        , prefer(is_straight)
     ])(moves)
 
 
