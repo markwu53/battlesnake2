@@ -1119,7 +1119,7 @@ def decision_flow(moves):
         , (simple_territory_move)
 
         , undecided
-        , prefer_off_border
+        # , prefer_off_border
         # , prefer_go_straight
         , prefer(stick_to_body)
     ])(moves)
