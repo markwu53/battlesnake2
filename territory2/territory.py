@@ -763,9 +763,6 @@ def main(game_state, log=True):
 
     def suppress_situation(killer: Snake, target: Snake):
         if len(target.all_border) != len(target.to_snake_border[killer.head]): return
-        killer_border = killer.to_snake_border[target.head]
-        killer_border = sorted(killer_border, key=lambda p: killer.territory_point_level[p])
-        if len(killer_border) == 0: return
 
         if not all([len(layer) == 1 for layer in target.territory_layers]): return
 
@@ -773,6 +770,10 @@ def main(game_state, log=True):
         target_border = sorted(target_border, key=lambda p: target.territory_point_level[p])
         straight_line = is_straight_line(target_border)
         if not straight_line: return
+
+        killer_border = killer.to_snake_border[target.head]
+        killer_border = sorted(killer_border, key=lambda p: killer.territory_point_level[p])
+        if len(killer_border) == 0: return
 
         first_point = take_first(killer_border)
         return first_point
@@ -784,7 +785,6 @@ def main(game_state, log=True):
 
     def confine_situation(killer: Snake, target: Snake, factor):
         if len(target.all_border) != len(target.to_snake_border[killer.head]): return
-
 
         #check straight line
         target_border = target.to_snake_border[killer.head]
