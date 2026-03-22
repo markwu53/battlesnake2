@@ -255,6 +255,10 @@ def main(game_state, log=True):
         x,y = p
         return (abs(x), abs(y))
 
+    def sum_xy(p):
+        x,y = p
+        return x+y
+
     def distance_vector_abs(p, q):
         return abs_pos(sub_pos(p, q))
 
@@ -727,12 +731,25 @@ def main(game_state, log=True):
             return confront_moves
         return fn
 
-    def simple_territory_move(moves):
+    def simple_territory_move2(moves):
         if len(g.me.all_border) == 0: return
         border = [a for a in g.me.all_border if g.me.territory_connection_number[a] != 1]
         if len(border) == 0: return
         min_distance = min([g.me.territory_point_level[p] for p in border])
         target = [p for p in border if g.me.territory_point_level[p] == min_distance]
+        shortest_moves = list({a for a in moves for p in target if tree_distance(a, p) >= 0})
+        if len(shortest_moves) != 0:
+            g.decision_path.append(f"simple territory move {target}")
+            return shortest_moves
+
+    def simple_territory_move(moves):
+        snakes = [snake for snake in g.others if snake.length < g.me.length and len(g.me.to_snake_border[snake.head]) != 0]
+        if len(snakes) == 0: return
+        border = set()
+        for snake in snakes:
+            border.update(g.me.to_snake_border[snake.head])
+        target = take_first_group(lambda p: g.me.territory_point_level[p])(border)
+        target = take_first_group(lambda p: -sum_xy(p))(border)
         shortest_moves = list({a for a in moves for p in target if tree_distance(a, p) >= 0})
         if len(shortest_moves) != 0:
             g.decision_path.append(f"simple territory move {target}")
