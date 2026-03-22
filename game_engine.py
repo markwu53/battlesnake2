@@ -3,7 +3,6 @@
 from territory.territory import Snake
 import territory.territory as territory
 import territory2.territory as territory2
-import territory3.territory as territory3
 import territory_plan.territory as territory_plan
 
 import random, time, uuid
