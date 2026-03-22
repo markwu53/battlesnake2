@@ -93,6 +93,7 @@ def main(game_state, log=True):
 
             , (get_food)
 
+            , prefer(in_territory)
             , cond(g.me.length <= 7)(prefer_not(on_border))
             , cond(g.me.length >= 8)(simple_territory_move)
             , cond(g.me.length >= 8)(prefer(stick_to_body))
@@ -273,6 +274,9 @@ def main(game_state, log=True):
         def fn(moves):
             print(f"{msg}: {moves}")
         return fn
+
+    def in_territory(a):
+        return a in g.me.territory
 
     def is_straight(a):
         return get_adjacent_dir(g.me.head, a) == get_adjacent_dir(g.me.neck, g.me.head)
