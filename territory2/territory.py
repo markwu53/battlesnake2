@@ -778,6 +778,11 @@ def main(game_state, log=True):
             if len(come) == 0: return
             front = take_first(list(come))
 
+    def is_straight_line(lst):
+        if len(lst) <= 1: return True
+        result = all([is_adjacent(p,q) for p,q in zip(lst[:-1], lst[1:])])
+        return result
+
     def suppress_situation(killer: Snake, target: Snake):
         if len(target.all_border) != len(target.to_snake_border[killer.head]): return
 
@@ -795,12 +800,8 @@ def main(game_state, log=True):
         if abs(len(killer_border)-len(target_border)) > 1: return
 
         first_point = take_first(killer_border)
-        return first_point
-
-    def is_straight_line(lst):
-        if len(lst) <= 1: return True
-        result = all([is_adjacent(p,q) for p,q in zip(lst[:-1], lst[1:])])
-        return result
+        last_point = killer_border[-1]
+        return first_point, last_point
 
     def confine_situation(killer: Snake, target: Snake, factor):
         if len(target.all_border) != len(target.to_snake_border[killer.head]): return
@@ -827,10 +828,11 @@ def main(game_state, log=True):
 
     def suppress_kill(moves):
         for snake in g.others:
-            first_point = suppress_situation(g.me, snake)
-            if not first_point: continue
-            if g.me.length <= snake.length:
-                first_point = backtrack(first_point)
+            result = suppress_situation(g.me, snake)
+            if not result: continue
+            first_point, last_point = result
+            if g.me.territory_connection_number[last_point] == 1:
+                first_point = backtrack(last_point)
             shortest_moves = [a for a in g.me.allowed_moves if tree_distance(a, first_point) >= 0]
             moves = [a for a in moves if a in shortest_moves]
             if len(moves) != 0:
@@ -847,9 +849,8 @@ def main(game_state, log=True):
                 result = confine_situation(g.me, snake, factor)
                 if not result: continue
                 first_point, last_point = result
-                if g.me.territory_connection_number[last_point] == 1: continue
-                if g.me.length <= snake.length:
-                    first_point = backtrack(first_point)
+                if g.me.territory_connection_number[last_point] == 1:
+                    first_point = backtrack(last_point)
                 shortest_moves = [a for a in g.me.allowed_moves if tree_distance(a, first_point) >= 0]
                 moves = [a for a in moves if a in shortest_moves]
                 if len(moves) != 0:
@@ -1295,6 +1296,7 @@ if __name__ == "__main__":
     log = {'id': 'daa67bff-103c-4a8f-8d2c-8c7660e7f7e9', 'turn': 204, 'me': {'name': 'mark_snake', 'health': 98, 'length': 21, 'body': [(0, 0), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (1, 6), (1, 5), (1, 4), (1, 3), (2, 3), (2, 4), (3, 4), (3, 3), (3, 2), (3, 1), (3, 0), (4, 0), (4, 1), (5, 1)], 'id': 'gs_8Xx3FKwy6PgtgyQWSRDMfYxc'}, 'others': [{'name': 'go-st', 'health': 99, 'length': 19, 'body': [(9, 7), (10, 7), (10, 8), (10, 9), (9, 9), (8, 9), (7, 9), (7, 8), (6, 8), (6, 7), (6, 6), (5, 6), (5, 5), (5, 4), (4, 4), (4, 5), (4, 6), (4, 7), (3, 7)], 'id': 'gs_MGfGdS7TwvQj6FRRv9kqRfhT'}], 'food': [(10, 10), (6, 4)], 'module': 'territory', 'decision_path': ['1v1'], 'next_coord': (1, 0), 'next_move': 'right', 'time': '0.000s'}
     log = {'id': '761e1c0f-5480-4627-91b1-50043eee7bc0', 'turn': 457, 'me': {'name': 'mark_snake', 'health': 50, 'length': 32, 'body': [(2, 7), (1, 7), (1, 6), (2, 6), (3, 6), (3, 5), (2, 5), (1, 5), (0, 5), (0, 4), (0, 3), (1, 3), (1, 4), (2, 4), (2, 3), (2, 2), (2, 1), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0), (6, 1), (6, 2), (6, 3), (6, 4), (6, 5), (6, 6), (6, 7), (5, 7), (4, 7), (3, 7)], 'id': 'gs_QWM8qqwXhkR4Vb3x9CHdvkvD'}, 'others': [{'name': 'Sandworm', 'health': 88, 'length': 22, 'body': [(7, 8), (6, 8), (6, 9), (5, 9), (5, 10), (6, 10), (7, 10), (8, 10), (9, 10), (10, 10), (10, 9), (10, 8), (10, 7), (10, 6), (10, 5), (10, 4), (10, 3), (10, 2), (10, 1), (10, 0), (9, 0), (8, 0)], 'id': 'gs_G8H4QT4qxtvrhWxPDPWpdxQR'}], 'food': [(1, 10), (3, 1), (1, 1), (1, 9), (8, 3), (9, 1), (0, 6), (4, 5)], 'module': 'territory', 'decision_path': ['1v1', 'get food (1, 9) via [(2, 8)]'], 'next_coord': (2, 8), 'next_move': 'up', 'time': '0.002s'}
     log = {'id': '2cd48f98-2e99-4ba1-bfed-93aa63888ba9', 'turn': 284, 'me': {'name': 'mark_snake', 'health': 85, 'length': 26, 'body': [(9, 7), (9, 8), (9, 9), (9, 10), (8, 10), (7, 10), (6, 10), (5, 10), (4, 10), (3, 10), (2, 10), (1, 10), (0, 10), (0, 9), (1, 9), (2, 9), (3, 9), (4, 9), (4, 8), (4, 7), (4, 6), (4, 5), (5, 5), (6, 5), (7, 5), (8, 5)], 'id': 'gs_bwhb4SwFgM77SKRxq7bmmhRP'}, 'others': [{'name': 'Gregory Megory', 'health': 99, 'length': 24, 'body': [(9, 3), (9, 2), (10, 2), (10, 1), (10, 0), (9, 0), (9, 1), (8, 1), (8, 0), (7, 0), (6, 0), (5, 0), (4, 0), (4, 1), (5, 1), (5, 2), (6, 2), (7, 2), (7, 3), (7, 4), (6, 4), (6, 3), (5, 3), (5, 4)], 'id': 'gs_GB3cj63W6SWHBP8gRDG8qSb3'}], 'food': [(2, 0), (10, 7), (10, 4), (1, 1), (1, 5), (4, 2)], 'module': 'territory', 'decision_path': ['1v1', 'get food (10, 7) via [(10, 7)]'], 'next_coord': (10, 7), 'next_move': 'right', 'time': '0.011s'}
+    log = {'id': '24986e4e-ac2c-4ec1-99bb-cc0d08b5c839', 'turn': 298, 'me': {'name': 'mark_snake', 'health': 74, 'length': 24, 'body': [(8, 4), (7, 4), (6, 4), (5, 4), (4, 4), (3, 4), (2, 4), (1, 4), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8), (1, 8), (2, 8), (3, 8), (4, 8), (5, 8), (6, 8), (7, 8), (8, 8), (8, 7), (8, 6), (8, 5)], 'id': 'gs_tppmdtcFpyQpQyjGDhqFGGYF'}, 'others': [{'name': 'go-st', 'health': 86, 'length': 18, 'body': [(8, 2), (8, 3), (7, 3), (6, 3), (5, 3), (5, 2), (5, 1), (6, 1), (7, 1), (8, 1), (9, 1), (10, 1), (10, 2), (10, 3), (10, 4), (10, 5), (10, 6), (10, 7)], 'id': 'gs_MWwFVJxk9rXmHgvXdFK43tRd'}], 'food': [(10, 0), (7, 5), (2, 5), (3, 0), (1, 6)], 'module': 'territory', 'decision_path': ['1v1'], 'next_coord': (9, 4), 'next_move': 'right', 'time': '0.003s'}
 
 
     game_state = init_from_log(log)
