@@ -620,8 +620,7 @@ def main(game_state, log=True):
 
     def get_food(moves):
         #if g.me.health >= 80 and g.me.length > 20: return
-        #if len(g.others) == 1 and g.me.length >= g.other.length +5 and g.me.health > 50: return
-        if g.me.length >= max([snake.length for snake in g.others]) +5 and g.me.health > 50: return
+        if len(g.others) == 1 and g.me.length >= g.other.length +5 and g.me.health > 50: return
 
         good_food = [f for f in g.food if f in g.me.territory and g.me.territory_point_level[f] <= 6]
         if len(good_food) == 0: return
@@ -812,8 +811,8 @@ def main(game_state, log=True):
             return g.me.to_snake_border_distance[snake.head]
         def type_rank(st):
             snake, tail = st
-            if snake.length > g.me.length: return 1
-            if snake.length < g.me.length: return 0
+            if snake.length > g.me.length: return 0
+            if snake.length < g.me.length: return 1
             return 2
         def length_rank(st):
             snake, tail = st
@@ -856,7 +855,6 @@ def main(game_state, log=True):
         snake, tail = st
         target = take_first(tail)
         shortest_moves = list({a for a in moves if tree_distance(a, target) >= 0})
-        shortest_moves = prefer(lambda a: a in g.food)(shortest_moves)
         if len(shortest_moves) != 0:
             g.decision_path.append(f"border analysis territory move {target}")
             return shortest_moves
