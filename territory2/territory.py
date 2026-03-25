@@ -90,11 +90,11 @@ def main(game_state, log=True):
             , split_choice
             , wayout
 
-            # , killer_crowded
-            # , cond(g.me.length >= 8)(killer_confront)
-            # , confront_push
-            # , equal_single_collision
-            , border_analysis_move(2)
+            , killer_crowded
+            , cond(g.me.length >= 8)(killer_confront)
+            , confront_push
+            , equal_single_collision
+            # , border_analysis_move(2)
 
             , (get_food)
 
