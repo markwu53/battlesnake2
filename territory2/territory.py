@@ -972,7 +972,6 @@ def main(game_state, log=True):
                 tails = g.me.to_snake_border_tails[snake.head]
                 if len(tails) != 1: continue
                 tail = take_first(tails)
-                print(tail)
                 first_point, last_point = tail[0], tail[-1]
                 if g.me.territory_connection_number[last_point] == 1:
                     first_point = backtrack(last_point)
