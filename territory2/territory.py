@@ -810,7 +810,10 @@ def main(game_state, log=True):
     def choose_border_tail(snake_tails, distance):
         def distance_rank(st):
             snake, tail = st
-            return g.me.to_snake_border_distance[snake.head]
+            rank = g.me.to_snake_border_distance[snake.head]
+            if g.me.length > snake.length:
+                rank -= 1
+            return rank
         def type_rank(st):
             snake, tail = st
             if snake.length > g.me.length: return 1
@@ -852,8 +855,8 @@ def main(game_state, log=True):
         if len(snake_tails) == 0: return
 
         snake_tails = take_first_group(distance_rank)(snake_tails)
-        snake_tails = take_first_group(longer)(snake_tails)
-        snake_tails = take_first_group(shorter)(snake_tails)
+        snake_tails = prefer(longer)(snake_tails)
+        snake_tails = prefer(shorter)(snake_tails)
         snake_tails = take_first_group(length_rank, reverse=True)(snake_tails)
         return take_first(snake_tails)
 
