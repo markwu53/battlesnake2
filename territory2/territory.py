@@ -90,15 +90,16 @@ def main(game_state, log=True):
             , split_choice
             , wayout
 
-            , killer_crowded
-            , cond(g.me.length >= 8)(killer_confront)
-            , confront_push
-            , equal_single_collision
+            # , killer_crowded
+            # , cond(g.me.length >= 8)(killer_confront)
+            # , confront_push
+            # , equal_single_collision
+            , border_analysis_move(2)
 
             , (get_food)
 
             # , (simple_territory_move)
-            , border_analysis_move
+            , border_analysis_move(4)
             , prefer(in_territory)
             , cond(g.me.length <= 7)(prefer_not(on_border))
             , prefer(is_straight)
@@ -806,7 +807,7 @@ def main(game_state, log=True):
                 snake.to_snake_border_distance[snake2.head] = min_distance
                 snake.to_snake_border_tails[snake2.head] = border_tails
 
-    def choose_border_tail(snake_tails):
+    def choose_border_tail(snake_tails, distance):
         def distance_rank(st):
             snake, tail = st
             return g.me.to_snake_border_distance[snake.head]
@@ -821,6 +822,12 @@ def main(game_state, log=True):
         def dead_end(st):
             snake, tail = st
             return g.me.territory_connection_number[tail[-1]] == 1
+        def within(distance):
+            def fn(st):
+                snake, tail = st
+                d = g.me.to_snake_border_distance[snake.head]
+                return d <= distance
+            return fn
         def connected_to_other_killer(st):
             snake, tail = st
             last_point = tail[-1]
@@ -833,6 +840,7 @@ def main(game_state, log=True):
                         return True
             return False
 
+        snake_tails = pick(within(distance))(snake_tails)
         snake_tails = pick_not(connected_to_other_killer)(snake_tails)
         snake_tails = pick_not(dead_end)(snake_tails)
         if len(snake_tails) == 0: return
@@ -842,24 +850,26 @@ def main(game_state, log=True):
         snake_tails = take_first_group(length_rank, reverse=True)(snake_tails)
         return take_first(snake_tails)
 
-    def border_analysis_move(moves):
-        snake_tails = [(snake, tail) for snake in g.others if True
-                    and len(g.me.to_snake_border[snake.head]) != 0
-                    and g.me.to_snake_border_distance[snake.head] != 0 
-                  for tail in g.me.to_snake_border_tails[snake.head]
-                  ]
-        if len(snake_tails) == 0: return
+    def border_analysis_move(distance):
+        def fn(moves):
+            snake_tails = [(snake, tail) for snake in g.others if True
+                        and len(g.me.to_snake_border[snake.head]) != 0
+                        and g.me.to_snake_border_distance[snake.head] != 0 
+                    for tail in g.me.to_snake_border_tails[snake.head]
+                    ]
+            if len(snake_tails) == 0: return
 
-        st = choose_border_tail(snake_tails)
-        if st is None: return
+            st = choose_border_tail(snake_tails, distance)
+            if st is None: return
 
-        snake, tail = st
-        target = take_first(tail)
-        shortest_moves = list({a for a in moves if tree_distance(a, target) >= 0})
-        shortest_moves = prefer(lambda a: a in g.food)(shortest_moves)
-        if len(shortest_moves) != 0:
-            g.decision_path.append(f"border analysis territory move {target}")
-            return shortest_moves
+            snake, tail = st
+            target = take_first(tail)
+            shortest_moves = list({a for a in moves if tree_distance(a, target) >= 0})
+            shortest_moves = prefer(lambda a: a in g.food)(shortest_moves)
+            if len(shortest_moves) != 0:
+                g.decision_path.append(f"border analysis move within {distance} go {target}")
+                return shortest_moves
+        return fn
 
     def simple_territory_move(moves):
         if len(g.me.all_border) == 0: return
