@@ -816,6 +816,12 @@ def main(game_state, log=True):
             if snake.length > g.me.length: return 1
             if snake.length < g.me.length: return 0
             return 2
+        def longer(st):
+            snake, tail = st
+            return snake.length > g.me.length
+        def shorter(st):
+            snake, tail = st
+            return snake.length < g.me.length
         def length_rank(st):
             snake, tail = st
             return len(tail)
@@ -840,13 +846,14 @@ def main(game_state, log=True):
                         return True
             return False
 
-        snake_tails = pick(within(distance))(snake_tails)
+        #snake_tails = pick(within(distance))(snake_tails)
         snake_tails = pick_not(connected_to_other_killer)(snake_tails)
         snake_tails = pick_not(dead_end)(snake_tails)
         if len(snake_tails) == 0: return
 
         snake_tails = take_first_group(distance_rank)(snake_tails)
-        snake_tails = take_first_group(type_rank)(snake_tails)
+        snake_tails = take_first_group(longer)(snake_tails)
+        snake_tails = take_first_group(shorter)(snake_tails)
         snake_tails = take_first_group(length_rank, reverse=True)(snake_tails)
         return take_first(snake_tails)
 
