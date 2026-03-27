@@ -1266,7 +1266,7 @@ def main(game_state, log=True):
         ])(moves)
 
     def split_avoid_suppress(moves):
-        if g.me.length < 6: return
+        if g.me.length <= 10: return
         if any([snake for snake in g.others if True
                 and distance_vector_abs(snake.head, g.me.head) == (1,1) 
                 and len([a for a in g.me.allowed_moves if a in snake.allowed_moves]) == 2]):
