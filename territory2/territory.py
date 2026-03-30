@@ -545,7 +545,7 @@ def main(game_state, log=True):
                 if p == snake.head: continue
 
                 # stopped by equal length snake is not a deadend
-                if all([ 
+                if any([ 
                     len(g.territories[q][0]) > 1 
                     for q in adj_cells(p) if True
                         and q in g.territories 
