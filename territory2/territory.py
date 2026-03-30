@@ -93,19 +93,18 @@ def main(game_state, log=True):
 
             , split_avoid_definite_confine
             , avoid_single_confront_collision
-            , (avoid_deadend)
-            , avoid_equal_deadend
 
             # , cond(len(g.others) <= 2)(avoid_straight_line_confine_kill)
             , straight_line_confine_kill(0.8)
 
+            , (avoid_deadend)
+            , avoid_equal_deadend
             , choose_collision
             , avoid_collision
-            , split_avoid_possible_confine
-
             , (avoid_deadend2)
 
             , (food_correction)
+            , split_avoid_possible_confine
 
             # , split_choice
             , wayout
