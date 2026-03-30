@@ -567,14 +567,67 @@ def main(game_state, log=True):
         for snake in g.snakes:
             connection_structure = dict()
             dead_ends = {p for p in snake.territory if snake.territory_connection_number[p] == 1 and p != snake.head}
-            passage_points = {p for p in snake.territory if snake.territory_connection_number[p] == 2 and p != snake.head}
+            passage_points = set()
+            for p in snake.territory:
+                if snake.territory_connection_number[p] != 2: continue
+                if p == snake.head: continue
+                a,b = snake.territory_connection_points[p]
+                if distance_vector_abs(a, b) != (1,1):
+                    passage_points.add(p)
+                    continue
+                if len([p for p in adj_cells(a) if p in adj_cells(b) and p in snake.territory]) == 1:
+                    passage_points.add(p)
+                    continue
             passage_connecting_pairs = { (first, second)
                                         for p in passage_points for q in passage_points
                                         if (q in snake.territory_connection_points[p] or p in snake.territory_connection_points[q])
                                         for first, second in sorted((p,q)) }
-            # assume no loop
-            # here I want to get the connecting strings from the connecting pairs
-            
+            connect_1 = { first : second for first, second in passage_connecting_pairs }
+            connect_2 = { second : first for first, second in passage_connecting_pairs }
+            occurrence = dict()
+            for pair in passage_connecting_pairs:
+                for p in pair:
+                    if p not in occurrence:
+                        occurrence[p] = 1
+                    occurrence[p] += 1
+            terminal_points = {p for p in occurrence if occurrence[p] == 1}
+
+            passage_strings = []
+            while len(terminal_points) != 0:
+                start = take_first(sorted(list(terminal_points)))
+                string = [start]
+                terminal_points.remove(start)
+                while True:
+                    if start in connect_1:
+                        end = connect_1[start]
+                    else:
+                        end = connect_2[start]
+                    string.append(end)
+                    if end in terminal_points:
+                        terminal_points.remove(end)
+                        break
+                    start = end
+                passage_strings.append(string)
+            singles = passage_points.difference({p for string in passage_strings for p in string})
+            passage_strings += [[p] for p in singles]
+
+            block_points = {p for p in snake.territory if True 
+                            and p != snake.head 
+                            and p not in dead_ends 
+                            and p not in passage_points}
+
+            block_components = []
+            while len(block_points) != 0:
+                start = take_first(sorted(list(block_points)))
+                component = {start}
+                while True:
+                    front = { q for p in component for q in snake.territory_connection_points[p] if True 
+                             and q in block_points
+                             and q not in component }
+                    if len(front) == 0: break
+                    component.update(front)
+                block_components.append(component)
+                block_points.difference_update(component)
 
     def territory_split_trimmed(g: GameTurn):
         for snake in g.snakes:
@@ -1046,6 +1099,8 @@ def main(game_state, log=True):
         return fn
 
     def avoid_deadend(moves):
+        if g.me.length <= 4: return
+
         deadends = {p for p in g.me.deadend if g.me.deadend_exposure[p] < 2}
         deadend_strings = [g.me.deadend_string[d] for d in deadends]
         deadend_strings_to_avoid = [path for path in deadend_strings if path[-1] in moves]
@@ -1465,6 +1520,7 @@ if __name__ == "__main__":
     log = {'id': 'a9f67802-a141-4cc5-b0ca-f7e2f904aebd', 'turn': 34, 'me': {'name': 'mark_snake_test RED', 'health': 98, 'length': 5, 'body': [(8, 4), (8, 5), (8, 6), (7, 6), (7, 7)], 'id': 'mark_snake_test RED'}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 86, 'length': 8, 'body': [(2, 10), (1, 10), (1, 9), (1, 8), (1, 7), (1, 6), (1, 5), (1, 4)], 'id': 'mark_snake_test BLUE'}, {'name': 'mark_snake_test GREEN', 'health': 99, 'length': 7, 'body': [(6, 2), (7, 2), (8, 2), (8, 1), (9, 1), (9, 2), (9, 3)], 'id': 'mark_snake_test GREEN'}, {'name': 'mark_snake_test YELLOW', 'health': 92, 'length': 6, 'body': [(4, 2), (5, 2), (5, 3), (5, 4), (5, 5), (5, 6)], 'id': 'mark_snake_test YELLOW'}], 'food': [(6, 0)], 'module': 'territory', 'decision_path': ['1vn', 'border analysis move go (8, 3)'], 'next_coord': (8, 3), 'next_move': 'down', 'time': '0.002s'}
     log = {'id': '1aea6484-90d4-424f-ae85-e416ee651166', 'turn': 79, 'me': {'name': 'mark_snake_test RED', 'health': 57, 'length': 9, 'body': [(2, 3), (1, 3), (0, 3), (0, 4), (0, 5), (1, 5), (2, 5), (3, 5), (4, 5)], 'id': 'mark_snake_test RED'}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 90, 'length': 13, 'body': [(3, 2), (3, 1), (3, 0), (4, 0), (5, 0), (6, 0), (7, 0), (8, 0), (9, 0), (10, 0), (10, 1), (10, 2), (10, 3)], 'id': 'mark_snake_test BLUE'}, {'name': 'mark_snake_test YELLOW', 'health': 96, 'length': 12, 'body': [(0, 9), (0, 8), (0, 7), (0, 6), (1, 6), (1, 7), (2, 7), (3, 7), (4, 7), (5, 7), (5, 8), (6, 8)], 'id': 'mark_snake_test YELLOW'}], 'food': [(5, 9), (8, 6), (2, 10)], 'module': 'territory', 'decision_path': ['1vn', 'avoid deadend [(1, 4)] [(2, 4)]', 'all avoided', 'split take larger area [([(3, 3)], 0), ([(2, 2)], 0)]'], 'next_coord': (3, 3), 'next_move': 'right', 'time': '0.007s'}
     log = {'id': '68037be7-a7cd-408b-b70e-b92b711e4388', 'turn': 87, 'me': {'name': 'mark_snake_test RED', 'health': 88, 'length': 9, 'body': [(1, 4), (1, 5), (1, 6), (2, 6), (2, 5), (3, 5), (4, 5), (4, 4), (4, 3)], 'id': 'mark_snake_test RED'}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 79, 'length': 8, 'body': [(1, 10), (1, 9), (1, 8), (1, 7), (2, 7), (2, 8), (2, 9), (2, 10)], 'id': 'mark_snake_test BLUE'}, {'name': 'mark_snake_test GREEN', 'health': 92, 'length': 10, 'body': [(4, 1), (5, 1), (5, 2), (5, 3), (6, 3), (6, 2), (7, 2), (8, 2), (9, 2), (9, 3)], 'id': 'mark_snake_test GREEN'}, {'name': 'mark_snake_test YELLOW', 'health': 94, 'length': 14, 'body': [(9, 6), (8, 6), (7, 6), (6, 6), (5, 6), (4, 6), (4, 7), (4, 8), (5, 8), (6, 8), (6, 9), (6, 10), (5, 10), (5, 9)], 'id': 'mark_snake_test YELLOW'}], 'food': [(3, 0)], 'module': 'territory', 'decision_path': ['1vn', 'border analysis move go (1, 2)'], 'next_coord': (1, 3), 'next_move': 'down', 'time': '0.003s'}
+    log = {'id': '3171ba04-65d6-44df-868c-293ea48da5d9', 'turn': 34, 'me': {'name': 'mark_snake', 'health': 68, 'length': 4, 'body': [(1, 7), (1, 8), (1, 9), (0, 9)], 'id': 'gs_KgBr4V7h4T48hDyHqhRWdfJG'}, 'others': [{'name': 'Game of Chicken', 'health': 86, 'length': 5, 'body': [(2, 6), (2, 5), (3, 5), (4, 5), (4, 4)], 'id': 'gs_PxhkrDmSGjtBghmg87tWvgDf'}, {'name': '@~~~~@', 'health': 96, 'length': 6, 'body': [(3, 7), (3, 8), (3, 9), (3, 10), (2, 10), (2, 9)], 'id': 'gs_7X3B9bMHt7gSYGD9dPbjdTT3'}, {'name': 'Gregory Megory', 'health': 84, 'length': 6, 'body': [(7, 3), (6, 3), (5, 3), (5, 4), (6, 4), (6, 5)], 'id': 'gs_FrBD3WjRDhWjJj3kpRddMj3f'}], 'food': [(10, 2), (4, 7)], 'module': 'territory', 'decision_path': ['1vn', 'avoid deadend [(0, 10)] moves [(0, 7)]', 'all avoided', 'avoid single confront collision [(2, 7)]'], 'next_coord': (1, 6), 'next_move': 'down', 'time': '0.005s'}
 
     game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
