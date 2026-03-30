@@ -91,10 +91,11 @@ def main(game_state, log=True):
             # , avoid_suppress_kill
             , (avoid_deadend)
             , avoid_equal_deadend
+
             , suppress_kill
-            , avoid_single_confront_collision
 
             , split_avoid_definite_confine
+            , avoid_single_confront_collision
 
             # , cond(len(g.others) <= 2)(avoid_straight_line_confine_kill)
             , straight_line_confine_kill(0.8)
@@ -565,8 +566,9 @@ def main(game_state, log=True):
 
     def territory_connection_structure(g: GameTurn):
         for snake in g.snakes:
-            connection_structure = dict()
+
             dead_ends = {p for p in snake.territory if snake.territory_connection_number[p] == 1 and p != snake.head}
+
             passage_points = set()
             for p in snake.territory:
                 if snake.territory_connection_number[p] != 2: continue
@@ -578,38 +580,27 @@ def main(game_state, log=True):
                 if len([p for p in adj_cells(a) if p in adj_cells(b) and p in snake.territory]) == 1:
                     passage_points.add(p)
                     continue
-            passage_connecting_pairs = { (first, second)
-                                        for p in passage_points for q in passage_points
-                                        if (q in snake.territory_connection_points[p] or p in snake.territory_connection_points[q])
-                                        for first, second in sorted((p,q)) }
-            connect_1 = { first : second for first, second in passage_connecting_pairs }
-            connect_2 = { second : first for first, second in passage_connecting_pairs }
-            occurrence = dict()
-            for pair in passage_connecting_pairs:
-                for p in pair:
-                    if p not in occurrence:
-                        occurrence[p] = 1
-                    occurrence[p] += 1
-            terminal_points = {p for p in occurrence if occurrence[p] == 1}
+
+            passage_single_points = {p for p in passage_points if not any([q in passage_points for q in snake.territory_connection_points[p]])}
+            passage_connection_points = passage_points.difference(passage_single_points)
+            passage_terminal_points = {p for p in passage_connection_points if True
+                                 and len([q for q in snake.territory_connection_points[p] if q in passage_connection_points]) == 1}
 
             passage_strings = []
-            while len(terminal_points) != 0:
-                start = take_first(sorted(list(terminal_points)))
+            while True:
+                if len(passage_terminal_points) == 0: break
+                start = take_first(sorted(list(passage_terminal_points)))
                 string = [start]
-                terminal_points.remove(start)
+                passage_terminal_points.remove(start)
                 while True:
-                    if start in connect_1:
-                        end = connect_1[start]
-                    else:
-                        end = connect_2[start]
-                    string.append(end)
-                    if end in terminal_points:
-                        terminal_points.remove(end)
+                    next_points = [q for q in snake.territory_connection_points[string[-1]] if q in passage_connection_points]
+                    next_point = take_first(next_points)
+                    string.append(next_point)
+                    if next_point in passage_terminal_points:
+                        passage_terminal_points.remove(next_point)
                         break
-                    start = end
                 passage_strings.append(string)
-            singles = passage_points.difference({p for string in passage_strings for p in string})
-            passage_strings += [[p] for p in singles]
+            passage_strings += [[p] for p in passage_single_points]
 
             block_points = {p for p in snake.territory if True 
                             and p != snake.head 
