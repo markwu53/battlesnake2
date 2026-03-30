@@ -106,10 +106,10 @@ def main(game_state, log=True):
             , (food_correction)
             , split_avoid_possible_confine
 
-            # , split_choice
             , wayout
 
             , (get_food)
+            , split_take_larger
 
             , border_analysis_move
             , prefer(in_territory)
@@ -1369,7 +1369,7 @@ def main(game_state, log=True):
             if len(moves) != 0:
                 return moves
 
-    def split_choice(moves):
+    def split_take_larger(moves):
         if ngroup(moves) <= 1: return
 
         moves_ext = []
