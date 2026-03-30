@@ -1110,11 +1110,29 @@ def main(game_state, log=True):
         if len(deadend_strings_to_avoid) == 0: return
 
         g.decision_path.append(f"avoid deadend {deadend_to_avoid} moves {moves_to_avoid}")
-        moves = [a for a in moves if a not in moves_to_avoid]
-        if len(moves) != 0:
+        all_avoid_moves = [a for a in moves if a not in moves_to_avoid]
+        if len(all_avoid_moves) != 0:
             g.decision_path.append(f"all avoided")
-            return moves
+            return all_avoid_moves
 
+        def exposure2(path):
+            deadend = path[0]
+            start = path[-1]
+            exposure = len([q for q in adj_cells(start) if True 
+                            and q in g.territories 
+                            and q not in g.me.territory 
+                            and g.territories[q][1] == g.me.territory_point_level[start]+1])
+            return exposure >= 2
+
+        exposure2_path = [path for path in deadend_strings_to_avoid if exposure2(path)]
+        exposure2_moves = [path[-1] for path in exposure2_path]
+        exposure2_moves = [a for a in moves if a in exposure2_moves]
+        if len(exposure2_moves) == 1:
+            g.decision_path.append(f"only exposure 2 left")
+            return exposure2_moves
+
+        if len(exposure2_moves) > 1:
+            deadend_strings_to_avoid = exposure2_path
         max_length = max([len(path) for path in deadend_strings_to_avoid])
         shorter = [path for path in deadend_strings_to_avoid if len(path) < max_length]
         shorter_deadend = [path[0] for path in shorter]
@@ -1515,6 +1533,7 @@ if __name__ == "__main__":
     log = {'id': '68037be7-a7cd-408b-b70e-b92b711e4388', 'turn': 87, 'me': {'name': 'mark_snake_test RED', 'health': 88, 'length': 9, 'body': [(1, 4), (1, 5), (1, 6), (2, 6), (2, 5), (3, 5), (4, 5), (4, 4), (4, 3)], 'id': 'mark_snake_test RED'}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 79, 'length': 8, 'body': [(1, 10), (1, 9), (1, 8), (1, 7), (2, 7), (2, 8), (2, 9), (2, 10)], 'id': 'mark_snake_test BLUE'}, {'name': 'mark_snake_test GREEN', 'health': 92, 'length': 10, 'body': [(4, 1), (5, 1), (5, 2), (5, 3), (6, 3), (6, 2), (7, 2), (8, 2), (9, 2), (9, 3)], 'id': 'mark_snake_test GREEN'}, {'name': 'mark_snake_test YELLOW', 'health': 94, 'length': 14, 'body': [(9, 6), (8, 6), (7, 6), (6, 6), (5, 6), (4, 6), (4, 7), (4, 8), (5, 8), (6, 8), (6, 9), (6, 10), (5, 10), (5, 9)], 'id': 'mark_snake_test YELLOW'}], 'food': [(3, 0)], 'module': 'territory', 'decision_path': ['1vn', 'border analysis move go (1, 2)'], 'next_coord': (1, 3), 'next_move': 'down', 'time': '0.003s'}
     log = {'id': '3171ba04-65d6-44df-868c-293ea48da5d9', 'turn': 34, 'me': {'name': 'mark_snake', 'health': 68, 'length': 4, 'body': [(1, 7), (1, 8), (1, 9), (0, 9)], 'id': 'gs_KgBr4V7h4T48hDyHqhRWdfJG'}, 'others': [{'name': 'Game of Chicken', 'health': 86, 'length': 5, 'body': [(2, 6), (2, 5), (3, 5), (4, 5), (4, 4)], 'id': 'gs_PxhkrDmSGjtBghmg87tWvgDf'}, {'name': '@~~~~@', 'health': 96, 'length': 6, 'body': [(3, 7), (3, 8), (3, 9), (3, 10), (2, 10), (2, 9)], 'id': 'gs_7X3B9bMHt7gSYGD9dPbjdTT3'}, {'name': 'Gregory Megory', 'health': 84, 'length': 6, 'body': [(7, 3), (6, 3), (5, 3), (5, 4), (6, 4), (6, 5)], 'id': 'gs_FrBD3WjRDhWjJj3kpRddMj3f'}], 'food': [(10, 2), (4, 7)], 'module': 'territory', 'decision_path': ['1vn', 'avoid deadend [(0, 10)] moves [(0, 7)]', 'all avoided', 'avoid single confront collision [(2, 7)]'], 'next_coord': (1, 6), 'next_move': 'down', 'time': '0.005s'}
     log = {'id': 'dd895e16-5c21-4824-903b-151d89f3150c', 'turn': 217, 'me': {'name': 'mark_snake', 'health': 96, 'length': 22, 'body': [(10, 3), (10, 4), (10, 5), (10, 6), (9, 6), (8, 6), (8, 7), (8, 8), (8, 9), (7, 9), (6, 9), (5, 9), (4, 9), (3, 9), (3, 8), (3, 7), (3, 6), (2, 6), (2, 7), (2, 8), (2, 9), (1, 9)], 'id': 'gs_dBVCSRj7xhrfM7HTgGh8rdVV'}, 'others': [{'name': 'SmartyRat', 'health': 74, 'length': 11, 'body': [(0, 5), (0, 4), (0, 3), (1, 3), (1, 4), (1, 5), (2, 5), (3, 5), (3, 4), (2, 4), (2, 3)], 'id': 'gs_Gb8hgbhd6WmyVcYt3SghWtb9'}, {'name': 'HydraOxide', 'health': 74, 'length': 22, 'body': [(5, 2), (6, 2), (6, 3), (6, 4), (6, 5), (7, 5), (7, 4), (7, 3), (7, 2), (8, 2), (9, 2), (9, 1), (8, 1), (7, 1), (6, 1), (5, 1), (4, 1), (4, 0), (5, 0), (6, 0), (7, 0), (8, 0)], 'id': 'gs_3DYk4Vxfd6PRwDqCMRVWQmf8'}], 'food': [(0, 0), (4, 8)], 'module': 'territory', 'decision_path': ['1vn', 'avoid deadend [(7, 0)] moves [(10, 2)]', 'all avoided'], 'next_coord': (9, 3), 'next_move': 'left', 'time': '0.004s'}
+    log = {'id': 'eb56a173-3b7d-45a5-a90d-a4cbebf1cd9e', 'turn': 78, 'me': {'name': 'mark_snake', 'health': 97, 'length': 9, 'body': [(2, 0), (3, 0), (4, 0), (5, 0), (5, 1), (4, 1), (4, 2), (3, 2), (2, 2)], 'id': 'gs_bKxtQr8DmXprWBDjwwPRSBtd'}, 'others': [{'name': 'mini snake', 'health': 58, 'length': 5, 'body': [(7, 3), (8, 3), (9, 3), (9, 2), (8, 2)], 'id': 'gs_Q4JCb73KjM39tCSBKbHc9wkF'}, {'name': 'SmartyRat', 'health': 97, 'length': 6, 'body': [(8, 8), (8, 9), (8, 10), (7, 10), (6, 10), (6, 9)], 'id': 'gs_kcSvFQJGdfSHm4gR3QBdHR3P'}, {'name': 'snakey_wakey', 'health': 86, 'length': 12, 'body': [(1, 3), (2, 3), (3, 3), (3, 4), (3, 5), (4, 5), (5, 5), (5, 6), (5, 7), (6, 7), (7, 7), (8, 7)], 'id': 'gs_pqCVW7Y4FFCtppF9wrJ8QHCB'}], 'food': [(0, 9)], 'module': 'territory', 'decision_path': ['1vn', 'avoid deadend [(3, 1), (0, 0)] moves [(2, 1), (1, 0)]', 'avoided shorter [] moves []', 'border analysis move go (1, 0)'], 'next_coord': (1, 0), 'next_move': 'left', 'time': '0.006s'}
 
     game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
