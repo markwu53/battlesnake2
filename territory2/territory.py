@@ -102,9 +102,6 @@ def main(game_state, log=True):
             , choose_collision
             , avoid_collision
 
-            , avoid_equal_deadend
-            , (avoid_deadend2)
-
             , (avoid_eating_food_confine)
             , split_avoid_possible_confine
 
@@ -115,6 +112,9 @@ def main(game_state, log=True):
             , avoid_general_possible_confine
 
             , (get_food)
+
+            , avoid_equal_deadend
+            , (avoid_deadend2)
 
             , split_take_larger
 
@@ -1765,6 +1765,7 @@ if __name__ == "__main__":
     log = {'id': 'eea6f538-09e9-4dc4-8369-b0206bad1022', 'turn': 65, 'me': {'name': 'mark_snake', 'health': 81, 'length': 7, 'body': [(8, 5), (8, 4), (8, 3), (8, 2), (8, 1), (7, 1), (7, 2)], 'id': 'gs_B9wkK8pTvFXwTCPX8mgFRfvH'}, 'others': [{'name': 'SmartyRat', 'health': 73, 'length': 6, 'body': [(4, 1), (5, 1), (5, 2), (4, 2), (3, 2), (3, 3)], 'id': 'gs_hGFGqBYWCpWCg9jKq9dtkBjR'}, {'name': 'Game of Chicken', 'health': 90, 'length': 9, 'body': [(4, 5), (3, 5), (3, 6), (3, 7), (3, 8), (3, 9), (4, 9), (4, 8), (5, 8)], 'id': 'gs_FjjByYSFRTMg67HpVYy8pqFG'}, {'name': 'ActionHero', 'health': 95, 'length': 9, 'body': [(9, 6), (10, 6), (10, 5), (10, 4), (10, 3), (10, 2), (9, 2), (9, 3), (9, 4)], 'id': 'gs_TQqmdkBRPCwxK9w89fq66gC7'}], 'food': [(0, 1)], 'module': 'territory', 'decision_path': ['1vn', 'avoid deadend [(7, 1)] moves [(7, 5)]', 'all avoided', 'choose collision [(8, 6)] against ActionHero'], 'next_coord': (8, 6), 'next_move': 'up', 'time': '0.025s'}
     log = {'id': '1c9b16b5-c556-472d-b7e8-13ce8499a40e', 'turn': 32, 'me': {'name': 'mark_snake', 'health': 70, 'length': 4, 'body': [(9, 9), (9, 8), (8, 8), (8, 7)], 'id': 'gs_SmD3S9kfCpGBBQTryrqpTpJ8'}, 'others': [{'name': 'Cautious Carl', 'health': 72, 'length': 4, 'body': [(0, 2), (0, 3), (0, 4), (0, 5)], 'id': 'gs_kHQ3xt7Sc3vVrvYJmdPWf6SM'}, {'name': 'ActionHero', 'health': 94, 'length': 6, 'body': [(6, 4), (7, 4), (7, 5), (7, 6), (6, 6), (6, 7)], 'id': 'gs_BRPBmSRWx8SVbSBfgGWbhbF9'}, {'name': 'Barry', 'health': 97, 'length': 7, 'body': [(8, 4), (9, 4), (9, 3), (9, 2), (8, 2), (7, 2), (6, 2)], 'id': 'gs_HKjWhVKY8RX8qwvk8WRVWvP9'}], 'food': [(10, 10), (1, 0)], 'module': 'territory', 'decision_path': ['1vn', 'get food (10, 10) via [(10, 9), (9, 10)]'], 'next_coord': (9, 10), 'next_move': 'up', 'time': '0.011s'}
     log = {'id': '1c9b16b5-c556-472d-b7e8-13ce8499a40e', 'turn': 33, 'me': {'name': 'mark_snake', 'health': 70, 'length': 4, 'body': [(9,10), (9, 9), (9, 8), (8, 8)], 'id': 'gs_SmD3S9kfCpGBBQTryrqpTpJ8'}, 'others': [{'name': 'Cautious Carl', 'health': 72, 'length': 4, 'body': [(0,1), (0, 2), (0, 3), (0, 4)], 'id': 'gs_kHQ3xt7Sc3vVrvYJmdPWf6SM'}, {'name': 'ActionHero', 'health': 94, 'length': 6, 'body': [(6,3), (6, 4), (7, 4), (7, 5), (7, 6), (6, 6)], 'id': 'gs_BRPBmSRWx8SVbSBfgGWbhbF9'}, {'name': 'Barry', 'health': 97, 'length': 7, 'body': [(8,5), (8, 4), (9, 4), (9, 3), (9, 2), (8, 2), (7, 2)], 'id': 'gs_HKjWhVKY8RX8qwvk8WRVWvP9'}], 'food': [(10, 10), (1, 0)], 'module': 'territory', 'decision_path': ['1vn', 'get food (10, 10) via [(10, 9), (9, 10)]'], 'next_coord': (9, 10), 'next_move': 'up', 'time': '0.011s'}
+    log = {'id': '729c72df-d7e1-4d4c-9998-68a8a701d63c', 'turn': 157, 'me': {'name': 'mark_snake', 'health': 67, 'length': 12, 'body': [(1, 0), (1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (2, 6), (3, 6), (4, 6), (5, 6), (6, 6)], 'id': 'gs_Cp84pPfrg4kCJWQ7r69DqjYD'}, 'others': [{'name': 'mini snake', 'health': 80, 'length': 7, 'body': [(6, 3), (7, 3), (7, 2), (7, 1), (7, 0), (8, 0), (8, 1)], 'id': 'gs_xWhxD8bRH9v7rr6mJjMFQ9YY'}, {'name': 'Gregory Megory', 'health': 76, 'length': 15, 'body': [(4, 7), (3, 7), (3, 8), (2, 8), (2, 7), (1, 7), (1, 8), (1, 9), (2, 9), (3, 9), (3, 10), (2, 10), (1, 10), (0, 10), (0, 9)], 'id': 'gs_pb3Wc9CXg4vDcQDdvJ8txf4K'}, {'name': 'Red Yarn', 'health': 97, 'length': 21, 'body': [(2, 5), (2, 4), (2, 3), (3, 3), (4, 3), (4, 2), (4, 1), (5, 1), (5, 2), (5, 3), (5, 4), (6, 4), (7, 4), (8, 4), (8, 5), (7, 5), (7, 6), (8, 6), (8, 7), (8, 8), (7, 8)], 'id': 'gs_pD7GqwYPHGySgkVKC6JjJMFM'}], 'food': [(5, 8)], 'module': 'territory', 'decision_path': ['1vn', 'avoid deadend exposure 2: [(0, 5)]'], 'next_coord': (2, 0), 'next_move': 'right', 'time': '0.013s'}
 
     game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
