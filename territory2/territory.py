@@ -111,14 +111,17 @@ def main(game_state, log=True):
             , split_avoid_food_confine_branch
             , avoid_general_possible_confine
 
-            , (get_food)
+            , cond(len(g.others) == 1)(split_take_larger)
+            , cond(len(g.others) == 1)(get_food(2))
+            , cond(len(g.others) == 1)(border_analysis_move)
+            , cond(len(g.others) == 1)(get_food(4))
 
-            , avoid_equal_deadend
-            , (avoid_deadend2)
+            , cond(len(g.others) > 1)(get_food(6))
+            , cond(len(g.others) > 1)(avoid_equal_deadend)
+            , cond(len(g.others) > 1)(avoid_deadend2)
+            , cond(len(g.others) > 1)(border_analysis_move)
 
-            , split_take_larger
-
-            , border_analysis_move
+            # , follow_body_in_territory
             , prefer(in_territory)
             , cond(g.me.length <= 7)(prefer_not(on_border))
             , prefer(is_straight)
@@ -863,24 +866,24 @@ def main(game_state, log=True):
             g.decision_path.append(f"food impact {avoid_moves}")
             return moves
 
-    def get_food(moves):
-        #if g.me.health >= 80 and g.me.length > 20: return
-        #if len(g.others) == 1 and g.me.length >= g.other.length +5 and g.me.health > 50: return
-        if g.me.length >= max([snake.length for snake in g.others]) +5 and g.me.health > 50: return
+    def get_food(distance_factor):
+        def fn(moves):
+            #if g.me.health >= 80 and g.me.length > 20: return
+            #if len(g.others) == 1 and g.me.length >= g.other.length +5 and g.me.health > 50: return
+            if g.me.length >= max([snake.length for snake in g.others]) +5 and g.me.health > 50: return
 
-        distance_factor = 4 if len(g.others) > 1 else 2
+            good_food = [f for f in g.food if f in g.me.territory and g.me.territory_point_level[f] <= distance_factor]
+            if len(good_food) == 0: return
+            best_food = sorted([(f, g.me.territory_point_level[f]) for f in good_food], key=lambda a: a[1])
+            food_target = take_first(best_food)[0]
 
-        good_food = [f for f in g.food if f in g.me.territory and g.me.territory_point_level[f] <= distance_factor]
-        if len(good_food) == 0: return
-        best_food = sorted([(f, g.me.territory_point_level[f]) for f in good_food], key=lambda a: a[1])
-        food_target = take_first(best_food)[0]
+            if g.me.territory_connection_number[food_target] == 1: return
 
-        if g.me.territory_connection_number[food_target] == 1: return
-
-        moves = [a for a in moves if tree_distance(a, food_target) >= 0]
-        if len(moves) != 0:
-            g.decision_path.append(f"get food {food_target} via {moves}")
-            return moves
+            moves = [a for a in moves if tree_distance(a, food_target) >= 0]
+            if len(moves) != 0:
+                g.decision_path.append(f"get food {food_target} via {moves}")
+                return moves
+        return fn
 
     def avoid_single_suppress_collision(moves):
         snakes = [snake for snake in g.others if snake.length > g.me.length
@@ -1035,18 +1038,26 @@ def main(game_state, log=True):
                             and g.territories[q][1] == g.me.territory_point_level[first_point]+1])
             return exposure
 
-        snake_tails = pick(within(2))(snake_tails)
+        # within_factor = 2 if len(g.others) == 3 else 3 if len(g.others) == 2 else 4
+        # snake_tails = pick(within(within_factor))(snake_tails)
         snake_tails = pick_not(dead_start)(snake_tails)
         if len(snake_tails) == 0: return
 
-        snake_tails = take_first_group(distance_rank)(snake_tails)
-        snake_tails = take_first_group(length_rank, reverse=True)(snake_tails)
-        snake_tails = take_first_group(exposure_number, reverse=True)(snake_tails)
-        snake_tails = take_first_group(tail_end_sublayer_length, reverse=True)(snake_tails)
-        snake_tails = prefer_not(dead_end)(snake_tails)
-        snake_tails = prefer_not(connected_to_other_killer)(snake_tails)
-        snake_tails = prefer(killer_snake)(snake_tails)
-        snake_tails = prefer(shorter_snake)(snake_tails)
+        if len(g.others) > 1:
+            snake_tails = prefer(killer_snake)(snake_tails)
+            snake_tails = take_first_group(distance_rank)(snake_tails)
+            snake_tails = take_first_group(length_rank, reverse=True)(snake_tails)
+            snake_tails = take_first_group(tail_end_sublayer_length, reverse=True)(snake_tails)
+            snake_tails = take_first_group(exposure_number, reverse=True)(snake_tails)
+            snake_tails = prefer_not(dead_end)(snake_tails)
+            snake_tails = prefer_not(connected_to_other_killer)(snake_tails)
+            snake_tails = prefer(shorter_snake)(snake_tails)
+        else:
+            snake_tails = take_first_group(distance_rank)(snake_tails)
+            snake_tails = prefer_not(dead_end)(snake_tails)
+            snake_tails = prefer_not(connected_to_other_killer)(snake_tails)
+            snake_tails = prefer(killer_snake)(snake_tails)
+            snake_tails = prefer(shorter_snake)(snake_tails)
         return take_first(snake_tails)
 
     def border_analysis_move(moves):
@@ -1068,10 +1079,35 @@ def main(game_state, log=True):
                 return
         target = take_first(tail)
         shortest_moves = list({a for a in moves if tree_distance(a, target) >= 0})
-        shortest_moves = prefer(lambda a: a in g.food)(shortest_moves)
+        shortest_moves = take_first_group(lambda a: sum(distance_to_border(a)), reverse=True)(shortest_moves)
+        shortest_moves = take_first_group(lambda a: min(distance_to_border(a)), reverse=True)(shortest_moves)
+        #shortest_moves = prefer(lambda a: a in g.food)(shortest_moves)
         if len(shortest_moves) != 0:
             g.decision_path.append(f"border analysis move go {target}")
             return shortest_moves
+
+    def follow_body_in_territory(moves):
+        for snake in g.snakes:
+            body_in_territory = [(i,p) for i,p in enumerate(snake.body) if p in g.me.territory]
+            if len(body_in_territory) == 0: continue
+            i,target = take_first(body_in_territory)
+            if g.me.territory_connection_number[target] != 1: continue
+            single_path = [target]
+            end = target
+            while True:
+                end = [p for p in adj_cells(end) if True
+                     and p in g.me.territory_connection_points[end]
+                     and p in g.me.territory 
+                     and p not in single_path
+                     and g.me.territory_point_level[end] == g.me.territory_point_level[p]+1]
+                if len(end) != 1: break
+                end = take_first(end)
+                single_path.append(end)
+            end = single_path[-1]
+            if end != g.me.head: continue
+            if len(single_path) <= 2: continue
+            g.decision_path.append(f"cut chasing {snake.name} {target}")
+            return [single_path[-2]]
 
     def ________KILLS________():
         return
@@ -1755,18 +1791,17 @@ def init_from_game_engine_log(log, name):
 
 
 if __name__ == "__main__":
-    log = {'id': '360ea5a2-f788-4589-910e-f542d6a8e25f', 'turn': 149, 'me': {'name': 'mark_snake', 'health': 91, 'length': 16, 'body': [(1, 2), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8), (0, 9), (0, 10), (1, 10), (2, 10), (2, 9), (2, 8), (2, 7), (2, 6)], 'id': 'gs_KqqY7S3WR3yXxtBVkMYWCCkb'}, 'others': [{'name': 'Aurora', 'health': 84, 'length': 16, 'body': [(4, 3), (3, 3), (2, 3), (2, 4), (3, 4), (3, 5), (3, 6), (4, 6), (4, 5), (5, 5), (5, 6), (6, 6), (7, 6), (8, 6), (9, 6), (9, 5)], 'id': 'gs_xGy4wfGYhCmV4bjrKfYTF4QM'}], 'food': [(10, 7), (4, 10)], 'module': 'territory', 'decision_path': ['1v1', 'border analysis move go (2, 2)'], 'next_coord': (2, 2), 'next_move': 'right', 'time': '0.019s'}
-    log = {'id': '23cf8efb-229e-4b4b-a64f-b0b9d1e1fb68', 'turn': 10, 'me': {'name': 'mark_snake', 'health': 92, 'length': 4, 'body': [(9, 5), (9, 6), (8, 6), (7, 6)], 'id': 'gs_Jybb6CCQDg4QQ8cgtjTFKbWP'}, 'others': [{'name': 'mini snake', 'health': 92, 'length': 4, 'body': [(0, 4), (0, 5), (1, 5), (2, 5)], 'id': 'gs_CTbj893qbcyQV8jDTBYY6Wr8'}, {'name': '@~~~~@', 'health': 100, 'length': 5, 'body': [(5, 5), (5, 4), (6, 4), (7, 4), (7, 4)], 'id': 'gs_JyqXyr8JRSBwwXFkcBjjcGMB'}, {'name': 'Gregory Megory', 'health': 92, 'length': 4, 'body': [(7, 3), (8, 3), (9, 3), (10, 3)], 'id': 'gs_dMpxMbq8WBTc6wwqqKv4fKCb'}], 'food': [(8, 4)], 'module': 'territory', 'decision_path': ['1vn', 'get food (8, 4) via [(8, 5), (9, 4)]', 'border analysis move go (8, 5)'], 'next_coord': (8, 5), 'next_move': 'left', 'time': '0.019s'}
-    log = {'id': '23cf8efb-229e-4b4b-a64f-b0b9d1e1fb68', 'turn': 11, 'me': {'name': 'mark_snake', 'health': 92, 'length': 4, 'body': [(8,5), (9, 5), (9, 6), (8, 6)], 'id': 'gs_Jybb6CCQDg4QQ8cgtjTFKbWP'}, 'others': [{'name': 'mini snake', 'health': 92, 'length': 4, 'body': [(1,4), (0, 4), (0, 5), (1, 5)], 'id': 'gs_CTbj893qbcyQV8jDTBYY6Wr8'}, {'name': '@~~~~@', 'health': 100, 'length': 5, 'body': [(6,5), (5, 5), (5, 4), (6, 4), (7, 4)], 'id': 'gs_JyqXyr8JRSBwwXFkcBjjcGMB'}, {'name': 'Gregory Megory', 'health': 92, 'length': 4, 'body': [(6,3), (7, 3), (8, 3), (9, 3)], 'id': 'gs_dMpxMbq8WBTc6wwqqKv4fKCb'}], 'food': [(8, 4)], 'module': 'territory', 'decision_path': ['1vn', 'get food (8, 4) via [(8, 5), (9, 4)]', 'border analysis move go (8, 5)'], 'next_coord': (8, 5), 'next_move': 'left', 'time': '0.019s'}
-    log = {'id': '39099651-579f-4b2e-bd38-4cfe5c79df76', 'turn': 119, 'me': {'name': 'mark_snake', 'health': 65, 'length': 14, 'body': [(4, 7), (5, 7), (6, 7), (6, 6), (7, 6), (7, 7), (7, 8), (6, 8), (5, 8), (5, 9), (5, 10), (4, 10), (3, 10), (2, 10)], 'id': 'gs_jwPhBHMtGkpkg88Sj9g39jjR'}, 'others': [{'name': 'Aurora', 'health': 97, 'length': 8, 'body': [(4, 1), (4, 2), (3, 2), (3, 1), (2, 1), (2, 2), (2, 3), (3, 3)], 'id': 'gs_crphr4p3RWYK8hWHYQ8Ty3GT'}, {'name': 'Game of Chicken', 'health': 75, 'length': 13, 'body': [(2, 7), (2, 6), (2, 5), (2, 4), (1, 4), (1, 3), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8), (0, 9)], 'id': 'gs_DfShKrdbrjtJrT9K4GDf8pvS'}, {'name': 'Snaky  McSnakeface', 'health': 96, 'length': 10, 'body': [(4, 3), (5, 3), (5, 4), (6, 4), (6, 5), (5, 5), (4, 5), (3, 5), (3, 6), (4, 6)], 'id': 'gs_pK6XgJMDVmrdrtwd4rfgSx9S'}], 'food': [(3, 8), (7, 0)], 'module': 'territory', 'decision_path': ['1vn', 'get food (3, 8) via [(3, 7), (4, 8)]', 'border analysis move go (3, 7)'], 'next_coord': (3, 7), 'next_move': 'left', 'time': '0.018s'}
-    log = {'id': '39099651-579f-4b2e-bd38-4cfe5c79df76', 'turn': 119, 'me': {'name': 'mark_snake', 'health': 65, 'length': 14, 'body': [(3,7), (4, 7), (5, 7), (6, 7), (6, 6), (7, 6), (7, 7), (7, 8), (6, 8), (5, 8), (5, 9), (5, 10), (4, 10), (3, 10)], 'id': 'gs_jwPhBHMtGkpkg88Sj9g39jjR'}, 'others': [{'name': 'Aurora', 'health': 97, 'length': 8, 'body': [(5,1), (4, 1), (4, 2), (3, 2), (3, 1), (2, 1), (2, 2), (2, 3)], 'id': 'gs_crphr4p3RWYK8hWHYQ8Ty3GT'}, {'name': 'Game of Chicken', 'health': 75, 'length': 13, 'body': [(2,8), (2, 7), (2, 6), (2, 5), (2, 4), (1, 4), (1, 3), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8)], 'id': 'gs_DfShKrdbrjtJrT9K4GDf8pvS'}, {'name': 'Snaky  McSnakeface', 'health': 96, 'length': 10, 'body': [(3,3), (4, 3), (5, 3), (5, 4), (6, 4), (6, 5), (5, 5), (4, 5), (3, 5), (3, 6)], 'id': 'gs_pK6XgJMDVmrdrtwd4rfgSx9S'}], 'food': [(3, 8), (7, 0)], 'module': 'territory', 'decision_path': ['1vn', 'get food (3, 8) via [(3, 7), (4, 8)]', 'border analysis move go (3, 7)'], 'next_coord': (3, 7), 'next_move': 'left', 'time': '0.018s'}
-    log = {'id': '89d51471-ad6e-45e0-986d-1a78c9ee8357', 'turn': 164, 'me': {'name': 'mark_snake', 'health': 95, 'length': 13, 'body': [(8, 0), (8, 1), (9, 1), (10, 1), (10, 2), (10, 3), (9, 3), (9, 4), (9, 5), (9, 6), (8, 6), (7, 6), (6, 6)], 'id': 'gs_MYfKjV8qjvqh3tFTPvtwcpwQ'}, 'others': [{'name': 'Red Yarn', 'health': 99, 'length': 14, 'body': [(7, 3), (6, 3), (5, 3), (4, 3), (3, 3), (2, 3), (2, 4), (1, 4), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8), (0, 9)], 'id': 'gs_Vbw3C4fPQSyFDyKm7RMBXmSb'}], 'food': [(10, 0), (2, 1), (9, 7), (10, 9)], 'module': 'territory', 'decision_path': ['1v1', "next step suppress {'Red Yarn'} avoid {(7, 0)}", 'avoided'], 'next_coord': (9, 0), 'next_move': 'right', 'time': '0.011s'}
-    log = {'id': '89d51471-ad6e-45e0-986d-1a78c9ee8357', 'turn': 164, 'me': {'name': 'mark_snake', 'health': 95, 'length': 13, 'body': [(8, 0), (8, 1), (9, 1), (10, 1), (10, 2), (10, 3)], 'id': 'gs_MYfKjV8qjvqh3tFTPvtwcpwQ'}, 'others': [{'name': 'Red Yarn', 'health': 99, 'length': 14, 'body': [(7, 3), (6, 3), (5, 3), (4, 3), (3, 3), (2, 3), (2, 4), (1, 4), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8), (0, 9)], 'id': 'gs_Vbw3C4fPQSyFDyKm7RMBXmSb'}], 'food': [(10, 0), (2, 1), (9, 7), (10, 9)], 'module': 'territory', 'decision_path': ['1v1', "next step suppress {'Red Yarn'} avoid {(7, 0)}", 'avoided'], 'next_coord': (9, 0), 'next_move': 'right', 'time': '0.011s'}
-    log = {'id': 'eea6f538-09e9-4dc4-8369-b0206bad1022', 'turn': 65, 'me': {'name': 'mark_snake', 'health': 81, 'length': 7, 'body': [(8, 5), (8, 4), (8, 3), (8, 2), (8, 1), (7, 1), (7, 2)], 'id': 'gs_B9wkK8pTvFXwTCPX8mgFRfvH'}, 'others': [{'name': 'SmartyRat', 'health': 73, 'length': 6, 'body': [(4, 1), (5, 1), (5, 2), (4, 2), (3, 2), (3, 3)], 'id': 'gs_hGFGqBYWCpWCg9jKq9dtkBjR'}, {'name': 'Game of Chicken', 'health': 90, 'length': 9, 'body': [(4, 5), (3, 5), (3, 6), (3, 7), (3, 8), (3, 9), (4, 9), (4, 8), (5, 8)], 'id': 'gs_FjjByYSFRTMg67HpVYy8pqFG'}, {'name': 'ActionHero', 'health': 95, 'length': 9, 'body': [(9, 6), (10, 6), (10, 5), (10, 4), (10, 3), (10, 2), (9, 2), (9, 3), (9, 4)], 'id': 'gs_TQqmdkBRPCwxK9w89fq66gC7'}], 'food': [(0, 1)], 'module': 'territory', 'decision_path': ['1vn', 'avoid deadend [(7, 1)] moves [(7, 5)]', 'all avoided', 'choose collision [(8, 6)] against ActionHero'], 'next_coord': (8, 6), 'next_move': 'up', 'time': '0.025s'}
     log = {'id': '1c9b16b5-c556-472d-b7e8-13ce8499a40e', 'turn': 32, 'me': {'name': 'mark_snake', 'health': 70, 'length': 4, 'body': [(9, 9), (9, 8), (8, 8), (8, 7)], 'id': 'gs_SmD3S9kfCpGBBQTryrqpTpJ8'}, 'others': [{'name': 'Cautious Carl', 'health': 72, 'length': 4, 'body': [(0, 2), (0, 3), (0, 4), (0, 5)], 'id': 'gs_kHQ3xt7Sc3vVrvYJmdPWf6SM'}, {'name': 'ActionHero', 'health': 94, 'length': 6, 'body': [(6, 4), (7, 4), (7, 5), (7, 6), (6, 6), (6, 7)], 'id': 'gs_BRPBmSRWx8SVbSBfgGWbhbF9'}, {'name': 'Barry', 'health': 97, 'length': 7, 'body': [(8, 4), (9, 4), (9, 3), (9, 2), (8, 2), (7, 2), (6, 2)], 'id': 'gs_HKjWhVKY8RX8qwvk8WRVWvP9'}], 'food': [(10, 10), (1, 0)], 'module': 'territory', 'decision_path': ['1vn', 'get food (10, 10) via [(10, 9), (9, 10)]'], 'next_coord': (9, 10), 'next_move': 'up', 'time': '0.011s'}
     log = {'id': '1c9b16b5-c556-472d-b7e8-13ce8499a40e', 'turn': 33, 'me': {'name': 'mark_snake', 'health': 70, 'length': 4, 'body': [(9,10), (9, 9), (9, 8), (8, 8)], 'id': 'gs_SmD3S9kfCpGBBQTryrqpTpJ8'}, 'others': [{'name': 'Cautious Carl', 'health': 72, 'length': 4, 'body': [(0,1), (0, 2), (0, 3), (0, 4)], 'id': 'gs_kHQ3xt7Sc3vVrvYJmdPWf6SM'}, {'name': 'ActionHero', 'health': 94, 'length': 6, 'body': [(6,3), (6, 4), (7, 4), (7, 5), (7, 6), (6, 6)], 'id': 'gs_BRPBmSRWx8SVbSBfgGWbhbF9'}, {'name': 'Barry', 'health': 97, 'length': 7, 'body': [(8,5), (8, 4), (9, 4), (9, 3), (9, 2), (8, 2), (7, 2)], 'id': 'gs_HKjWhVKY8RX8qwvk8WRVWvP9'}], 'food': [(10, 10), (1, 0)], 'module': 'territory', 'decision_path': ['1vn', 'get food (10, 10) via [(10, 9), (9, 10)]'], 'next_coord': (9, 10), 'next_move': 'up', 'time': '0.011s'}
     log = {'id': '729c72df-d7e1-4d4c-9998-68a8a701d63c', 'turn': 157, 'me': {'name': 'mark_snake', 'health': 67, 'length': 12, 'body': [(1, 0), (1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (2, 6), (3, 6), (4, 6), (5, 6), (6, 6)], 'id': 'gs_Cp84pPfrg4kCJWQ7r69DqjYD'}, 'others': [{'name': 'mini snake', 'health': 80, 'length': 7, 'body': [(6, 3), (7, 3), (7, 2), (7, 1), (7, 0), (8, 0), (8, 1)], 'id': 'gs_xWhxD8bRH9v7rr6mJjMFQ9YY'}, {'name': 'Gregory Megory', 'health': 76, 'length': 15, 'body': [(4, 7), (3, 7), (3, 8), (2, 8), (2, 7), (1, 7), (1, 8), (1, 9), (2, 9), (3, 9), (3, 10), (2, 10), (1, 10), (0, 10), (0, 9)], 'id': 'gs_pb3Wc9CXg4vDcQDdvJ8txf4K'}, {'name': 'Red Yarn', 'health': 97, 'length': 21, 'body': [(2, 5), (2, 4), (2, 3), (3, 3), (4, 3), (4, 2), (4, 1), (5, 1), (5, 2), (5, 3), (5, 4), (6, 4), (7, 4), (8, 4), (8, 5), (7, 5), (7, 6), (8, 6), (8, 7), (8, 8), (7, 8)], 'id': 'gs_pD7GqwYPHGySgkVKC6JjJMFM'}], 'food': [(5, 8)], 'module': 'territory', 'decision_path': ['1vn', 'avoid deadend exposure 2: [(0, 5)]'], 'next_coord': (2, 0), 'next_move': 'right', 'time': '0.013s'}
     log = {'id': '9a513678-845f-4e13-8df8-9cf8942c201e', 'turn': 52, 'me': {'name': 'mark_snake', 'health': 50, 'length': 4, 'body': [(0, 4), (1, 4), (1, 3), (1, 2)], 'id': 'gs_dkGQCFWMJ7FkRYc8RSyQmJYc'}, 'others': [{'name': 'snakey_wakey', 'health': 95, 'length': 9, 'body': [(4, 8), (5, 8), (5, 7), (6, 7), (7, 7), (8, 7), (9, 7), (9, 6), (9, 5)], 'id': 'gs_kK9dB3hx4SyFPQYgKVD4fqF6'}, {'name': 'Snaky  McSnakeface', 'health': 78, 'length': 5, 'body': [(4, 2), (3, 2), (2, 2), (2, 1), (3, 1)], 'id': 'gs_WYVXBVy77SyJKXDhxmb9bM7V'}, {'name': '@~~~~@', 'health': 91, 'length': 7, 'body': [(2, 4), (2, 5), (3, 5), (3, 4), (3, 3), (4, 3), (5, 3)], 'id': 'gs_RTS9mcWYjYGSvWxRjkphWCQ9'}], 'food': [(0, 10), (7, 0)], 'module': 'territory', 'decision_path': ['1vn', 'split take larger area [([(0, 5)], 4), ([(0, 3)], 4)]', 'border analysis move go (0, 3)'], 'next_coord': (0, 3), 'next_move': 'down', 'time': '0.029s'}
+    log = {'id': 'e132b65f-cc81-427b-a3da-9cf3d16b7d96', 'turn': 128, 'me': {'name': 'mark_snake', 'health': 66, 'length': 9, 'body': [(4, 4), (4, 3), (4, 2), (3, 2), (3, 3), (3, 4), (3, 5), (3, 6), (3, 7)], 'id': 'gs_3C98FhRTPT97qtcM9TDHXJ7P'}, 'others': [{'name': 'Game of Chicken', 'health': 85, 'length': 8, 'body': [(4, 6), (5, 6), (5, 5), (6, 5), (6, 4), (6, 3), (5, 3), (5, 4)], 'id': 'gs_bRBHwVHdjx3CVRJCKfcwxfW8'}, {'name': 'Snaky  McSnakeface', 'health': 99, 'length': 15, 'body': [(8, 8), (8, 9), (9, 9), (10, 9), (10, 8), (10, 7), (9, 7), (8, 7), (8, 6), (7, 6), (7, 5), (7, 4), (7, 3), (7, 2), (7, 1)], 'id': 'gs_By7qttrcCS6SKT3jkprjgRFH'}, {'name': 'Gregory Megory', 'health': 71, 'length': 7, 'body': [(2, 10), (3, 10), (4, 10), (5, 10), (6, 10), (7, 10), (7, 9)], 'id': 'gs_3PtDHmgcX8pRFYYmWJFrGf7R'}], 'food': [(4, 5)], 'module': 'territory', 'decision_path': ['1vn', 'definite confine [(5, 4)]'], 'next_coord': (4, 5), 'next_move': 'up', 'time': '0.013s'}
+    log = {'id': '9d7e8fad-f734-4d78-8d02-a4ca37701cef', 'turn': 108, 'me': {'name': 'mark_snake_test RED', 'health': 90, 'length': 11, 'body': [(6, 8), (5, 8), (5, 7), (5, 6), (5, 5), (4, 5), (3, 5), (3, 4), (2, 4), (1, 4), (1, 3)], 'id': 'mark_snake_test RED'}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 88, 'length': 17, 'body': [(9, 9), (10, 9), (10, 8), (10, 7), (10, 6), (10, 5), (10, 4), (10, 3), (9, 3), (9, 2), (9, 1), (8, 1), (8, 2), (8, 3), (8, 4), (8, 5), (8, 6)], 'id': 'mark_snake_test BLUE'}, {'name': 'mark_snake_test GREEN', 'health': 97, 'length': 8, 'body': [(7, 3), (7, 4), (7, 5), (7, 6), (6, 6), (6, 5), (6, 4), (5, 4)], 'id': 'mark_snake_test GREEN'}], 'food': [(7, 0), (8, 0)], 'module': 'territory', 'decision_path': ['1vn', 'remove one possible confine (6, 7)', 'border analysis move go (7, 8)'], 'next_coord': (7, 8), 'next_move': 'right', 'time': '0.018s'}
+    log = {'id': 'a708717e-0c3b-4d47-88c5-65eece025d2f', 'turn': 76, 'me': {'name': 'mark_snake_test RED', 'health': 91, 'length': 11, 'body': [(6, 4), (7, 4), (7, 3), (6, 3), (5, 3), (4, 3), (3, 3), (2, 3), (2, 4), (2, 5), (3, 5)], 'id': 'mark_snake_test RED'}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 85, 'length': 11, 'body': [(4, 8), (4, 9), (4, 10), (3, 10), (2, 10), (1, 10), (0, 10), (0, 9), (1, 9), (2, 9), (2, 8)], 'id': 'mark_snake_test BLUE'}, {'name': 'mark_snake_test GREEN', 'health': 94, 'length': 11, 'body': [(6, 8), (6, 9), (7, 9), (7, 8), (7, 7), (7, 6), (7, 5), (8, 5), (8, 6), (8, 7), (8, 8)], 'id': 'mark_snake_test GREEN'}, {'name': 'mark_snake_test YELLOW', 'health': 94, 'length': 10, 'body': [(9, 5), (9, 4), (8, 4), (8, 3), (8, 2), (9, 2), (9, 1), (8, 1), (7, 1), (6, 1)], 'id': 'mark_snake_test YELLOW'}], 'food': [(1, 8), (4, 6)], 'module': 'territory', 'decision_path': ['1vn', 'border analysis move go (6, 5)'], 'next_coord': (6, 5), 'next_move': 'up', 'time': '0.005s'}
+    log = {'id': '6ebcd60e-337c-43f3-a12b-98784d4b0be2', 'turn': 311, 'me': {'name': 'mark_snake_test RED', 'health': 95, 'length': 36, 'body': [(10, 5), (10, 4), (10, 3), (10, 2), (10, 1), (9, 1), (9, 2), (8, 2), (7, 2), (6, 2), (5, 2), (5, 3), (4, 3), (3, 3), (3, 2), (3, 1), (3, 0), (2, 0), (1, 0), (0, 0), (0, 1), (1, 1), (2, 1), (2, 2), (2, 3), (2, 4), (3, 4), (3, 5), (4, 5), (4, 6), (5, 6), (6, 6), (7, 6), (8, 6), (9, 6), (10, 6)], 'id': 'mark_snake_test RED'}, 'others': [{'name': 'mark_snake_test GREEN', 'health': 92, 'length': 33, 'body': [(9, 8), (9, 9), (9, 10), (8, 10), (7, 10), (6, 10), (5, 10), (4, 10), (3, 10), (3, 9), (2, 9), (1, 9), (0, 9), (0, 8), (0, 7), (0, 6), (0, 5), (0, 4), (0, 3), (0, 2), (1, 2), (1, 3), (1, 4), (1, 5), (2, 5), (2, 6), (3, 6), (3, 7), (4, 7), (5, 7), (6, 7), (7, 7), (8, 7)], 'id': 'mark_snake_test GREEN'}], 'food': [(7, 0), (10, 9)], 'module': 'territory', 'decision_path': ['1v1', 'split take larger area [([(9, 5)], 91), ([(10, 6)], 91)]', 'border analysis move go (9, 6)'], 'next_coord': (10, 6), 'next_move': 'up', 'time': '0.013s'}
+    log = {'id': '6ebcd60e-337c-43f3-a12b-98784d4b0be2', 'turn': 310, 'me': {'name': 'mark_snake_test RED', 'health': 96, 'length': 36, 'body': [(10, 4), (10, 3), (10, 2), (10, 1), (9, 1), (9, 2), (8, 2), (7, 2), (6, 2), (5, 2), (5, 3), (4, 3), (3, 3), (3, 2), (3, 1), (3, 0), (2, 0), (1, 0), (0, 0), (0, 1), (1, 1), (2, 1), (2, 2), (2, 3), (2, 4), (3, 4), (3, 5), (4, 5), (4, 6), (5, 6), (6, 6), (7, 6), (8, 6), (9, 6), (10, 6), (10, 5)], 'id': 'mark_snake_test RED'}, 'others': [{'name': 'mark_snake_test GREEN', 'health': 93, 'length': 33, 'body': [(9, 9), (9, 10), (8, 10), (7, 10), (6, 10), (5, 10), (4, 10), (3, 10), (3, 9), (2, 9), (1, 9), (0, 9), (0, 8), (0, 7), (0, 6), (0, 5), (0, 4), (0, 3), (0, 2), (1, 2), (1, 3), (1, 4), (1, 5), (2, 5), (2, 6), (3, 6), (3, 7), (4, 7), (5, 7), (6, 7), (7, 7), (8, 7), (9, 7)], 'id': 'mark_snake_test GREEN'}], 'food': [(7, 0)], 'module': 'territory', 'decision_path': ['1v1', 'border analysis move go (9, 6)'], 'next_coord': (10, 5), 'next_move': 'up', 'time': '0.004s'}
+    log = {'id': '6ebcd60e-337c-43f3-a12b-98784d4b0be2', 'turn': 311, 'me': {'name': 'mark_snake_test RED', 'health': 95, 'length': 36, 'body': [(10, 5), (10, 4), (10, 3), (10, 2), (10, 1), (9, 1), (9, 2), (8, 2), (7, 2), (6, 2), (5, 2), (5, 3), (4, 3), (3, 3), (3, 2), (3, 1), (3, 0), (2, 0), (1, 0), (0, 0), (0, 1), (1, 1), (2, 1), (2, 2), (2, 3), (2, 4), (3, 4), (3, 5), (4, 5), (4, 6), (5, 6), (6, 6), (7, 6), (8, 6), (9, 6), (10, 6)], 'id': 'mark_snake_test RED'}, 'others': [{'name': 'mark_snake_test GREEN', 'health': 92, 'length': 33, 'body': [(9, 8), (9, 9), (9, 10), (8, 10), (7, 10), (6, 10), (5, 10), (4, 10), (3, 10), (3, 9), (2, 9), (1, 9), (0, 9), (0, 8), (0, 7), (0, 6), (0, 5), (0, 4), (0, 3), (0, 2), (1, 2), (1, 3), (1, 4), (1, 5), (2, 5), (2, 6), (3, 6), (3, 7), (4, 7), (5, 7), (6, 7), (7, 7), (8, 7)], 'id': 'mark_snake_test GREEN'}], 'food': [(7, 0), (10, 9)], 'module': 'territory', 'decision_path': ['1v1', 'split take larger area [([(9, 5)], 91), ([(10, 6)], 91)]', 'border analysis move go (9, 6)'], 'next_coord': (10, 6), 'next_move': 'up', 'time': '0.013s'}
+    log = {'id': '6ebcd60e-337c-43f3-a12b-98784d4b0be2', 'turn': 312, 'me': {'name': 'mark_snake_test RED', 'health': 94, 'length': 36, 'body': [(10, 6), (10, 5), (10, 4), (10, 3), (10, 2), (10, 1), (9, 1), (9, 2), (8, 2), (7, 2), (6, 2), (5, 2), (5, 3), (4, 3), (3, 3), (3, 2), (3, 1), (3, 0), (2, 0), (1, 0), (0, 0), (0, 1), (1, 1), (2, 1), (2, 2), (2, 3), (2, 4), (3, 4), (3, 5), (4, 5), (4, 6), (5, 6), (6, 6), (7, 6), (8, 6), (9, 6)], 'id': 'mark_snake_test RED'}, 'others': [{'name': 'mark_snake_test GREEN', 'health': 91, 'length': 33, 'body': [(8, 8), (9, 8), (9, 9), (9, 10), (8, 10), (7, 10), (6, 10), (5, 10), (4, 10), (3, 10), (3, 9), (2, 9), (1, 9), (0, 9), (0, 8), (0, 7), (0, 6), (0, 5), (0, 4), (0, 3), (0, 2), (1, 2), (1, 3), (1, 4), (1, 5), (2, 5), (2, 6), (3, 6), (3, 7), (4, 7), (5, 7), (6, 7), (7, 7)], 'id': 'mark_snake_test GREEN'}], 'food': [(7, 0), (1, 10)], 'module': 'territory', 'decision_path': ['1v1', 'border analysis move go (9, 7)', 'get food (10, 9) via [(10, 7)]'], 'next_coord': (10, 7), 'next_move': 'up', 'time': '0.003s'}
 
     game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
