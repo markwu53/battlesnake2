@@ -105,12 +105,14 @@ def main(game_state, log=True):
 
             , (avoid_eating_food_confine)
             , split_avoid_possible_confine
-            # , split_avoid_food_confine_branch
 
             , wayout
 
-            , avoid_possible_confine
+            , split_avoid_food_confine_branch
+            , avoid_general_possible_confine
+
             , (get_food)
+
             , split_take_larger
 
             , border_analysis_move
@@ -1390,7 +1392,7 @@ def main(game_state, log=True):
             others.append(snake2)
         return others
 
-    def avoid_possible_confine(moves):
+    def avoid_general_possible_confine(moves):
         for a in moves:
             if a not in g.me.territory: continue
             move_space = g.me.move_component[a]
@@ -1423,10 +1425,35 @@ def main(game_state, log=True):
 
     def split_avoid_food_confine_branch(moves):
         if ngroup(moves) <= 1: return
-        me2 = snake_next_step(g.me, (9,0))
-        ng = next_game_turn([me2])
-        flood_game_turn(ng)
-        print(head_no_choice_path(ng.me))
+
+        for mg in g.me.move_groups:
+            if len(mg) != 1: continue
+            a = take_first(mg)
+
+            me2 = snake_next_step(g.me, a)
+            ng = next_game_turn([me2])
+            flood_game_turn(ng)
+
+            no_choice_path = head_no_choice_path(ng.me)
+            end = no_choice_path[-1]
+            body_in_territory = {p for p in g.me.body if p in g.me.territory}
+            nfood = len([p for p in no_choice_path if p in g.food])
+            while nfood > 0:
+                end = [p for p in adj_cells(end) if True 
+                                and p not in body_in_territory 
+                                and g.me.territory_point_level[p] == g.me.territory_point_level[end]+1
+                                ]
+                if len(end) == 0: break
+                end = take_first(end)
+                nfood -= 1
+                if end in g.food:
+                    nfood += 1
+            if nfood > 0:
+                moves = [p for p in moves if p != a]
+                if len(moves) != 0:
+                    g.decision_path.append(f"split avoid food confine branch {a}")
+                    return moves
+
 
     def split_avoid_possible_confine(moves):
         if ngroup(moves) <= 1: return
