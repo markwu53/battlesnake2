@@ -122,6 +122,7 @@ def main(game_state, log=True):
             , cond(len(g.others) > 1)(avoid_equal_deadend)
             , cond(len(g.others) > 1)(avoid_deadend2)
             , cond(len(g.others) > 1)(border_analysis_move)
+            # , cond(len(g.others) > 1)(avoid_killer_confront)
 
             # , follow_body_in_territory
             , prefer(in_territory)
@@ -1066,7 +1067,7 @@ def main(game_state, log=True):
         if len(snake_tails) == 0: return
 
         if len(g.others) > 1:
-            snake_tails = take_first_group(distance_rank)(snake_tails)
+            # snake_tails = take_first_group(distance_rank)(snake_tails)
             snake_tails = take_first_group(length_rank, reverse=True)(snake_tails)
             snake_tails = take_first_group(tail_end_sublayer_length, reverse=True)(snake_tails)
             snake_tails = take_first_group(exposure_number, reverse=True)(snake_tails)
@@ -1105,6 +1106,14 @@ def main(game_state, log=True):
         if len(shortest_moves) != 0:
             g.decision_path.append(f"border analysis move go {target}")
             return shortest_moves
+
+    def avoid_killer_confront(moves):
+        moves_to_avoid = [a for a in moves if a not in g.me.territory or a in g.me.killer_border]
+        if len(moves_to_avoid) == 0: return
+        moves = [a for a in moves if a not in moves_to_avoid]
+        if len(moves) != 0:
+            g.decision_path.append(f"avoid killer confront {moves_to_avoid}")
+            return moves
 
     def gain_territory_move(moves):
         # only at 1v1
