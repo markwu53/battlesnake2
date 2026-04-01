@@ -1066,7 +1066,6 @@ def main(game_state, log=True):
         if len(snake_tails) == 0: return
 
         if len(g.others) > 1:
-            snake_tails = prefer(killer_snake)(snake_tails)
             snake_tails = take_first_group(distance_rank)(snake_tails)
             snake_tails = take_first_group(length_rank, reverse=True)(snake_tails)
             snake_tails = take_first_group(tail_end_sublayer_length, reverse=True)(snake_tails)
@@ -1074,6 +1073,7 @@ def main(game_state, log=True):
             snake_tails = prefer_not(dead_end)(snake_tails)
             snake_tails = prefer_not(connected_to_other_killer)(snake_tails)
             snake_tails = prefer(shorter_snake)(snake_tails)
+            snake_tails = prefer(killer_snake)(snake_tails)
         else:
             snake_tails = take_first_group(length_rank, reverse=True)(snake_tails)
             snake_tails = take_first_group(tail_end_sublayer_length, reverse=True)(snake_tails)
