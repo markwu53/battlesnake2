@@ -805,6 +805,17 @@ def main(game_state, log=True):
         if any([snake.tail in g.me.territory for snake in g.snakes]): return True
 
         for snake in g.snakes:
+            if snake.head != g.me.head:
+                if g.me.head in g.me.to_snake_border[snake.head]:
+                    #confront and with exposures is not considered as confined
+                    if g.me.length == snake.length: return True
+                    if g.me.length < snake.length:
+                        exposure = [p for p in adj_cells(g.me.head) if p not in g.me.territory 
+                                    and p in snake.territory
+                                    and snake.territory_point_level[p] == 1
+                                    ]
+                        if len(exposure) >= 2:
+                            return True
             adj_index = g.me.adjacent_indexes[snake.head]
             if len(adj_index) == 0: continue
             last_index, last_pos = adj_index[-1]
@@ -2018,6 +2029,7 @@ if __name__ == "__main__":
     log = {'id': '2f56e524-796b-468e-9630-93c3cf7860e3', 'turn': 256, 'me': {'name': 'mark_snake', 'health': 100, 'length': 16, 'body': [(6, 10), (5, 10), (4, 10), (4, 9), (3, 9), (2, 9), (1, 9), (1, 8), (1, 7), (1, 6), (0, 6), (0, 7), (0, 8), (0, 9), (0, 10), (0, 10)], 'id': 'gs_QGcGtRQKMpGTjgpMktJpv6X4'}, 'others': [{'name': 'Geriatric Jagwire', 'health': 52, 'length': 16, 'body': [(9, 9), (8, 9), (7, 9), (7, 8), (8, 8), (8, 7), (7, 7), (6, 7), (5, 7), (4, 7), (3, 7), (2, 7), (2, 8), (3, 8), (4, 8), (5, 8)], 'id': 'gs_Jw6pTvpBrhGGRC4jVKDRB4TT'}, {'name': 'Slytherin', 'health': 100, 'length': 13, 'body': [(8, 4), (9, 4), (10, 4), (10, 5), (9, 5), (9, 6), (8, 6), (7, 6), (6, 6), (5, 6), (5, 5), (5, 4), (5, 4)], 'id': 'gs_7TkBdw7rtgp87RccKbTcBWYY'}], 'food': [(10, 10), (10, 0), (7, 1)], 'module': 'territory', 'decision_path': ['1vn', 'straight line confine kill Geriatric Jagwire (7, 10) with factor 0.8'], 'next_coord': (7, 10), 'next_move': 'right', 'time': '0.012s'}
     log = {'id': 'a72bb549-16ea-40b9-94ad-a4f54ebf20ab', 'turn': 110, 'me': {'name': 'mark_snake', 'health': 45, 'length': 8, 'body': [(6, 6), (6, 5), (7, 5), (7, 4), (7, 3), (6, 3), (5, 3), (4, 3)], 'id': 'gs_XXvkxTqyF4rRRwTFkR6bhDbb'}, 'others': [{'name': 'Aurora', 'health': 90, 'length': 7, 'body': [(7, 7), (8, 7), (8, 6), (8, 5), (8, 4), (8, 3), (8, 2)], 'id': 'gs_qYTGT6CBdD8bCWvKjKxYWrfH'}, {'name': 'Snaky  McSnakeface', 'health': 72, 'length': 6, 'body': [(4, 2), (4, 1), (4, 0), (5, 0), (6, 0), (6, 1)], 'id': 'gs_4b3t4CVqTXqCKdWGdGbCrvH7'}, {'name': 'Red Yarn', 'health': 93, 'length': 14, 'body': [(4, 6), (3, 6), (3, 5), (2, 5), (2, 6), (1, 6), (0, 6), (0, 7), (1, 7), (2, 7), (3, 7), (4, 7), (5, 7), (6, 7)], 'id': 'gs_WGFytjrHmrtWghxrXGbSfXBH'}], 'food': [(3, 9), (0, 2), (9, 7)], 'module': 'territory', 'decision_path': ['1vn', "next step suppress {'Red Yarn'} avoid {(6, 7)}", 'avoided', 'definite confine [(7, 6)]'], 'next_coord': (5, 6), 'next_move': 'left', 'time': '0.021s'}
     log = {'id': 'a72bb549-16ea-40b9-94ad-a4f54ebf20ab', 'turn': 108, 'me': {'name': 'mark_snake', 'health': 47, 'length': 8, 'body': [(7, 5), (7, 4), (7, 3), (6, 3), (5, 3), (4, 3), (3, 3), (3, 4)], 'id': 'gs_XXvkxTqyF4rRRwTFkR6bhDbb'}, 'others': [{'name': 'Aurora', 'health': 92, 'length': 7, 'body': [(8, 6), (8, 5), (8, 4), (8, 3), (8, 2), (8, 1), (9, 1)], 'id': 'gs_qYTGT6CBdD8bCWvKjKxYWrfH'}, {'name': 'Snaky  McSnakeface', 'health': 74, 'length': 6, 'body': [(4, 0), (5, 0), (6, 0), (6, 1), (5, 1), (5, 2)], 'id': 'gs_4b3t4CVqTXqCKdWGdGbCrvH7'}, {'name': 'Red Yarn', 'health': 95, 'length': 14, 'body': [(3, 5), (2, 5), (2, 6), (1, 6), (0, 6), (0, 7), (1, 7), (2, 7), (3, 7), (4, 7), (5, 7), (6, 7), (7, 7), (8, 7)], 'id': 'gs_WGFytjrHmrtWghxrXGbSfXBH'}], 'food': [(3, 9), (0, 2)], 'module': 'territory', 'decision_path': ['1vn', 'border analysis move go (6, 5)'], 'next_coord': (6, 5), 'next_move': 'left', 'time': '0.012s'}
+    log = {'id': '3abea3db-d219-4d7f-a691-a3b6b979c69b', 'turn': 164, 'me': {'name': 'mark_snake', 'health': 90, 'length': 13, 'body': [(3, 1), (2, 1), (1, 1), (1, 2), (0, 2), (0, 3), (0, 4), (1, 4), (2, 4), (2, 3), (2, 2), (3, 2), (4, 2)], 'id': 'gs_bXSSDQDRdFQpbf7rdGvr4h4C'}, 'others': [{'name': 'Frank The Tank', 'health': 38, 'length': 14, 'body': [(5, 3), (4, 3), (3, 3), (3, 4), (3, 5), (2, 5), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (2, 9), (2, 8), (3, 8)], 'id': 'gs_g3bJkwqwP48VjmPyFqTtypKX'}, {'name': 'soma-mini v1[standard]', 'health': 86, 'length': 12, 'body': [(8, 6), (7, 6), (6, 6), (5, 6), (4, 6), (4, 5), (5, 5), (6, 5), (6, 4), (7, 4), (7, 3), (7, 2)], 'id': 'gs_RYJcFqCvQWRtVmWT4wXqRgGd'}], 'food': [(0, 10), (6, 1)], 'module': 'territory', 'decision_path': ['1vn', 'remove one possible confine (4, 1)'], 'next_coord': (3, 0), 'next_move': 'down', 'time': '0.012s'}
 
     game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
