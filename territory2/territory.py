@@ -1587,6 +1587,8 @@ def main(game_state, log=True):
         if ng is None: ng = g
 
         occupied = {p for snake in ng.snakes for p in snake.body[:-1]}
+        if len(moves) == 1:
+            ng.me.move_groups = [moves]
         if len(moves) == 2:
             a,b = moves
             if distance_vector_abs(a,b) != (1,1):
@@ -2032,10 +2034,11 @@ if __name__ == "__main__":
     log = {'id': '3abea3db-d219-4d7f-a691-a3b6b979c69b', 'turn': 164, 'me': {'name': 'mark_snake', 'health': 90, 'length': 13, 'body': [(3, 1), (2, 1), (1, 1), (1, 2), (0, 2), (0, 3), (0, 4), (1, 4), (2, 4), (2, 3), (2, 2), (3, 2), (4, 2)], 'id': 'gs_bXSSDQDRdFQpbf7rdGvr4h4C'}, 'others': [{'name': 'Frank The Tank', 'health': 38, 'length': 14, 'body': [(5, 3), (4, 3), (3, 3), (3, 4), (3, 5), (2, 5), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (2, 9), (2, 8), (3, 8)], 'id': 'gs_g3bJkwqwP48VjmPyFqTtypKX'}, {'name': 'soma-mini v1[standard]', 'health': 86, 'length': 12, 'body': [(8, 6), (7, 6), (6, 6), (5, 6), (4, 6), (4, 5), (5, 5), (6, 5), (6, 4), (7, 4), (7, 3), (7, 2)], 'id': 'gs_RYJcFqCvQWRtVmWT4wXqRgGd'}], 'food': [(0, 10), (6, 1)], 'module': 'territory', 'decision_path': ['1vn', 'remove one possible confine (4, 1)'], 'next_coord': (3, 0), 'next_move': 'down', 'time': '0.012s'}
     log = {'id': '8cc7f2de-af6f-458c-a11f-86fb7c4d0f0c', 'turn': 26, 'me': {'name': 'mark_snake', 'health': 97, 'length': 7, 'body': [(4, 8), (4, 7), (4, 6), (5, 6), (6, 6), (7, 6), (8, 6)], 'id': 'gs_XyDfy6STQWHR3gXfyJ7wkRtd'}, 'others': [{'name': 'SmartyRat', 'health': 82, 'length': 4, 'body': [(6, 2), (7, 2), (7, 3), (8, 3)], 'id': 'gs_vYVFMHrYmk3v6vmJvKH36VxT'}, {'name': 'snakey_wakey', 'health': 94, 'length': 5, 'body': [(1, 7), (2, 7), (3, 7), (3, 8), (3, 9)], 'id': 'gs_V7YkG9QMctFCFSXRBGCb73TQ'}, {'name': 'go-st', 'health': 78, 'length': 4, 'body': [(3, 3), (4, 3), (4, 4), (4, 5)], 'id': 'gs_MRtBfcgfJCw4wxWgVdMXdxfT'}], 'food': [(8, 10)], 'module': 'territory', 'decision_path': ['1vn', 'get food (8, 10) via [(5, 8), (4, 9)]', 'border analysis move go (6, 6)'], 'next_coord': (5, 8), 'next_move': 'right', 'time': '0.005s'}
     log = {'id': '8cc7f2de-af6f-458c-a11f-86fb7c4d0f0c', 'turn': 27, 'me': {'name': 'mark_snake', 'health': 97, 'length': 7, 'body': [(5,8), (4, 8), (4, 7), (4, 6), (5, 6), (6, 6), (7, 6)], 'id': 'gs_XyDfy6STQWHR3gXfyJ7wkRtd'}, 'others': [{'name': 'SmartyRat', 'health': 82, 'length': 4, 'body': [(5,2), (6, 2), (7, 2), (7, 3)], 'id': 'gs_vYVFMHrYmk3v6vmJvKH36VxT'}, {'name': 'snakey_wakey', 'health': 94, 'length': 5, 'body': [(1,6), (1, 7), (2, 7), (3, 7), (3, 8)], 'id': 'gs_V7YkG9QMctFCFSXRBGCb73TQ'}, {'name': 'go-st', 'health': 78, 'length': 4, 'body': [(3,4), (3, 3), (4, 3), (4, 4)], 'id': 'gs_MRtBfcgfJCw4wxWgVdMXdxfT'}], 'food': [(8, 10)], 'module': 'territory', 'decision_path': ['1vn', 'get food (8, 10) via [(5, 8), (4, 9)]', 'border analysis move go (6, 6)'], 'next_coord': (5, 8), 'next_move': 'right', 'time': '0.005s'}
+    log = {'id': '51af6a29-7d8d-415a-bbf3-ea56c244da54', 'turn': 102, 'nalive': 4, 'snakes': [{'name': 'mark_snake_test RED', 'health': 82, 'length': 16, 'alive': True, 'delay': 0, 'body': [(8, 6), (8, 5), (8, 4), (7, 4), (7, 5), (6, 5), (5, 5), (4, 5), (3, 5), (3, 6), (4, 6), (4, 7), (5, 7), (5, 8), (5, 9), (5, 10)]}, {'name': 'mark_snake_test BLUE', 'health': 97, 'length': 13, 'alive': True, 'delay': 6, 'body': [(4, 0), (3, 0), (2, 0), (1, 0), (1, 1), (1, 2), (2, 2), (3, 2), (3, 3), (4, 3), (5, 3), (5, 4), (6, 4)]}, {'name': 'mark_snake_test GREEN', 'health': 87, 'length': 12, 'alive': True, 'delay': 2, 'body': [(10, 6), (10, 5), (9, 5), (9, 4), (9, 3), (9, 2), (9, 1), (9, 0), (8, 0), (7, 0), (6, 0), (6, 1)]}, {'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 10, 'alive': True, 'delay': 11, 'body': [(2, 6), (1, 6), (1, 7), (1, 8), (1, 9), (2, 9), (3, 9), (3, 8), (2, 8), (2, 7)]}], 'food': [(5, 0), (10, 3)]}
 
-    game_state = init_from_log(log)
+    # game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
     #game_state = init_from_db_log(id, turn, self_name)
-    # game_state = init_from_game_engine_log(log, self_name)
+    game_state = init_from_game_engine_log(log, self_name)
     main(game_state, log=True)
 
