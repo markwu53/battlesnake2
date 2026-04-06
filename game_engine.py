@@ -1,9 +1,9 @@
 #from dfv3.decision_flow import Snake
 #import dfv3.decision_flow as dfv3
-from territory.territory import Snake
-import territory.territory as territory
+from territory2.territory import Snake
 import territory2.territory as territory2
 import territory_plan.territory as territory_plan
+import territory_next.territory as territory_next
 
 import random, time, uuid
 import split.decision_flow as df_split
@@ -95,7 +95,7 @@ class GameEngine:
         if snake.name in [
             "mark_snake_test RED",
         ]:
-            territory2.main(game_state, log=True) 
+            territory_next.main(game_state, log=True) 
             return {"move": game_state["next_move"]}
         else:
             df_split.main(game_state, log=False)
