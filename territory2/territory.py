@@ -1168,16 +1168,16 @@ def main(game_state, log=True):
         snake_tails = pick(within(within_distance))(snake_tails)
         # for snake, tail in snake_tails: print(f"border tail {snake.name} {g.me.to_snake_border_distance[snake.head]} {tail}")
         if len(snake_tails) == 0: return
-        # longs = pick(long_enough)(snake_tails)
-        # if len(longs) > 0:
-        #     snake_tails = take_first_group(distance_rank)(longs)
-        # else:
-        #     snake_tails = take_first_group(length_rank, reverse=True)(snake_tails)
+        longs = pick(long_enough)(snake_tails)
+        if len(longs) > 0:
+            snake_tails = take_first_group(distance_rank)(longs)
+            snake_tails = take_first_group(tail_end_space, reverse=True)(snake_tails)
+        else:
+            snake_tails = take_first_group(length_rank, reverse=True)(snake_tails)
+            snake_tails = take_first_group(distance_rank)(snake_tails)
         # snake_tails = take_first_group(tail_end_sublayer_length, reverse=True)(snake_tails)
         snake_tails = take_first_group(tail_end_space, reverse=True)(snake_tails)
-        snake_tails = take_first_group(distance_rank)(snake_tails)
-        snake_tails = take_first_group(tail_plus_sublayer_length, reverse=True)(snake_tails)
-        snake_tails = take_first_group(length_rank, reverse=True)(snake_tails)
+        # snake_tails = take_first_group(tail_plus_sublayer_length, reverse=True)(snake_tails)
         snake_tails = take_first_group(exposure_number, reverse=True)(snake_tails)
         snake_tails = prefer_not(dead_end)(snake_tails)
         snake_tails = prefer_not(connected_to_other_killer)(snake_tails)
