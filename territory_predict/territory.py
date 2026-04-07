@@ -595,6 +595,8 @@ def main(game_state, log=True):
             , kill
             , avoid_single_suppress_collision
             , avoid_single_confront_collision
+            , avoid_border_suppress_kill
+            , avoid_border_suppress_kill_2
             , border_suppress_kill
             , avoid_collision
 
@@ -701,6 +703,83 @@ def main(game_state, log=True):
                 g.t.me.decision_path.append(f"avoid collision {collision}")
                 return moves
 
+    def snake_next_step(snake: Snake, move):
+        snake2 = Snake(snake.name, [move]+snake.body[:-1], snake.health-1)
+        if move in g.t.food:
+            snake2.body.append(snake2.tail)
+            snake2.health = 100
+        return snake2
+
+    def hypo_game_turn(snakes: list[Snake]):
+        gt = GameTurn().set_snakes(snakes)
+        flood_game_turn(gt)
+        return gt
+
+    def others_go_reasonable(snakes: list[Snake]):
+        old_heads = {s.neck for s in snakes}
+        new_heads = {s.head for s in snakes}
+        for snake in sorted(g.snakes, key=lambda s: s.length, reverse=True):
+            if snake.head in old_heads: continue
+            allowed_moves = [a for a in snake.allowed_moves if a not in new_heads]
+            if len(allowed_moves) == 0: continue
+            new_head = take_first(allowed_moves)
+            food_moves = [a for a in allowed_moves if a in g.food]
+            if len(food_moves) != 0:
+                new_head = take_first(food_moves)
+            new_heads.add(new_head)
+            snake2 = snake_next_step(snake, new_head)
+            snakes.append(snake2)
+
+        return hypo_game_turn(snakes)
+
+    def suppress_situation(killer: Snake, target: Snake):
+        if len(target.all_border) != len(target.to_snake_border[killer.head]): return False
+        if not all([len(layer) == 1 for layer in target.territory_layers]): return False
+
+        target_border = target.to_snake_border[killer.head]
+        killer_border = killer.to_snake_border[target.head]
+        if len(killer_border) != len(target_border): return False
+
+        return True
+
+    def avoid_border_suppress_kill(moves):
+        if not on_border(g.t.me.head): return
+
+        for killer in g.t.others:
+            if killer.length <= g.t.me.length: continue
+            for a in moves:
+                if not on_border(a): continue
+                for b in killer.allowed_moves:
+                    if on_border(b): continue
+                    if not distance_vector_abs(a, b) in [(0,2), (2,0)]: continue
+                    me2 = snake_next_step(g.t.me, a)
+                    killer2 = snake_next_step(killer, b)
+                    others_go_reasonable([me2, killer2])
+                    if not suppress_situation(killer2, me2): continue
+                    g.t.me.decision_path.append(f"avoid border suppress {killer.name} {a}")
+                    moves = [p for p in moves if p != a]
+                    return moves
+
+    def avoid_border_suppress_kill_2(moves):
+        if not on_border(g.t.me.head): return
+
+        for killer in g.t.others:
+            if killer.length > g.t.me.length: continue
+            if not distance_vector_abs(killer.head, g.t.me.head) == (1,1): continue
+            for a in moves:
+                if not on_border(a): continue
+                if not is_adjacent(a, killer.head): continue
+                for b in killer.allowed_moves:
+                    if on_border(b): continue
+                    if not distance_vector_abs(a, b) == (1,1): continue
+                    me2 = snake_next_step(g.t.me, a)
+                    killer2 = snake_next_step(killer, b)
+                    others_go_reasonable([me2, killer2])
+                    if not suppress_situation(killer2, me2): continue
+                    g.t.me.decision_path.append(f"avoid border suppress 2 {killer.name} {a}")
+                    moves = [p for p in moves if p != a]
+                    return moves
+
     def border_suppress_kill(moves):
         for snake in g.t.others:
             if not g.t.me.length > snake.length: continue
@@ -713,13 +792,6 @@ def main(game_state, log=True):
             if len(snake.territory) != len(snake.all_border): continue
             g.t.me.decision_path.append(f"border suppress kill {snake.name} {collision}")
             return collision
-
-    def snake_next_step(snake: Snake, move, gt: GameTurn):
-        snake2 = Snake(snake.name, [move]+snake.body[:-1], snake.health-1)
-        if move in gt.food:
-            snake2.body.append(snake2.tail)
-            snake2.health = 100
-        return snake2
 
     def init_game(game_state):
         g.width = game_state["board"]["width"]

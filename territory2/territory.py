@@ -112,12 +112,13 @@ def main(game_state, log=True):
             , split_avoid_other_eating_food_confine
             , split_avoid_food_confine_branch
             , (avoid_general_possible_confine)
-            , avoid_conflict_with_target
+            # , avoid_conflict_with_target
             , avoid_other_eating_food_confine
             # , food_supprise
             , food_correction
 
             , cond(len(g.others) > 1)(get_food(6))
+            , avoid_conflict_with_target
 
             , (split_take_larger)
 
