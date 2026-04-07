@@ -1094,6 +1094,38 @@ def main(game_state, log=True):
             snake, tail = st
             tail_end = tail[-1]
             return g.me.territory_connection_number[tail_end] == 1
+        def path_to_tail_end(end):
+            reverse_path = [end]
+            used = set(reverse_path)
+            come = end
+            while come != g.me.head:
+                come = [p for p in g.me.territory_connection_in_points[come] if p not in used
+                        and g.me.territory_point_level[p] +1 == g.me.territory_point_level[come]]
+                come = take_first(come)
+                reverse_path.append(come)
+                used.add(come)
+            path = list(reversed(reverse_path))
+            return path
+        def test_point_area(path_set, test_point):
+            front = {test_point}
+            used = {p for p in front}
+            while len(front) != 0:
+                front = {q for p in front for q in adj_cells(p) if q in g.me.territory 
+                         and q not in path_set and q not in used 
+                         and q in g.me.territory_connection_points[p]}
+                used.update(front)
+            return used
+        def tail_end_space(st):
+            snake, tail = st
+            tail_end = tail[-1]
+            path = path_to_tail_end(tail_end)
+            path_set = set(path)
+            test_point = [a for a in adj_cells(tail_end) if a in g.me.territory and a not in path_set]
+            if len(test_point) == 0:
+                return len(path_set)
+            test_point = take_first(test_point)
+            area = test_point_area(path_set, test_point)
+            return len(path_set) + len(area)
         def tail_end_sublayer_length(st):
             snake, tail = st
             tail_end = tail[-1]
@@ -1135,6 +1167,8 @@ def main(game_state, log=True):
         # else:
         #     snake_tails = take_first_group(length_rank, reverse=True)(snake_tails)
         # snake_tails = take_first_group(tail_end_sublayer_length, reverse=True)(snake_tails)
+        snake_tails = take_first_group(tail_end_space, reverse=True)(snake_tails)
+        snake_tails = take_first_group(distance_rank)(snake_tails)
         snake_tails = take_first_group(tail_plus_sublayer_length, reverse=True)(snake_tails)
         snake_tails = take_first_group(length_rank, reverse=True)(snake_tails)
         snake_tails = take_first_group(exposure_number, reverse=True)(snake_tails)
@@ -2123,6 +2157,7 @@ if __name__ == "__main__":
     log = {'id': '4b6105a7-42a3-4d47-84e6-a657e47dc1c5', 'turn': 147, 'me': {'name': 'mark_snake', 'health': 98, 'length': 10, 'body': [(7, 8), (7, 9), (7, 10), (6, 10), (5, 10), (4, 10), (3, 10), (2, 10), (1, 10), (0, 10)], 'id': 'gs_Kbff6KBMdmGjK4kSGSd63gYW'}, 'others': [{'name': 'SnattleBake_v060s', 'health': 83, 'length': 11, 'body': [(1, 6), (1, 7), (2, 7), (2, 8), (3, 8), (3, 9), (4, 9), (4, 8), (4, 7), (3, 7), (3, 6)], 'id': 'gs_WxQWQrjBKxmQd74CFBkky4Bd'}, {'name': 'poc', 'health': 99, 'length': 11, 'body': [(5, 6), (5, 5), (4, 5), (3, 5), (2, 5), (2, 4), (2, 3), (2, 2), (1, 2), (0, 2), (0, 3)], 'id': 'gs_SW9fqM6wyjGMCYP8gyThJVk4'}, {'name': 'Slytherin', 'health': 85, 'length': 12, 'body': [(6, 3), (7, 3), (8, 3), (8, 4), (8, 5), (8, 6), (7, 6), (6, 6), (6, 5), (7, 5), (7, 4), (6, 4)], 'id': 'gs_VtkRfgMH9BJPq83m4P9rfqPD'}], 'food': [(1, 0), (6, 1)], 'module': 'territory', 'decision_path': ['1vn', 'border analysis move go (6, 8)'], 'next_coord': (6, 8), 'next_move': 'left', 'time': '0.030s'}
     log = {'id': '452a3183-a8c6-4d65-a8c7-2cb93160c1b1', 'turn': 264, 'me': {'name': 'mark_snake', 'health': 98, 'length': 23, 'body': [(2, 6), (3, 6), (4, 6), (5, 6), (6, 6), (6, 7), (6, 8), (7, 8), (7, 9), (6, 9), (5, 9), (5, 8), (4, 8), (3, 8), (2, 8), (1, 8), (0, 8), (0, 7), (0, 6), (0, 5), (0, 4), (0, 3), (0, 2)], 'id': 'gs_v9gV4w49pSKy9XpYtbjWWDcb'}, 'others': [{'name': 'Przze v2', 'health': 93, 'length': 18, 'body': [(10, 4), (10, 5), (9, 5), (8, 5), (8, 6), (9, 6), (9, 7), (9, 8), (8, 8), (8, 7), (7, 7), (7, 6), (7, 5), (7, 4), (8, 4), (9, 4), (9, 3), (8, 3)], 'id': 'gs_phQHqxXHpqTytvV7vTqK7BcP'}, {'name': 'Geriatric Jagwire', 'health': 85, 'length': 14, 'body': [(2, 4), (3, 4), (3, 5), (4, 5), (5, 5), (5, 4), (5, 3), (5, 2), (6, 2), (7, 2), (7, 1), (7, 0), (8, 0), (9, 0)], 'id': 'gs_FHJGSC4khKdDmkhcB6k33FqF'}], 'food': [(1, 9), (4, 4), (0, 9), (4, 10)], 'module': 'territory', 'decision_path': ['1vn', 'remove one possible confine (1, 6)', 'split take larger area [([(2, 7)], 8), ([(2, 5)], 8)]', 'border analysis move go (2, 5)'], 'next_coord': (2, 5), 'next_move': 'down', 'time': '0.010s'}
     log = {'id': '452a3183-a8c6-4d65-a8c7-2cb93160c1b1', 'turn': 264, 'me': {'name': 'mark_snake', 'health': 98, 'length': 23, 'body': [(2, 6), (3, 6), (4, 6), (5, 6), (6, 6), (6, 7), (6, 8), (7, 8), (7, 9), (6, 9), (5, 9), (5, 8), (4, 8), (3, 8), (2, 8), (1, 8), (0, 8), (0, 7), (0, 6), (0, 5), (0, 4), (0, 3), (0, 2)], 'id': 'gs_v9gV4w49pSKy9XpYtbjWWDcb'}, 'others': [{'name': 'Przze v2', 'health': 93, 'length': 18, 'body': [(10, 4), (10, 5), (9, 5), (8, 5), (8, 6), (9, 6), (9, 7), (9, 8), (8, 8), (8, 7), (7, 7), (7, 6), (7, 5), (7, 4), (8, 4), (9, 4), (9, 3), (8, 3)], 'id': 'gs_phQHqxXHpqTytvV7vTqK7BcP'}, {'name': 'Geriatric Jagwire', 'health': 85, 'length': 14, 'body': [(2, 4), (3, 4), (3, 5), (4, 5), (5, 5), (5, 4), (5, 3), (5, 2), (6, 2), (7, 2), (7, 1), (7, 0), (8, 0), (9, 0), (9, 0), (9, 0), (9, 0), (9, 0), (9, 0), (9, 0), (9, 0), (9, 0), (9, 0)], 'id': 'gs_FHJGSC4khKdDmkhcB6k33FqF'}], 'food': [(1, 9), (4, 4), (0, 9), (4, 10)], 'module': 'territory', 'decision_path': ['1vn', 'remove one possible confine (1, 6)', 'split take larger area [([(2, 7)], 8), ([(2, 5)], 8)]', 'border analysis move go (2, 5)'], 'next_coord': (2, 5), 'next_move': 'down', 'time': '0.010s'}
+    log = {'id': '972e3fb4-dee8-4fbf-adf6-262662d4082b', 'turn': 279, 'me': {'name': 'mark_snake', 'health': 95, 'length': 19, 'body': [(2, 7), (2, 8), (3, 8), (3, 9), (4, 9), (5, 9), (5, 10), (6, 10), (7, 10), (8, 10), (8, 9), (8, 8), (8, 7), (7, 7), (6, 7), (5, 7), (5, 8), (4, 8), (4, 7)], 'id': 'gs_qKDFPW69MqG7jBkM4SHYxjG6'}, 'others': [{'name': 'Slytherin', 'health': 93, 'length': 27, 'body': [(6, 5), (7, 5), (7, 4), (7, 3), (6, 3), (6, 2), (6, 1), (7, 1), (7, 0), (6, 0), (5, 0), (4, 0), (4, 1), (3, 1), (2, 1), (1, 1), (1, 2), (1, 3), (1, 4), (2, 4), (3, 4), (3, 3), (3, 2), (4, 2), (5, 2), (5, 3), (5, 4)], 'id': 'gs_fMTkvYBFrdGG7gdgckjh6Y3b'}], 'food': [(8, 0), (10, 2), (2, 5)], 'module': 'territory', 'decision_path': ['1v1', 'border analysis move go (4, 7)'], 'next_coord': (3, 7), 'next_move': 'right', 'time': '0.006s'}
 
     game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
