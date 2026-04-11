@@ -563,6 +563,59 @@ def cond(*pred):
 
 def decision_flow(g: GameTurn, me: Snake, is_pred):
 
+    def decision():
+
+        return seq([ id
+            , turn_0
+
+            , win
+            , avoid_death
+            , kill
+            , avoid_single_suppress_collision
+
+            , (avoid_suppress_kill("firm_ground"))
+            , (suppress_kill_firm_ground)
+
+            , split_avoid_definite_confine
+            , avoid_single_confront_collision
+
+            , cond(not g.me.suppress_kill)(straight_line_confine_kill(0.8))
+
+            , cond(len(g.others) <= 2)(avoid_confront_confine)
+            , (avoid_deadend)
+
+            , (avoid_suppress_kill("killer_ground"))
+            , choose_collision
+            , avoid_collision
+
+            , (avoid_myself_eating_food_confine)
+            , split_avoid_possible_confine
+
+            , wayout
+
+            , split_avoid_other_eating_food_confine
+            , split_avoid_food_confine_branch
+            , (avoid_general_possible_confine)
+
+            , cond(len(g.others) > 1)(get_food(6))
+            , (split_take_larger)
+
+            , (cond(len(g.others) == 1)(border_analysis_move(2)))
+            , cond(len(g.others) == 1)(get_food(2))
+            , cond(len(g.others) == 1)(meander)
+            , cond(len(g.others) == 1)(border_analysis_move(5))
+            , cond(len(g.others) == 1)(get_food(4))
+
+            , cond(len(g.others) > 1)(border_analysis_move(5))
+
+            , prefer(in_territory)
+            , cond(g.me.length <= 7)(prefer_not(on_border))
+            , prefer(is_straight)
+
+            , undecided
+
+        ])(g.me.allowed_moves)
+
     def in_territory(a):
         return a in g.me.territory
 
@@ -1595,52 +1648,7 @@ def decision_flow(g: GameTurn, me: Snake, is_pred):
         #win
         return g.me.allowed_moves
 
-    return seq([ id
-        , turn_0
-
-        , win
-        , avoid_death
-        , kill
-        , avoid_single_suppress_collision
-
-        , (avoid_suppress_kill("firm_ground"))
-        , (suppress_kill_firm_ground)
-
-        , split_avoid_definite_confine
-        , avoid_single_confront_collision
-
-        , cond(not g.me.suppress_kill)(straight_line_confine_kill(0.8))
-
-        , cond(len(g.others) <= 2)(avoid_confront_confine)
-        , (avoid_deadend)
-
-        , (avoid_suppress_kill("killer_ground"))
-        , choose_collision
-        , avoid_collision
-
-        , (avoid_myself_eating_food_confine)
-        , split_avoid_possible_confine
-
-        , wayout
-
-        , split_avoid_other_eating_food_confine
-        , split_avoid_food_confine_branch
-        , (avoid_general_possible_confine)
-
-        , cond(len(g.others) > 1)(get_food(6))
-        , (split_take_larger)
-
-        , (cond(len(g.others) == 1)(border_analysis_move(2)))
-        , cond(len(g.others) == 1)(get_food(2))
-        , cond(len(g.others) == 1)(meander)
-        , cond(len(g.others) == 1)(border_analysis_move(5))
-        , cond(len(g.others) == 1)(get_food(4))
-
-        , cond(len(g.others) > 1)(border_analysis_move(5))
-
-        , undecided
-
-    ])(g.me.allowed_moves)
+    return decision()
 
 def main(game_state, log=True):
 
