@@ -1498,15 +1498,15 @@ def main(game_state, log=True):
                         ng = next_game_turn([me2, killer2])
                         flood_game_turn(ng)
                         if suppress_situation(killer2, me2):
-                            ground_type = firm_ground(killer2, me2, ng)
+                            ground_type_result = firm_ground(killer2, me2, ng)
                             if ground_type == "firm_ground":
-                                if ground_type == 0:
+                                if ground_type_result == 0:
                                     moves = [p for p in moves if p != a]
                                     if len(moves) != 0:
                                         g.decision_path.append(f"avoided suppress {a} from {killer.name}")
                                         return moves
                             elif ground_type == "killer_ground":
-                                if ground_type == 1:
+                                if ground_type_result == 1:
                                     moves = [p for p in moves if p != a]
                                     if len(moves) != 0:
                                         g.decision_path.append(f"avoided suppress {a} from {killer.name}")
