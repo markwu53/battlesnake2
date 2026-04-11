@@ -40,6 +40,7 @@ class Snake:
         self.move_component: dict = None
         self.adjacent_indexes = dict()
         self.target = None
+        self.decision_path = []
     def dict(self):
         return {k: self.__dict__[k] for k in ["name", "health", "length", "body", "id", ]}
 
@@ -54,7 +55,6 @@ class GameTurn:
         self.food = None
         self.next_coord = None
         self.log = {}
-        self.decision_path = []
         self.turn = None
         self.width = None
         self.height = None
@@ -745,7 +745,7 @@ def main(game_state, log=True):
         return
 
     def undecided(moves):
-        g.decision_path.append(f"undecided {moves}")
+        g.me.decision_path.append(f"undecided {moves}")
 
     def turn_0(moves):
         if g.turn != 0: return
@@ -760,7 +760,7 @@ def main(game_state, log=True):
         if g.me.length <= g.other.length: return
         move = g.other.allowed_moves[0]
         if move in moves:
-            g.decision_path.append("win")
+            g.me.decision_path.append("win")
             return [move]
 
     def avoid_death(moves):
@@ -770,7 +770,7 @@ def main(game_state, log=True):
         if len(moves_to_avoid) == 0: return
         moves = [a for a in moves if a not in moves_to_avoid]
         if len(moves) != 0:
-            g.decision_path.append("avoid death")
+            g.me.decision_path.append("avoid death")
             return moves
 
     def kill(moves):
@@ -779,7 +779,7 @@ def main(game_state, log=True):
             if len(snake.allowed_moves) != 1: continue
             kill_move = take_first(snake.allowed_moves)
             if kill_move not in moves: continue
-            g.decision_path.append(f"kill {snake.name} at {kill_move}")
+            g.me.decision_path.append(f"kill {snake.name} at {kill_move}")
             return [kill_move]
 
     def territory_calculation(moves):
@@ -841,7 +841,7 @@ def main(game_state, log=True):
             if not has_wayout(ng):
                 moves = [p for p in moves if p != a]
                 if len(moves) != 0:
-                    g.decision_path.append(f"avoid other eating food confine {a}")
+                    g.me.decision_path.append(f"avoid other eating food confine {a}")
                     return moves
 
     def food_supprise(moves):
@@ -860,7 +860,7 @@ def main(game_state, log=True):
         if new_max - new_min >= 2:
             moves_to_take = take_first_group(lambda a: a[1], reverse=True)(list(zip(moves_in_territory, new_territory)))
             moves = [a for a,n in moves_to_take]
-            g.decision_path.append(f"food supprise take {moves}")
+            g.me.decision_path.append(f"food supprise take {moves}")
             return moves
 
     def split_avoid_other_eating_food_confine(moves):
@@ -876,7 +876,7 @@ def main(game_state, log=True):
             if not has_wayout(ng):
                 moves = [p for p in moves if p not in mg]
                 if len(moves) != 0:
-                    g.decision_path.append(f"split avoid enemy eating food confine {mg}")
+                    g.me.decision_path.append(f"split avoid enemy eating food confine {mg}")
                     return moves
 
     def split_food_suprise(moves):
@@ -897,7 +897,7 @@ def main(game_state, log=True):
             if len(after) <= len(before) * factor:
                 moves = [a for a in moves if a not in mg]
                 if len(moves) != 0:
-                    g.decision_path.append(f"food supprise {mg}")
+                    g.me.decision_path.append(f"food supprise {mg}")
                     return moves
 
     def avoid_myself_eating_food_confine(moves):
@@ -917,7 +917,7 @@ def main(game_state, log=True):
         if len(food_to_avoid) == 0: return
         moves = [a for a in moves if a not in food_to_avoid]
         if len(moves) != 0:
-            g.decision_path.append(f"avoid eating food confine {food_to_avoid}")
+            g.me.decision_path.append(f"avoid eating food confine {food_to_avoid}")
             return moves
 
 
@@ -944,7 +944,7 @@ def main(game_state, log=True):
         if len(avoid_moves) == 0: return
         moves = [a for a in moves if a not in avoid_moves]
         if len(moves) != 0:
-            g.decision_path.append(f"food impact {avoid_moves}")
+            g.me.decision_path.append(f"food impact {avoid_moves}")
             return moves
 
     def get_food(distance_factor):
@@ -963,7 +963,7 @@ def main(game_state, log=True):
             moves = [a for a in moves if tree_distance(a, food_target) >= 0]
             if len(moves) != 0:
                 if g.me.target is None: g.me.target = food_target
-                g.decision_path.append(f"get food {food_target} via {moves}")
+                g.me.decision_path.append(f"get food {food_target} via {moves}")
                 return moves
         return fn
 
@@ -977,7 +977,7 @@ def main(game_state, log=True):
         if len(moves_to_avoid) == 0: return
         moves = [a for a in moves if a not in moves_to_avoid]
         if len(moves) != 0:
-            g.decision_path.append(f"avoid single suppress collision {moves_to_avoid}")
+            g.me.decision_path.append(f"avoid single suppress collision {moves_to_avoid}")
             return moves
 
     def avoid_single_confront_collision(moves):
@@ -990,7 +990,7 @@ def main(game_state, log=True):
         if len(moves_to_avoid) == 0: return
         moves = [a for a in moves if a not in moves_to_avoid]
         if len(moves) != 0:
-            g.decision_path.append(f"avoid single confront collision {moves_to_avoid}")
+            g.me.decision_path.append(f"avoid single confront collision {moves_to_avoid}")
             return moves
 
     def snake_next_step(snake: Snake, move):
@@ -1211,7 +1211,7 @@ def main(game_state, log=True):
             #shortest_moves = prefer(lambda a: a in g.food)(shortest_moves)
             if len(shortest_moves) != 0:
                 if g.me.target is None: g.me.target = target
-                g.decision_path.append(f"border analysis move go {target}")
+                g.me.decision_path.append(f"border analysis move go {target}")
                 return shortest_moves
         return fn
 
@@ -1235,7 +1235,7 @@ def main(game_state, log=True):
         if len(moves) != 0:
             min_value = min([links[a] for a in moves], key=lambda x: (-x[0], x[1], x[2]))
             moves = [a for a in moves if links[a] == min_value]
-            g.decision_path.append(f"meander to {target_point} via {moves}")
+            g.me.decision_path.append(f"meander to {target_point} via {moves}")
             return moves
 
     def avoid_killer_confront(moves):
@@ -1243,7 +1243,7 @@ def main(game_state, log=True):
         if len(moves_to_avoid) == 0: return
         moves = [a for a in moves if a not in moves_to_avoid]
         if len(moves) != 0:
-            g.decision_path.append(f"avoid killer confront {moves_to_avoid}")
+            g.me.decision_path.append(f"avoid killer confront {moves_to_avoid}")
             return moves
 
     def gain_territory_move(moves):
@@ -1261,7 +1261,7 @@ def main(game_state, log=True):
 
         best_moves = take_first_group(new_territory)(check_moves)
         if len(best_moves) != len(moves):
-            g.decision_path.append(f"gain territory move {best_moves}")
+            g.me.decision_path.append(f"gain territory move {best_moves}")
             return moves
 
     def follow_body_in_territory(moves):
@@ -1284,7 +1284,7 @@ def main(game_state, log=True):
             end = single_path[-1]
             if end != g.me.head: continue
             if len(single_path) <= 2: continue
-            g.decision_path.append(f"cut chasing {snake.name} {target}")
+            g.me.decision_path.append(f"cut chasing {snake.name} {target}")
             return [single_path[-2]]
 
     def ________KILLS________():
@@ -1406,7 +1406,7 @@ def main(game_state, log=True):
             if len(moves) != 0:
                 g.suppress_kill = first_point
                 if g.me.target is None: g.me.target = first_point
-                g.decision_path.append(f"suppress kill {snake.name} {first_point}")
+                g.me.decision_path.append(f"suppress kill {snake.name} {first_point}")
                 return moves
 
     def straight_line_confine_kill(factor=0.8):
@@ -1435,7 +1435,7 @@ def main(game_state, log=True):
                 moves = [a for a in moves if a in shortest_moves]
                 if len(moves) != 0:
                     if g.me.target is None: g.me.target = first_point
-                    g.decision_path.append(f"straight line confine kill {snake.name} {first_point} with factor {factor}")
+                    g.me.decision_path.append(f"straight line confine kill {snake.name} {first_point} with factor {factor}")
                     return moves
         return fn
 
@@ -1468,10 +1468,10 @@ def main(game_state, log=True):
                         danger_snakes.add(killer.name)
         if len(moves_to_avoid) == 0: return
         g.avoid_suppress_kill = moves_to_avoid
-        g.decision_path.append(f"next step suppress {danger_snakes} avoid {moves_to_avoid}")
+        g.me.decision_path.append(f"next step suppress {danger_snakes} avoid {moves_to_avoid}")
         moves = [a for a in moves if a not in moves_to_avoid]
         if len(moves) != 0:
-            g.decision_path.append(f"avoided")
+            g.me.decision_path.append(f"avoided")
             return moves
 
     def avoid_suppress_kill(ground_type):
@@ -1502,15 +1502,13 @@ def main(game_state, log=True):
                             if ground_type == "firm_ground":
                                 if ground_type_result == 0:
                                     moves = [p for p in moves if p != a]
-                                    if len(moves) != 0:
-                                        g.decision_path.append(f"avoided suppress {a} from {killer.name}")
-                                        return moves
+                                    g.me.decision_path.append(f"avoided suppress {a} from {killer.name}")
+                                    return moves
                             elif ground_type == "killer_ground":
                                 if ground_type_result == 1:
                                     moves = [p for p in moves if p != a]
-                                    if len(moves) != 0:
-                                        g.decision_path.append(f"avoided suppress {a} from {killer.name}")
-                                        return moves
+                                    g.me.decision_path.append(f"avoided suppress {a} from {killer.name}")
+                                    return moves
         return fn
 
     def avoid_confront_confine(moves):
@@ -1542,10 +1540,10 @@ def main(game_state, log=True):
         flood_game_turn(ng)
 
         if has_wayout(ng): 
-            g.decision_path.append(f"confront confine - go ahead")
+            g.me.decision_path.append(f"confront confine - go ahead")
             return [a]
         else:
-            g.decision_path.append(f"confront confine - go opposite")
+            g.me.decision_path.append(f"confront confine - go opposite")
             return [b]
 
 
@@ -1585,7 +1583,7 @@ def main(game_state, log=True):
         deadend_to_avoid = [reverse_path[0] for reverse_path in deadend_strings_to_avoid]
         moves = [a for a in moves if a not in moves_to_avoid]
         if len(moves) != 0:
-            g.decision_path.append(f"avoid deadend {deadend_to_avoid} moves {moves_to_avoid}")
+            g.me.decision_path.append(f"avoid deadend {deadend_to_avoid} moves {moves_to_avoid}")
             return moves
 
     def avoid_deadend_old(moves):
@@ -1598,10 +1596,10 @@ def main(game_state, log=True):
         moves_to_avoid = [path[-1] for path in deadend_strings_to_avoid]
         if len(deadend_strings_to_avoid) == 0: return
 
-        g.decision_path.append(f"avoid deadend {deadend_to_avoid} moves {moves_to_avoid}")
+        g.me.decision_path.append(f"avoid deadend {deadend_to_avoid} moves {moves_to_avoid}")
         all_avoid_moves = [a for a in moves if a not in moves_to_avoid]
         if len(all_avoid_moves) != 0:
-            g.decision_path.append(f"all avoided")
+            g.me.decision_path.append(f"all avoided")
             return all_avoid_moves
 
         def exposure2(path):
@@ -1617,7 +1615,7 @@ def main(game_state, log=True):
         exposure2_moves = [path[-1] for path in exposure2_path]
         exposure2_moves = [a for a in moves if a in exposure2_moves]
         if len(exposure2_moves) == 1:
-            g.decision_path.append(f"only exposure 2 left")
+            g.me.decision_path.append(f"only exposure 2 left")
             return exposure2_moves
 
         if len(exposure2_moves) > 1:
@@ -1626,7 +1624,7 @@ def main(game_state, log=True):
         shorter = [path for path in deadend_strings_to_avoid if len(path) < max_length]
         shorter_deadend = [path[0] for path in shorter]
         shorter_start = [path[-1] for path in shorter]
-        g.decision_path.append(f"avoided shorter {shorter_deadend} moves {shorter_start}")
+        g.me.decision_path.append(f"avoided shorter {shorter_deadend} moves {shorter_start}")
         longest = [path for path in deadend_strings_to_avoid if len(path) == max_length]
         moves = [path[-1] for path in longest]
         return moves
@@ -1645,10 +1643,10 @@ def main(game_state, log=True):
         moves_to_avoid = [ng.me.deadend_string[d][-1] for d in deadends]
         moves_to_avoid = [a for a in moves_to_avoid if a in moves]
         if len(moves_to_avoid) == 0: return
-        g.decision_path.append(f"avoid equal deadend {deadends}")
+        g.me.decision_path.append(f"avoid equal deadend {deadends}")
         moves = [a for a in moves if a not in moves_to_avoid]
         if len(moves) != 0:
-            g.decision_path.append(f"avoided equal deadend move {moves_to_avoid}")
+            g.me.decision_path.append(f"avoided equal deadend move {moves_to_avoid}")
             return moves
 
     def avoid_deadend2(moves):
@@ -1661,7 +1659,7 @@ def main(game_state, log=True):
         if len(moves_to_avoid) == 0: return
         moves = [a for a in moves if a not in moves_to_avoid]
         if len(moves) != 0:
-            g.decision_path.append(f"avoid deadend exposure 2: {deadends}")
+            g.me.decision_path.append(f"avoid deadend exposure 2: {deadends}")
             return moves
 
     def ________TERRITORY_MOVES________():
@@ -1678,7 +1676,7 @@ def main(game_state, log=True):
         killer = take_first(snakes)
         moves = prefer_not(lambda a: a in g.food)(moves)
         moves = take_first_group(lambda a: len(killer.move_component[a]))(moves)
-        g.decision_path.append(f"choose collision {moves} against {killer.name}")
+        g.me.decision_path.append(f"choose collision {moves} against {killer.name}")
         return moves
 
     def avoid_collision(moves):
@@ -1696,9 +1694,9 @@ def main(game_state, log=True):
                 if dodge_area < g.me.length * factor:
                     opposite_point = [a for a in collision_points if distance_vector_abs(a, take_first(dodge_point)) != (1,1)]
                     if len(opposite_point) != 0:
-                        g.decision_path.append(f"collision take risk {opposite_point}")
+                        g.me.decision_path.append(f"collision take risk {opposite_point}")
                         return opposite_point
-            g.decision_path.append(f"collision take dodge point {dodge_point}")
+            g.me.decision_path.append(f"collision take dodge point {dodge_point}")
             return dodge_point
 
     def ngroup(moves, ng: GameTurn=None):
@@ -1747,7 +1745,7 @@ def main(game_state, log=True):
             flood_game_turn(ng)
             if len(ng.me.all_border) != 0: continue
             if has_wayout(ng): continue
-            g.decision_path.append(f"definite confine {mg}")
+            g.me.decision_path.append(f"definite confine {mg}")
             moves = [p for p in moves if p not in mg]
             if len(moves) != 0:
                 return moves
@@ -1791,7 +1789,7 @@ def main(game_state, log=True):
                 if len(ng.me.move_component[x]) <= len(g.me.territory) * factor:
                     moves = [p for p in moves if p != a]
                     if len(moves) != 0:
-                        g.decision_path.append(f"move {a} conflict with target {g.me.target}")
+                        g.me.decision_path.append(f"move {a} conflict with target {g.me.target}")
                         return moves
 
     def avoid_general_possible_confine(moves):
@@ -1808,7 +1806,7 @@ def main(game_state, log=True):
             flood_game_turn(ng)
             if has_wayout(ng): continue
             moves.remove(a)
-            g.decision_path.append(f"remove possible confine {a}")
+            g.me.decision_path.append(f"remove possible confine {a}")
             return moves
 
     def head_no_choice_path(snake: Snake):
@@ -1855,7 +1853,7 @@ def main(game_state, log=True):
             if nfood > 0:
                 moves = [p for p in moves if p != a]
                 if len(moves) != 0:
-                    g.decision_path.append(f"split avoid food confine branch {a}")
+                    g.me.decision_path.append(f"split avoid food confine branch {a}")
                     return moves
 
 
@@ -1876,7 +1874,7 @@ def main(game_state, log=True):
             ng = next_game_turn([me2]+others)
             flood_game_turn(ng)
             if has_wayout(ng): continue
-            g.decision_path.append(f"split possible confine {mg}")
+            g.me.decision_path.append(f"split possible confine {mg}")
             moves = [p for p in moves if p not in mg]
             if len(moves) != 0:
                 return moves
@@ -1898,7 +1896,7 @@ def main(game_state, log=True):
         moves_ext = [(mg, len(move_space)) for mg, move_space in moves_ext]
         best_group = take_first_group(key=lambda x: (x[1]), reverse=True)(moves_ext)
         best_moves = [a for a in moves if a in [x for gr, move_space in best_group for x in gr]]
-        g.decision_path.append(f"split take larger area {best_group}")
+        g.me.decision_path.append(f"split take larger area {best_group}")
         return best_moves
 
     def split_take_equal_border_side(moves):
@@ -1920,7 +1918,7 @@ def main(game_state, log=True):
         good_moves = [a for group in good_group for a in group]
         moves = [a for a in moves if a in good_moves]
         if len(moves) != 0:
-            g.decision_path.append(f"split take equal border side {[s.name for s in equal_snakes]}")
+            g.me.decision_path.append(f"split take equal border side {[s.name for s in equal_snakes]}")
             return moves
 
     def split_equal_collision(moves):
@@ -1931,7 +1929,7 @@ def main(game_state, log=True):
         moves = [a for a in moves if a in mg]
         if len(moves) != 0:
             moves = list(moves)
-            g.decision_path.append(f"split take equal collision move {moves}")
+            g.me.decision_path.append(f"split take equal collision move {moves}")
             return moves
 
     def wayout(moves):
@@ -1998,7 +1996,7 @@ def main(game_state, log=True):
         if len(moves) != 0:
             min_value = min([links[a] for a in moves], key=lambda x: (-x[0], x[1], x[2]))
             moves = [a for a in moves if links[a] == min_value]
-            g.decision_path.append(f"wayout to {wayout_point} via {moves}")
+            g.me.decision_path.append(f"wayout to {wayout_point} via {moves}")
             return moves
 
     def ________GAME_FLOW________():
@@ -2045,12 +2043,12 @@ def main(game_state, log=True):
         g.others = [snake for snake in g.snakes if snake.head != g.me.head]
 
         if len(g.others) == 0:
-            g.decision_path.append("only myself")
+            g.me.decision_path.append("only myself")
         elif len(g.others) == 1:
-            g.decision_path.append("1v1")
+            g.me.decision_path.append("1v1")
             g.other = g.others[0]
         else:
-            g.decision_path.append("1vn")
+            g.me.decision_path.append("1vn")
 
         g.food = get_coord(game_state["board"]["food"])
 
@@ -2074,7 +2072,7 @@ def main(game_state, log=True):
     next_move = get_adjacent_dir(g.me.head, g.next_coord)
 
     #g.log["decision_support"] = {k:v for k,v in g.e.__dict__.items() if v is not None}
-    g.log["decision_path"] = g.decision_path
+    g.log["decision_path"] = g.me.decision_path
     g.log["next_coord"] = g.next_coord
     g.log["next_move"] = next_move
 
@@ -2168,10 +2166,11 @@ if __name__ == "__main__":
     log = {'id': '972e3fb4-dee8-4fbf-adf6-262662d4082b', 'turn': 279, 'me': {'name': 'mark_snake', 'health': 95, 'length': 19, 'body': [(2, 7), (2, 8), (3, 8), (3, 9), (4, 9), (5, 9), (5, 10), (6, 10), (7, 10), (8, 10), (8, 9), (8, 8), (8, 7), (7, 7), (6, 7), (5, 7), (5, 8), (4, 8), (4, 7)], 'id': 'gs_qKDFPW69MqG7jBkM4SHYxjG6'}, 'others': [{'name': 'Slytherin', 'health': 93, 'length': 27, 'body': [(6, 5), (7, 5), (7, 4), (7, 3), (6, 3), (6, 2), (6, 1), (7, 1), (7, 0), (6, 0), (5, 0), (4, 0), (4, 1), (3, 1), (2, 1), (1, 1), (1, 2), (1, 3), (1, 4), (2, 4), (3, 4), (3, 3), (3, 2), (4, 2), (5, 2), (5, 3), (5, 4)], 'id': 'gs_fMTkvYBFrdGG7gdgckjh6Y3b'}], 'food': [(8, 0), (10, 2), (2, 5)], 'module': 'territory', 'decision_path': ['1v1', 'border analysis move go (4, 7)'], 'next_coord': (3, 7), 'next_move': 'right', 'time': '0.006s'}
     log = {'id': '9c5726b2-04e5-44a9-879d-6ca9524c44a8', 'turn': 187, 'me': {'name': 'mark_snake', 'health': 85, 'length': 16, 'body': [(7, 6), (7, 7), (7, 8), (7, 9), (7, 10), (6, 10), (5, 10), (4, 10), (3, 10), (2, 10), (1, 10), (0, 10), (0, 9), (1, 9), (2, 9), (3, 9)], 'id': 'gs_x9h4JxRqC8v8Dvck9jgxmtTP'}, 'others': [{'name': 'Game of Chicken', 'health': 91, 'length': 24, 'body': [(9, 4), (9, 3), (8, 3), (7, 3), (6, 3), (5, 3), (5, 2), (5, 1), (5, 0), (4, 0), (3, 0), (2, 0), (1, 0), (0, 0), (0, 1), (0, 2), (0, 3), (0, 4), (1, 4), (1, 3), (1, 2), (1, 1), (2, 1), (3, 1)], 'id': 'gs_qJDwGPSmJ4JDQkWyMhbgbtQM'}], 'food': [(10, 3), (9, 8), (5, 5), (9, 2)], 'module': 'territory', 'decision_path': ['1v1', 'border analysis move go (8, 6)'], 'next_coord': (8, 6), 'next_move': 'right', 'time': '0.062s'}
     log = {'id': '9ce9374c-15b6-4378-90b2-b7164d9098d3', 'turn': 134, 'me': {'name': 'mark_snake', 'health': 93, 'length': 8, 'body': [(3, 9), (4, 9), (5, 9), (6, 9), (7, 9), (8, 9), (9, 9), (9, 8)], 'id': 'gs_rb9cYDwCQcwytYqTWtkjKdfT'}, 'others': [{'name': 'Sandworm', 'health': 91, 'length': 6, 'body': [(1, 9), (1, 8), (1, 7), (2, 7), (2, 8), (2, 9)], 'id': 'gs_fFBfGV8j9F9g8ckf4gmPFyKB'}, {'name': 'Geriatric Jagwire', 'health': 88, 'length': 13, 'body': [(3, 5), (3, 4), (4, 4), (4, 3), (4, 2), (5, 2), (6, 2), (7, 2), (7, 3), (7, 4), (7, 5), (7, 6), (6, 6)], 'id': 'gs_SkvfFCfPkFXF8rw9Qpf8vvwK'}, {'name': '@~~~~@', 'health': 89, 'length': 10, 'body': [(5, 7), (5, 6), (5, 5), (4, 5), (4, 6), (4, 7), (4, 8), (5, 8), (6, 8), (7, 8)], 'id': 'gs_rr9cjxdR3mggR7tm8QR9WdcH'}], 'food': [(2, 4)], 'module': 'territory', 'decision_path': ['1vn', 'split take larger area [([(3, 10), (2, 9)], 8), ([(3, 8)], 8)]', 'border analysis move go (3, 8)'], 'next_coord': (3, 8), 'next_move': 'down', 'time': '0.031s'}
+    log = {'id': 'ffb7df02-1858-4e9c-b7f7-9d0541e3a111', 'turn': 87, 'nalive': 4, 'snakes': [{'name': 'mark_snake_test RED', 'health': 83, 'length': 12, 'alive': True, 'delay': 49, 'body': [(7, 4), (6, 4), (5, 4), (5, 5), (4, 5), (3, 5), (2, 5), (1, 5), (1, 4), (1, 3), (2, 3), (3, 3)]}, {'name': 'mark_snake_test BLUE', 'health': 74, 'length': 6, 'alive': True, 'delay': 23, 'body': [(9, 6), (9, 7), (9, 8), (9, 9), (8, 9), (8, 8)]}, {'name': 'mark_snake_test GREEN', 'health': 83, 'length': 10, 'alive': True, 'delay': 33, 'body': [(8, 3), (8, 2), (7, 2), (6, 2), (5, 2), (5, 1), (4, 1), (3, 1), (2, 1), (1, 1)]}, {'name': 'mark_snake_test YELLOW', 'health': 92, 'length': 14, 'alive': True, 'delay': 34, 'body': [(8, 7), (7, 7), (7, 8), (7, 9), (7, 10), (6, 10), (5, 10), (5, 9), (5, 8), (4, 8), (3, 8), (3, 9), (2, 9), (1, 9)]}], 'food': [(0, 10), (10, 10)]}
 
-    game_state = init_from_log(log)
+    # game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
     #game_state = init_from_db_log(id, turn, self_name)
-    # game_state = init_from_game_engine_log(log, self_name)
+    game_state = init_from_game_engine_log(log, self_name)
     main(game_state, log=True)
 
