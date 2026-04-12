@@ -602,11 +602,9 @@ def decision_flow(g: GameTurn, is_pred):
             , cond(len(g.others) > 1)(get_food(6))
             , (split_take_larger)
 
-            , (cond(len(g.others) == 1)(border_analysis_move(2)))
-            , cond(len(g.others) == 1)(get_food(2))
+            , (cond(len(g.others) == 1)(border_analysis_move(3)))
+            , cond(len(g.others) == 1)(get_food(3))
             , cond(len(g.others) == 1)(meander)
-            , cond(len(g.others) == 1)(border_analysis_move(5))
-            , cond(len(g.others) == 1)(get_food(4))
 
             , cond(len(g.others) > 1)(border_analysis_move(5))
 
