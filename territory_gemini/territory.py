@@ -1671,9 +1671,9 @@ def decision_flow(g: GameTurn, is_pred):
                     for tail in g.me.to_snake_border_tails[snake.head]
                     ]
             if len(snake_tails) == 0: return
-            for snake, tail in snake_tails: print(f"border tail {snake.name} {g.me.to_snake_border_distance[snake.head]} {tail}")
-            print(sorted(list(g.me.territory)))
-            print("all border: ", sorted(list(g.me.all_border)))
+            # for snake, tail in snake_tails: print(f"border tail {snake.name} {g.me.to_snake_border_distance[snake.head]} {tail}")
+            # print(sorted(list(g.me.territory)))
+            # print("all border: ", sorted(list(g.me.all_border)))
 
             st = choose_border_tail(snake_tails, within_distance)
             if st is None: return
