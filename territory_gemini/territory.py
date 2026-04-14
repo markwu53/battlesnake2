@@ -958,6 +958,8 @@ def decision_flow(g: GameTurn, is_pred):
         if len(g.me.territory) >= g.me.length: return True
         if any([snake.tail in g.me.territory for snake in g.snakes]): return True
 
+        factor = 1.1
+
         for snake in g.snakes:
             if snake.head != g.me.head:
                 if g.me.head in g.me.to_snake_border[snake.head]:
@@ -976,7 +978,10 @@ def decision_flow(g: GameTurn, is_pred):
             trimmed_territory = wayout_trimmed(g.me, last_pos)
             nfood = len([f for f in g.food if f in trimmed_territory])
             food_tail = 1 if snake.health == 100 else 0
-            if snake.length - last_index - 1 + food_tail <= len(trimmed_territory) - nfood -1:
+            print(snake.length - last_index - 1 + food_tail , len(trimmed_territory) - nfood -1)
+            wayout_length = snake.length - last_index - 1 + food_tail 
+            wiggle_room = len(trimmed_territory) - nfood -1
+            if wayout_length * factor <= wiggle_room:
                 return True
         return False
 
@@ -1891,10 +1896,12 @@ if __name__ == "__main__":
     log = {'id': '91904c3b-7c17-4be9-9e70-4d9ecbb55c30', 'turn': 89, 'nalive': 3, 'snakes': [{'name': 'mark_snake_test RED', 'health': 98, 'length': 11, 'alive': True, 'delay': 19, 'body': [(5, 10), (5, 9), (5, 8), (5, 7), (4, 7), (4, 8), (3, 8), (2, 8), (1, 8), (0, 8), (0, 7)]}, {'name': 'mark_snake_test BLUE', 'health': 77, 'length': 5, 'alive': False, 'delay': 0, 'body': [(5, 10), (6, 10), (6, 9), (6, 8), (6, 7)]}, {'name': 'mark_snake_test GREEN', 'health': 95, 'length': 11, 'alive': True, 'delay': 1, 'body': [(7, 8), (7, 9), (8, 9), (9, 9), (10, 9), (10, 8), (10, 7), (9, 7), (9, 6), (8, 6), (8, 5)]}, {'name': 'mark_snake_test YELLOW', 'health': 91, 'length': 14, 'alive': True, 'delay': 0, 'body': [(7, 4), (8, 4), (9, 4), (10, 4), (10, 3), (9, 3), (8, 3), (7, 3), (6, 3), (5, 3), (4, 3), (3, 3), (3, 4), (3, 5)]}], 'food': [(10, 6), (7, 10), (7, 0), (2, 4)]}
     log = {'id': '879600ca-578d-4cda-a15c-9671df43e9d7', 'turn': 300, 'nalive': 2, 'snakes': [{'name': 'mark_snake_test RED', 'health': 84, 'length': 23, 'alive': True, 'delay': 10, 'body': [(7, 7), (7, 6), (7, 5), (8, 5), (9, 5), (10, 5), (10, 6), (10, 7), (10, 8), (10, 9), (10, 10), (9, 10), (8, 10), (7, 10), (6, 10), (5, 10), (4, 10), (3, 10), (2, 10), (1, 10), (0, 10), (0, 9), (0, 8)]}, {'name': 'mark_snake_test BLUE', 'health': 85, 'length': 21, 'alive': True, 'delay': 10, 'body': [(6, 8), (6, 7), (6, 6), (6, 5), (6, 4), (5, 4), (5, 3), (4, 3), (3, 3), (3, 2), (2, 2), (1, 2), (1, 1), (1, 0), (2, 0), (3, 0), (3, 1), (4, 1), (5, 1), (6, 1), (7, 1)]}, {'name': 'mark_snake_test GREEN', 'health': 77, 'length': 7, 'alive': False, 'delay': 0, 'body': [(5, 5), (5, 4), (5, 3), (4, 3), (4, 4), (4, 5), (4, 6)]}, {'name': 'mark_snake_test YELLOW', 'health': 94, 'length': 24, 'alive': False, 'delay': 0, 'body': [(0, 8), (0, 9), (0, 8), (0, 7), (0, 6), (0, 5), (1, 5), (1, 4), (2, 4), (2, 3), (2, 2), (2, 1), (3, 1), (4, 1), (4, 2), (4, 3), (5, 3), (6, 3), (6, 2), (6, 1), (6, 0), (7, 0), (8, 0), (9, 0)]}], 'food': [(7, 4), (4, 0)]}
     log = {'id': '879600ca-578d-4cda-a15c-9671df43e9d7', 'turn': 301, 'nalive': 2, 'snakes': [{'name': 'mark_snake_test RED', 'health': 83, 'length': 23, 'alive': True, 'delay': 4, 'body': [(8, 7), (7, 7), (7, 6), (7, 5), (8, 5), (9, 5), (10, 5), (10, 6), (10, 7), (10, 8), (10, 9), (10, 10), (9, 10), (8, 10), (7, 10), (6, 10), (5, 10), (4, 10), (3, 10), (2, 10), (1, 10), (0, 10), (0, 9)]}, {'name': 'mark_snake_test BLUE', 'health': 84, 'length': 21, 'alive': True, 'delay': 10, 'body': [(6, 9), (6, 8), (6, 7), (6, 6), (6, 5), (6, 4), (5, 4), (5, 3), (4, 3), (3, 3), (3, 2), (2, 2), (1, 2), (1, 1), (1, 0), (2, 0), (3, 0), (3, 1), (4, 1), (5, 1), (6, 1)]}, {'name': 'mark_snake_test GREEN', 'health': 77, 'length': 7, 'alive': False, 'delay': 0, 'body': [(5, 5), (5, 4), (5, 3), (4, 3), (4, 4), (4, 5), (4, 6)]}, {'name': 'mark_snake_test YELLOW', 'health': 94, 'length': 24, 'alive': False, 'delay': 0, 'body': [(0, 8), (0, 9), (0, 8), (0, 7), (0, 6), (0, 5), (1, 5), (1, 4), (2, 4), (2, 3), (2, 2), (2, 1), (3, 1), (4, 1), (4, 2), (4, 3), (5, 3), (6, 3), (6, 2), (6, 1), (6, 0), (7, 0), (8, 0), (9, 0)]}], 'food': [(7, 4), (4, 0)]}
+    log = {'id': '5fe03eca-2c5f-49d6-83b8-306b5ebf4e7b', 'turn': 112, 'nalive': 3, 'snakes': [{'name': 'mark_snake_test RED', 'health': 88, 'length': 7, 'alive': False, 'delay': 7, 'body': [(7, 10), (6, 10), (5, 10), (4, 10), (3, 10), (2, 10), (1, 10)]}, {'name': 'mark_snake_test BLUE', 'health': 100, 'length': 18, 'alive': True, 'delay': 17, 'body': [(3, 1), (4, 1), (5, 1), (5, 0), (6, 0), (7, 0), (7, 1), (6, 1), (6, 2), (6, 3), (6, 4), (6, 5), (6, 6), (6, 7), (6, 8), (6, 9), (5, 9), (5, 9)]}, {'name': 'mark_snake_test GREEN', 'health': 84, 'length': 14, 'alive': True, 'delay': 3, 'body': [(5, 7), (5, 6), (4, 6), (4, 7), (3, 7), (3, 8), (3, 9), (3, 10), (4, 10), (5, 10), (6, 10), (7, 10), (7, 9), (8, 9)]}, {'name': 'mark_snake_test YELLOW', 'health': 84, 'length': 14, 'alive': True, 'delay': 3, 'body': [(2, 2), (3, 2), (4, 2), (4, 3), (4, 4), (4, 5), (3, 5), (3, 4), (2, 4), (2, 5), (1, 5), (1, 4), (1, 3), (1, 2)]}], 'food': [(7, 8)]}
+    log = {'id': '770ddad8-266a-4e38-9cc1-3c3c38f9d495', 'turn': 244, 'me': {'name': 'mark_snake', 'health': 38, 'length': 16, 'body': [(8, 8), (8, 9), (8, 10), (9, 10), (10, 10), (10, 9), (10, 8), (10, 7), (10, 6), (10, 5), (9, 5), (8, 5), (7, 5), (7, 4), (7, 3), (7, 2)], 'id': 'gs_7xWD3QXpc3qwFkPFyY6mSjfP'}, 'others': [{'name': '@~~~~@', 'health': 96, 'length': 19, 'body': [(5, 7), (5, 6), (4, 6), (3, 6), (2, 6), (2, 5), (3, 5), (3, 4), (2, 4), (1, 4), (1, 3), (2, 3), (3, 3), (4, 3), (4, 2), (4, 1), (4, 0), (5, 0), (5, 1)], 'id': 'gs_HwGTkCtGyb3QxJmdKYYtRygQ'}], 'food': [(7, 9), (2, 7), (0, 7), (1, 1)], 'module': 'territory', 'decision_path': ['1v1', 'confront confine - go ahead'], 'next_coord': (8, 7), 'next_move': 'down', 'time': '0.010s'}
 
-    # game_state = init_from_log(log)
-    self_name = "mark_snake_test RED"
+    game_state = init_from_log(log)
+    self_name = "mark_snake_test BLUE"
     #game_state = init_from_db_log(id, turn, self_name)
-    game_state = init_from_game_engine_log(log, self_name)
+    # game_state = init_from_game_engine_log(log, self_name)
     main(game_state, log=True)
 

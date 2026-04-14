@@ -97,7 +97,8 @@ class GameEngine:
             territory_gemini.main(game_state, log=True) 
             return {"move": game_state["next_move"]}
         else:
-            df_split.main(game_state, log=False)
+            # df_split.main(game_state, log=False)
+            territory_gemini.main(game_state, log=False)
             return {"move": game_state["next_move"]}
 
     def next_turn(self):
