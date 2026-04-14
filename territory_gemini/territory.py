@@ -629,8 +629,6 @@ def decision_flow(g: GameTurn, is_pred):
             , (avoid_general_possible_confine)
             , next_step_kill
 
-            # , cond(killer_near())(border_analysis_move(1))
-
             , cond(len(g.others) > 1)(get_food(6))
             , cond(len(g.others) > 1)(split_take_larger)
             , cond(len(g.others) > 1)(border_analysis_move(5))
@@ -1135,7 +1133,7 @@ def decision_flow(g: GameTurn, is_pred):
         #and if all points in the path has no exposure or has only 1 exposure to a killer
         #then it's a dangerous path need to avoid
 
-        def check_danger(reverse_path):
+        def path_danger(reverse_path):
             for p in reverse_path:
                 if p in g.me.all_border:
                     for other in g.others:
@@ -1150,23 +1148,26 @@ def decision_flow(g: GameTurn, is_pred):
                                 return False
             return True
 
-        deadend_strings_to_avoid = []
-        for deadend in g.me.deadend:
-            danger = True
+        def deadend_danger(deadend):
             for snake in g.others:
                 if deadend in g.me.to_snake_border[snake.head]:
+                    print(deadend, snake.name, g.me.name, g.me.to_snake_border[snake.head])
                     border = g.me.to_snake_border[snake.head]
                     # if border has two components then it's not deadend
                     # because the killer can't go two directions
                     components = break_into_linearly_connected_components(border)
                     if len(components) > 1:
-                        danger = False
-                        break
-            if not danger: continue
+                        return False
+            return True
+
+        split = ngroup(moves) > 1
+        deadend_strings_to_avoid = []
+        for deadend in g.me.deadend:
+            if not split and not deadend_danger(deadend): continue
             reverse_path = g.me.deadend_string[deadend]
             path_begin = reverse_path[-1]
             if path_begin not in moves: continue
-            if check_danger(reverse_path):
+            if path_danger(reverse_path):
                 deadend_strings_to_avoid.append(reverse_path)
 
         if len(deadend_strings_to_avoid) == 0: return
@@ -1937,6 +1938,7 @@ if __name__ == "__main__":
     log = {'id': '7cf4cae7-04c2-4953-aacd-be275eedc4f4', 'turn': 439, 'me': {'name': 'mark_snake', 'health': 96, 'length': 30, 'body': [(5, 0), (6, 0), (7, 0), (8, 0), (9, 0), (10, 0), (10, 1), (10, 2), (10, 3), (10, 4), (10, 5), (10, 6), (10, 7), (10, 8), (10, 9), (10, 10), (9, 10), (8, 10), (8, 9), (8, 8), (8, 7), (8, 6), (8, 5), (8, 4), (8, 3), (8, 2), (8, 1), (7, 1), (6, 1), (5, 1)], 'id': 'gs_fFc4cP3XdycxF6QMg4Gmj4yB'}, 'others': [{'name': 'SmartyRat', 'health': 97, 'length': 24, 'body': [(5, 2), (4, 2), (3, 2), (3, 3), (2, 3), (2, 4), (2, 5), (2, 6), (2, 7), (2, 8), (3, 8), (3, 9), (2, 9), (2, 10), (3, 10), (4, 10), (5, 10), (6, 10), (7, 10), (7, 9), (7, 8), (6, 8), (6, 9), (5, 9)], 'id': 'gs_DhyDkdCwGH94yTHCjVTVrMCR'}], 'food': [(9, 9), (1, 0), (7, 3), (5, 5), (7, 4), (0, 8), (7, 6)], 'module': 'territory', 'decision_path': ['1v1', 'border analysis move go (5, 1)'], 'next_coord': (5, 1), 'next_move': 'up', 'time': '0.051s'}
     log = {'id': '510a9b19-3301-4ea4-869f-7420b137053c', 'turn': 284, 'me': {'name': 'mark_snake', 'health': 100, 'length': 26, 'body': [(1, 9), (1, 8), (1, 7), (2, 7), (3, 7), (4, 7), (4, 6), (4, 5), (3, 5), (2, 5), (2, 4), (2, 3), (2, 2), (2, 1), (3, 1), (3, 2), (3, 3), (4, 3), (4, 2), (4, 1), (4, 0), (3, 0), (2, 0), (1, 0), (0, 0), (0, 0)], 'id': 'gs_Xm7XF83YPqY7fVp9mvccMYDT'}, 'others': [{'name': 'Game of Chicken', 'health': 83, 'length': 26, 'body': [(7, 1), (7, 2), (6, 2), (6, 3), (6, 4), (5, 4), (5, 5), (6, 5), (7, 5), (7, 6), (6, 6), (6, 7), (6, 8), (6, 9), (7, 9), (8, 9), (9, 9), (10, 9), (10, 8), (9, 8), (9, 7), (9, 6), (8, 6), (8, 5), (8, 4), (8, 3)], 'id': 'gs_cTbRSvwx68YcCP8BGSgDFgP7'}], 'food': [(8, 1), (7, 7), (10, 5)], 'module': 'territory', 'decision_path': ['1v1'], 'next_coord': (1, 10), 'next_move': 'up', 'time': '0.031s'}
     log = {'id': 'd3a5e0df-010b-44c6-bf06-648ee118ce55', 'turn': 358, 'me': {'name': 'mark_snake', 'health': 84, 'length': 25, 'body': [(8, 4), (7, 4), (7, 3), (7, 2), (8, 2), (8, 1), (9, 1), (10, 1), (10, 2), (10, 3), (10, 4), (10, 5), (10, 6), (10, 7), (9, 7), (8, 7), (7, 7), (7, 8), (7, 9), (7, 10), (6, 10), (5, 10), (5, 9), (5, 8), (5, 7)], 'id': 'gs_cPgBJJwcrqBYfbBK4FHbxwMX'}, 'others': [{'name': 'go-st', 'health': 95, 'length': 21, 'body': [(5, 5), (6, 5), (6, 4), (6, 3), (6, 2), (5, 2), (4, 2), (3, 2), (2, 2), (2, 1), (1, 1), (1, 2), (1, 3), (1, 4), (2, 4), (2, 5), (2, 6), (2, 7), (2, 8), (2, 9), (2, 10)], 'id': 'gs_jKpfrGdrbxyxBKBDpp7w6hWH'}], 'food': [(0, 1), (2, 0), (4, 1)], 'module': 'territory', 'decision_path': ['1v1', 'remove possible confine (9, 4)', 'border analysis move go (7, 6)'], 'next_coord': (8, 5), 'next_move': 'up', 'time': '0.017s'}
+    log = {'id': '97fb6eef-f8ea-4ef3-a4b6-498c8f2be3d8', 'turn': 127, 'me': {'name': 'mark_snake', 'health': 69, 'length': 14, 'body': [(5, 8), (5, 7), (5, 6), (5, 5), (4, 5), (3, 5), (3, 6), (3, 7), (2, 7), (1, 7), (0, 7), (0, 8), (1, 8), (2, 8)], 'id': 'gs_hRR8xPDVGdM47kMw4SqQ9KxB'}, 'others': [{'name': 'mini snake', 'health': 90, 'length': 11, 'body': [(7, 8), (7, 7), (7, 6), (7, 5), (8, 5), (9, 5), (9, 4), (10, 4), (10, 5), (10, 6), (10, 7)], 'id': 'gs_HqYKGXkXmPYSHwjvw9qyMbdb'}, {'name': 'Aurora', 'health': 97, 'length': 11, 'body': [(7, 2), (6, 2), (6, 1), (6, 0), (5, 0), (4, 0), (4, 1), (5, 1), (5, 2), (5, 3), (5, 4)], 'id': 'gs_qDWTFWxQhB3SmPhXxQjvDXvM'}, {'name': 'Hovering Hobbs', 'health': 61, 'length': 7, 'body': [(4, 9), (5, 9), (6, 9), (7, 9), (7, 10), (6, 10), (5, 10)], 'id': 'gs_Bcm93yFKGKdCTJDmDgGp4QJd'}], 'food': [(6, 8), (3, 1)], 'module': 'territory', 'decision_path': ['1vn', 'get food (6, 8) via [(6, 8)]'], 'next_coord': (6, 8), 'next_move': 'right', 'time': '0.112s'}
 
     game_state = init_from_log(log)
     self_name = "mark_snake_test BLUE"
