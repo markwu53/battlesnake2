@@ -637,7 +637,7 @@ def decision_flow(g: GameTurn, is_pred):
 
             , (cond(len(g.others) == 1)(border_analysis_move(2)))
             , cond(len(g.others) == 1)(get_food(6))
-            , cond(len(g.others) == 1)(meander)
+            , cond(len(g.others) == 1)(territory_meander)
 
             , prefer(in_territory)
             , cond(g.me.length <= 7)(prefer_not(on_border))
@@ -978,7 +978,6 @@ def decision_flow(g: GameTurn, is_pred):
             trimmed_territory = wayout_trimmed(g.me, last_pos)
             nfood = len([f for f in g.food if f in trimmed_territory])
             food_tail = 1 if snake.health == 100 else 0
-            print(snake.length - last_index - 1 + food_tail , len(trimmed_territory) - nfood -1)
             wayout_length = snake.length - last_index - 1 + food_tail 
             wiggle_room = len(trimmed_territory) - nfood -1
             if wayout_length * factor <= wiggle_room:
@@ -1776,6 +1775,47 @@ def decision_flow(g: GameTurn, is_pred):
             if not is_pred: g.me.decision_path.append(f"meander to {target_point} via {moves}")
             return moves
 
+    def territory_meander(moves):
+        if not (len(g.me.all_border) == 0 or g.me.to_snake_border_distance[g.other.head] >=6): return
+
+        wayout_info = [
+            (snake, wayout_index, wayout_point, wayout_length) 
+                    for head in g.me.adjacent_indexes 
+                    for adj_cells in [g.me.adjacent_indexes[head]]
+                        if len(adj_cells) != 0
+                    for snake in [g.head_snake[head]]
+                    for wayout_index, wayout_point in [adj_cells[-1]]
+                    for wayout_length in [snake.length-wayout_index-1]
+                    ]
+        if len(wayout_info) == 0: return
+
+        min_wayout_length = min([wayout_length for snake, wayout_index, wayout_point, wayout_length in wayout_info])
+        wayout_choices = [wi for wi in wayout_info for snake, wayout_index, wayout_point, wayout_length in [wi] if wayout_length == min_wayout_length]
+        wayout_choice = take_first(wayout_choices)
+        if g.me.head in [snake.head for snake, wayout_index, wayout_point, wayout_length in wayout_choices]:
+            wayout_choices = [wi for wi in wayout_info for snake, wayout_index, wayout_point, wayout_length in [wi] if snake.head == g.me.head]
+            wayout_choice = take_first(wayout_choices)
+
+        snake, wayout_index, wayout_point, wayout_length = wayout_choice
+        wayout_point_next = [a for a in adj_cells(wayout_point) if a in g.me.territory]
+        if len(wayout_point_next) != 0:
+            shortest_distance = max([g.me.territory_point_level[a] for a in wayout_point_next])
+            if shortest_distance >= wayout_length:
+                return
+
+        start = {wayout_point}
+        area = {p for p in g.me.territory if p != g.me.head}
+        layers, remaining = flood_wayout(start, area)
+
+        links = {p: (i, len(da), len(db)) for i,layer in enumerate(layers) for p in layer for da,db in [layer[p]]}
+
+        moves = [a for a in moves if a in links]
+        if len(moves) != 0:
+            min_value = min([links[a] for a in moves], key=lambda x: (-x[0], x[1], x[2]))
+            moves = [a for a in moves if links[a] == min_value]
+            if not is_pred: g.me.decision_path.append(f"territory meander to {wayout_point} via {moves}")
+            return moves
+
     def ________DECISION_MAIN_FLOW________():
         return
 
@@ -1898,6 +1938,7 @@ if __name__ == "__main__":
     log = {'id': '879600ca-578d-4cda-a15c-9671df43e9d7', 'turn': 301, 'nalive': 2, 'snakes': [{'name': 'mark_snake_test RED', 'health': 83, 'length': 23, 'alive': True, 'delay': 4, 'body': [(8, 7), (7, 7), (7, 6), (7, 5), (8, 5), (9, 5), (10, 5), (10, 6), (10, 7), (10, 8), (10, 9), (10, 10), (9, 10), (8, 10), (7, 10), (6, 10), (5, 10), (4, 10), (3, 10), (2, 10), (1, 10), (0, 10), (0, 9)]}, {'name': 'mark_snake_test BLUE', 'health': 84, 'length': 21, 'alive': True, 'delay': 10, 'body': [(6, 9), (6, 8), (6, 7), (6, 6), (6, 5), (6, 4), (5, 4), (5, 3), (4, 3), (3, 3), (3, 2), (2, 2), (1, 2), (1, 1), (1, 0), (2, 0), (3, 0), (3, 1), (4, 1), (5, 1), (6, 1)]}, {'name': 'mark_snake_test GREEN', 'health': 77, 'length': 7, 'alive': False, 'delay': 0, 'body': [(5, 5), (5, 4), (5, 3), (4, 3), (4, 4), (4, 5), (4, 6)]}, {'name': 'mark_snake_test YELLOW', 'health': 94, 'length': 24, 'alive': False, 'delay': 0, 'body': [(0, 8), (0, 9), (0, 8), (0, 7), (0, 6), (0, 5), (1, 5), (1, 4), (2, 4), (2, 3), (2, 2), (2, 1), (3, 1), (4, 1), (4, 2), (4, 3), (5, 3), (6, 3), (6, 2), (6, 1), (6, 0), (7, 0), (8, 0), (9, 0)]}], 'food': [(7, 4), (4, 0)]}
     log = {'id': '5fe03eca-2c5f-49d6-83b8-306b5ebf4e7b', 'turn': 112, 'nalive': 3, 'snakes': [{'name': 'mark_snake_test RED', 'health': 88, 'length': 7, 'alive': False, 'delay': 7, 'body': [(7, 10), (6, 10), (5, 10), (4, 10), (3, 10), (2, 10), (1, 10)]}, {'name': 'mark_snake_test BLUE', 'health': 100, 'length': 18, 'alive': True, 'delay': 17, 'body': [(3, 1), (4, 1), (5, 1), (5, 0), (6, 0), (7, 0), (7, 1), (6, 1), (6, 2), (6, 3), (6, 4), (6, 5), (6, 6), (6, 7), (6, 8), (6, 9), (5, 9), (5, 9)]}, {'name': 'mark_snake_test GREEN', 'health': 84, 'length': 14, 'alive': True, 'delay': 3, 'body': [(5, 7), (5, 6), (4, 6), (4, 7), (3, 7), (3, 8), (3, 9), (3, 10), (4, 10), (5, 10), (6, 10), (7, 10), (7, 9), (8, 9)]}, {'name': 'mark_snake_test YELLOW', 'health': 84, 'length': 14, 'alive': True, 'delay': 3, 'body': [(2, 2), (3, 2), (4, 2), (4, 3), (4, 4), (4, 5), (3, 5), (3, 4), (2, 4), (2, 5), (1, 5), (1, 4), (1, 3), (1, 2)]}], 'food': [(7, 8)]}
     log = {'id': '770ddad8-266a-4e38-9cc1-3c3c38f9d495', 'turn': 244, 'me': {'name': 'mark_snake', 'health': 38, 'length': 16, 'body': [(8, 8), (8, 9), (8, 10), (9, 10), (10, 10), (10, 9), (10, 8), (10, 7), (10, 6), (10, 5), (9, 5), (8, 5), (7, 5), (7, 4), (7, 3), (7, 2)], 'id': 'gs_7xWD3QXpc3qwFkPFyY6mSjfP'}, 'others': [{'name': '@~~~~@', 'health': 96, 'length': 19, 'body': [(5, 7), (5, 6), (4, 6), (3, 6), (2, 6), (2, 5), (3, 5), (3, 4), (2, 4), (1, 4), (1, 3), (2, 3), (3, 3), (4, 3), (4, 2), (4, 1), (4, 0), (5, 0), (5, 1)], 'id': 'gs_HwGTkCtGyb3QxJmdKYYtRygQ'}], 'food': [(7, 9), (2, 7), (0, 7), (1, 1)], 'module': 'territory', 'decision_path': ['1v1', 'confront confine - go ahead'], 'next_coord': (8, 7), 'next_move': 'down', 'time': '0.010s'}
+    log = {'id': '30239201-9213-496e-b798-c6c013e1cf09', 'turn': 468, 'me': {'name': 'mark_snake', 'health': 100, 'length': 31, 'body': [(7, 9), (7, 10), (8, 10), (9, 10), (10, 10), (10, 9), (10, 8), (10, 7), (10, 6), (10, 5), (10, 4), (9, 4), (8, 4), (8, 3), (9, 3), (9, 2), (9, 1), (9, 0), (8, 0), (7, 0), (6, 0), (5, 0), (4, 0), (4, 1), (3, 1), (3, 2), (3, 3), (3, 4), (3, 5), (3, 6), (3, 6)], 'id': 'gs_8gtgwkV4wcQBSXjbHfprGj86'}, 'others': [{'name': 'Hovering Hobbs', 'health': 100, 'length': 27, 'body': [(1, 9), (2, 9), (2, 10), (3, 10), (3, 9), (4, 9), (4, 8), (4, 7), (5, 7), (5, 6), (5, 5), (6, 5), (6, 4), (7, 4), (7, 5), (8, 5), (9, 5), (9, 6), (9, 7), (9, 8), (8, 8), (8, 7), (8, 6), (7, 6), (6, 6), (6, 7), (6, 7)], 'id': 'gs_fXbytrpSyRpMtwb7qkQgP8M9'}], 'food': [(1, 8), (2, 8)], 'module': 'territory', 'decision_path': ['1v1', 'definite confine [(8, 9)]', 'meander to (7, 10) via [(7, 8)]'], 'next_coord': (7, 8), 'next_move': 'down', 'time': '0.022s'}
 
     game_state = init_from_log(log)
     self_name = "mark_snake_test BLUE"
