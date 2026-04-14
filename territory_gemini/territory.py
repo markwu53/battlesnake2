@@ -1257,9 +1257,11 @@ def decision_flow(g: GameTurn, is_pred):
             return moves
 
     def territory_meander(moves):
-        if not (len(g.me.all_border) == 0 or g.me.to_snake_border_distance[g.other.head] >=6): return
-
-        wayout_point = None
+        for other in g.others:
+            border = g.me.to_snake_border[other.head]
+            if len(border) == 0: break
+            if g.me.to_snake_border_distance[other.head] >= 4: break
+            return
 
         def choose_wayout_point():
             if g.me.tail in g.me.territory: return g.me.tail
