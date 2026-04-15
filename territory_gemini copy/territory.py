@@ -1062,44 +1062,170 @@ def decision_flow(g: GameTurn, is_pred):
         if not is_pred: g.me.decision_path.append(f"split take larger area {best_group}")
         return best_moves
 
-    def choose_border_tail(snake_tails, within_distance):    
-        def dead_start(st):
+    def choose_border_tail(snake_tails, within_distance):
+        def connectivity_density(st):
             snake, tail = st
-            tail_start = take_first(tail)
-            return g.me.territory_connection_number[tail_start] == 1        
+            # We reuse your existing logic to get the area behind the tail
+            # Note: test_point_area returns the 'used' set of points
+            area = tail_end_space_set(st) 
+            if not area: return 0
+            
+            # Average connections per point. 
+            # 1.0 = strict hallway/dead end. 2.0+ = open room.
+            total_conn = sum(g.me.territory_connection_number[p] for p in area)
+            return total_conn / len(area)
+
+        # Helper to get the actual set of points from your space logic
+        def tail_end_space_set(st):
+            snake, tail = st
+            tail_head = take_first(tail)
+            tail_end = tail[-1]
+            path = path_to_tail_head(tail_head)
+            path_set = set(path)
+            path_set.update(tail)
+            test_points = [a for a in adj_cells(tail_end) if a in g.me.territory 
+                          and abs(g.me.territory_point_level[a] - g.me.territory_point_level[tail_end]) == 1 
+                          and a not in path_set]
+            if not test_points: return path_set
+            
+            area = test_point_area(path_set, take_first(test_points))
+            return path_set.union(area)        
         def distance_rank(st):
             snake, tail = st
             rank = g.me.to_snake_border_distance[snake.head]
+            if g.me.length > snake.length:
+                rank -= 1
             return rank
+        def type_rank(st):
+            snake, tail = st
+            if snake.length > g.me.length: return 1
+            if snake.length < g.me.length: return 0
+            return 2
+        def killer_snake(st):
+            snake, tail = st
+            return snake.length > g.me.length
+        def shorter_snake(st):
+            snake, tail = st
+            return snake.length < g.me.length
+        def long_enough(st):
+            snake, tail = st
+            threshold = 5
+            return len(tail) >= threshold
+        def length_rank(st):
+            snake, tail = st
+            return len(tail)
         def within(distance):
             def fn(st):
                 return distance_rank(st) <= distance
             return fn
-        def length_rank(st):
+        def dead_start(st):
             snake, tail = st
-            return len(tail)
-        def killer_border(st):
+            tail_start = take_first(tail)
+            return g.me.territory_connection_number[tail_start] == 1
+        def dead_end(st):
             snake, tail = st
-            return snake.length > g.me.length
-        def snake_length(st):
+            tail_end = tail[-1]
+            return g.me.territory_connection_number[tail_end] == 1
+        def path_to_tail_head(tail_head):
+            reverse_path = [tail_head]
+            used = {tail_head}
+            come = tail_head
+            while come != g.me.head:
+                come = [p for p in g.me.territory_connection_points[come] if p not in used
+                        and g.me.territory_point_level[p] +1 == g.me.territory_point_level[come]]
+                if len(come) == 0: break
+                come = take_first(come)
+                reverse_path.append(come)
+                used.add(come)
+            path = list(reversed(reverse_path))
+            return path
+        def test_point_area(path_set, test_point):
+            front = {test_point}
+            used = {p for p in front}
+            while len(front) != 0:
+                front = {q for p in front for q in adj_cells(p) if q in g.me.territory 
+                         and q not in path_set and q not in used 
+                         and q in g.me.territory_connection_points[p]}
+                used.update(front)
+            return used
+        def tail_end_space(st):
             snake, tail = st
-            return snake.length
+            tail_head = take_first(tail)
+            tail_end = tail[-1]
+            path = path_to_tail_head(tail_head)
+            path_set = set(path)
+            path_set.update(tail)
+            test_point = [a for a in adj_cells(tail_end) if a in g.me.territory 
+                          and abs(g.me.territory_point_level[a] - g.me.territory_point_level[tail_end]) == 1 
+                          and a not in path_set]
+            if len(test_point) == 0:
+                return len(path_set)
+            test_point = take_first(test_point)
+            area = test_point_area(path_set, test_point)
+            return len(path_set) + len(area)
+        def tail_end_sublayer_length(st):
+            snake, tail = st
+            tail_end = tail[-1]
+            subtree_set = {p for layer in tree_sublayers(tail_end) for p in layer}
+            return len(subtree_set)
+        def tail_plus_sublayer_length(st):
+            snake, tail = st
+            length = len(tail)-1 + tail_end_sublayer_length(st)
+            return length
+        def connected_to_other_killer(st):
+            snake, tail = st
+            last_point = tail[-1]
+            for other in g.others:
+                if other.head == snake.head: continue
+                if other.length <= g.me.length: continue
+                border = g.me.to_snake_border[other.head]
+                for x in adj_cells(last_point):
+                    if x in border:
+                        return True
+            return False
+        def exposure_number(st):
+            snake, tail = st
+            first_point = take_first(tail)
+            exposure = len([q for q in adj_cells(first_point) if True
+                            and q in g.territories 
+                            and q not in g.me.territory 
+                            and g.territories[q][1] == g.me.territory_point_level[first_point]+1])
+            return exposure
 
+		# --- PHASE 1: ELIMINATION ---
         snake_tails = pick_not(dead_start)(snake_tails)
         if len(snake_tails) == 0: return
 
         snake_tails = pick(within(within_distance))(snake_tails)
         if len(snake_tails) == 0: return
 
-        factor = 0.5
-        if len(g.me.killer_border) > len(g.me.all_border) * factor:
-            snake_tails = prefer(killer_border)(snake_tails)
-            snake_tails = take_first_group(length_rank, reverse=True)(snake_tails)
-            snake_tails = take_first_group(distance_rank)(snake_tails)
+        # NEW: Filter out "Hallway Traps" (low connectivity density)
+        # We only want borders that lead to areas where we can actually turn around.
+        snake_tails = pick(lambda st: connectivity_density(st) > 1.2)(snake_tails)
+        if len(snake_tails) == 0: return # Or fallback if no safe areas exist
+
+        # --- PHASE 2: RANKING ---
+        longs = pick(long_enough)(snake_tails)
+        if len(longs) > 0:
+            # If we have long options, prioritize distance (defense) then space
+            snake_tails = take_first_group(distance_rank)(longs)
+            snake_tails = take_first_group(tail_end_space, reverse=True)(snake_tails)
         else:
-            snake_tails = prefer_not(killer_border)(snake_tails)
+            # If all borders are short, prioritize the longest available then distance
+            # snake_tails = take_first_group(length_rank, reverse=True)(snake_tails)
+            snake_tails = take_first_group(tail_end_space, reverse=True)(snake_tails)
+            snake_tails = take_first_group(length_rank, reverse=True)(snake_tails)
+            snake_tails = take_first_group(connectivity_density, reverse=True)(snake_tails)
             snake_tails = take_first_group(distance_rank)(snake_tails)
-            snake_tails = take_first_group(snake_length, reverse=True)(snake_tails)
+
+        # 3. Existing exposure and snake-type preferences
+        snake_tails = take_first_group(exposure_number, reverse=True)(snake_tails)
+        snake_tails = prefer_not(dead_end)(snake_tails)
+        snake_tails = prefer_not(connected_to_other_killer)(snake_tails)
+        snake_tails = prefer(shorter_snake)(snake_tails)
+        snake_tails = prefer(killer_snake)(snake_tails)
+
+        return take_first(snake_tails)    
 
     def border_analysis_move(within_distance):
         def fn(moves):
@@ -1125,9 +1251,18 @@ def decision_flow(g: GameTurn, is_pred):
             shortest_moves = take_first_group(lambda a: min(distance_to_border(a)), reverse=True)(shortest_moves)
             #shortest_moves = prefer(lambda a: a in g.food)(shortest_moves)
             if len(shortest_moves) != 0:
+                if g.me.target is None: g.me.target = target
                 if not is_pred: g.me.decision_path.append(f"border analysis move go {target}")
                 return shortest_moves
         return fn
+
+    def killer_near():
+        for snake in g.others:
+            if snake.length <= g.me.length: continue
+            if len(g.me.to_snake_border[snake.head]) == 0: continue
+            if g.me.to_snake_border_distance[snake.head] > 1: continue
+            return True
+        return False
 
     def tree_distance(p, q):
         #only find distance within territory
@@ -1137,6 +1272,29 @@ def decision_flow(g: GameTurn, is_pred):
             if q in layer:
                 return i
         return -1
+
+    def meander(moves):
+        if not (len(g.me.all_border) == 0 or g.me.to_snake_border_distance[g.other.head] >=6): return
+
+        adj_index = g.me.adjacent_indexes[g.me.head]
+        if len(adj_index) != 0:
+            i, target_point = take_first(adj_index)
+        else:
+            body_in_territory = [a for a in g.me.body if a in g.me.territory and a != g.me.head and a != g.me.neck]
+            if len(body_in_territory) == 0: return
+            target_point = take_first(body_in_territory)
+        start = {target_point}
+        area = {p for p in g.me.territory if p != g.me.head}
+        layers, remaining = flood_wayout(start, area)
+
+        links = {p: (i, len(da), len(db)) for i,layer in enumerate(layers) for p in layer for da,db in [layer[p]]}
+
+        moves = [a for a in moves if a in links]
+        if len(moves) != 0:
+            min_value = min([links[a] for a in moves], key=lambda x: (-x[0], x[1], x[2]))
+            moves = [a for a in moves if links[a] == min_value]
+            if not is_pred: g.me.decision_path.append(f"meander to {target_point} via {moves}")
+            return moves
 
     def territory_meander(moves):
         for other in g.others:
