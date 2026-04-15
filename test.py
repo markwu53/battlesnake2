@@ -1,4 +1,7 @@
 
-a = None
-if not a:
-    print("not a")
+for i in range(10):
+    if i > 11: 
+        j = i
+        break
+
+print(j)

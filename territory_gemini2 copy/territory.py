@@ -1654,18 +1654,11 @@ def adjacent_indexes(g: GameTurn):
             adj_list = []
             for i,c in enumerate(snake2.body):
                 if c == snake.head: continue
-                if c in snake.territory: adj_list.append((i, c))
-                def c_good():
-                    for a in adj_cells(c):
-                        if not a in snake.territory: continue
-                        if a == snake.head: continue
-                        for other in g.snakes:
-                            if c in other.territory:
-                                if other.territory_point_level[c] < snake.territory_point_level[a]:
-                                    return False
-                        return True
-                    return False
-                if c_good(): adj_list.append((i, c))
+                if any([c in other.territory for other in g.snakes if other.head != snake.head]): continue
+                if c in snake.territory and c != snake.head: 
+                    adj_list.append((i, c))
+                if any([a in snake.territory and a != snake.head for a in adj_cells(c)]):
+                    adj_list.append((i, c))
             snake.adjacent_indexes[snake2.head] = adj_list
 
 def move_component(g: GameTurn):
