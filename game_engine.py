@@ -2,7 +2,7 @@
 #import dfv3.decision_flow as dfv3
 from territory2.territory import Snake
 import territory2.territory as territory2
-import territory_gemini.territory as territory_gemini
+import territory_gemini2.territory as territory_gemini
 
 import random, time, uuid
 import split.decision_flow as df_split
