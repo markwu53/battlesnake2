@@ -481,7 +481,6 @@ def decision_flow(g: GameTurn, is_pred):
             adj_index = g.me.adjacent_indexes[snake.head]
             if len(adj_index) == 0: continue
             last_index, last_pos = adj_index[-1]
-            if last_pos in g.territories: continue
             trimmed_territory = wayout_trimmed(g.me, last_pos)
             nfood = len([f for f in g.food if f in trimmed_territory])
             food_tail = 1 if snake.health == 100 else 0
@@ -503,6 +502,24 @@ def decision_flow(g: GameTurn, is_pred):
             if len(ng.me.all_border) != 0: continue
             if has_wayout(ng): continue
             if not is_pred: g.me.decision_path.append(f"definite confine {mg}")
+            moves = [p for p in moves if p not in mg]
+            if len(moves) != 0:
+                return moves
+
+    def split_avoid_possible_confine(moves):
+        if ngroup(moves) <= 1: return
+
+        for mg in g.me.move_groups:
+            group = [a for a in mg if a in g.me.territory_allowed_moves]
+            if len(group) == 0: continue
+            a = take_first(group)
+            me2 = snake_next_step(g.me, a)
+            others = get_relevant_opponents_next_steps()
+            ng = next_game_turn([me2]+others)
+            flood_game_turn(ng)
+            ng.set_me(me2)
+            if has_wayout(ng): continue
+            if not is_pred: g.me.decision_path.append(f"split possible confine {mg}")
             moves = [p for p in moves if p not in mg]
             if len(moves) != 0:
                 return moves
@@ -800,14 +817,15 @@ def decision_flow(g: GameTurn, is_pred):
         
         # Pre-calculate what the relevant neighbors are doing once 
         # to save time across multiple food checks.
-        predicted_others = get_relevant_opponents_next_steps()
+        # predicted_others = get_relevant_opponents_next_steps()
 
         for food in foods:
             # Simulate ME eating the food
             me2 = snake_next_step(g.me, food)
             
             # Create a future where I eat and relevant others move optimaly
-            ng = next_game_turn([me2] + predicted_others)
+            # ng = next_game_turn([me2] + predicted_others)
+            ng = next_game_turn([me2])
             flood_game_turn(ng)
             ng.set_me(me2)
             
@@ -822,24 +840,6 @@ def decision_flow(g: GameTurn, is_pred):
         if remaining_moves:
             if not is_pred: g.me.decision_path.append(f"avoid food trap {food_to_avoid}")
             return remaining_moves
-
-    def split_avoid_possible_confine(moves):
-        if ngroup(moves) <= 1: return
-
-        for mg in g.me.move_groups:
-            group = [a for a in mg if a in g.me.territory_allowed_moves]
-            if len(group) == 0: continue
-            a = take_first(group)
-            me2 = snake_next_step(g.me, a)
-            others = get_relevant_opponents_next_steps()
-            ng = next_game_turn([me2]+others)
-            flood_game_turn(ng)
-            ng.set_me(me2)
-            if has_wayout(ng): continue
-            if not is_pred: g.me.decision_path.append(f"split possible confine {mg}")
-            moves = [p for p in moves if p not in mg]
-            if len(moves) != 0:
-                return moves
 
     def flood_wayout(start, area):
         #start is a set of starting points
@@ -934,8 +934,8 @@ def decision_flow(g: GameTurn, is_pred):
         for mg in g.me.move_groups:
             a = take_first(mg)
             me2 = snake_next_step(g.me, a)
-            others = get_relevant_opponents_next_steps()
-            ng = next_game_turn([me2]+others)
+            # others = get_relevant_opponents_next_steps()
+            ng = next_game_turn([me2])
             flood_game_turn(ng)
             ng.set_me(me2)
             if not has_wayout(ng):
@@ -993,12 +993,12 @@ def decision_flow(g: GameTurn, is_pred):
                     return moves
 
     def avoid_general_possible_confine(moves):
-        others = get_relevant_opponents_next_steps()
+        # others = get_relevant_opponents_next_steps()
         remaining = [a for a in moves]
         for a in moves:
             if a not in g.me.territory: continue
             me2 = snake_next_step(g.me, a)
-            ng = next_game_turn([me2]+others)
+            ng = next_game_turn([me2])
             flood_game_turn(ng)
             ng.set_me(me2)
             if ngroup(me2.allowed_moves, ng) == 1:
@@ -1653,7 +1653,9 @@ def adjacent_indexes(g: GameTurn):
         for other in g.snakes:
             adj_list = []
             for i,c in enumerate(other.body):
-                if c in snake.territory: continue
+                if any([c in s.territory for s in g.snakes if s.head != snake.head]): continue
+                if c in snake.territory and c != snake.head: 
+                    adj_list.append((i, c))
                 if any([a in snake.territory and a != snake.head for a in adj_cells(c)]):
                     adj_list.append((i, c))
             snake.adjacent_indexes[other.head] = adj_list
@@ -1983,6 +1985,7 @@ if __name__ == "__main__":
     log = {'id': '9cc99152-ed93-407b-880e-7ed8e76d7451', 'turn': 230, 'nalive': 2, 'snakes': [{'name': 'mark_snake_test RED', 'health': 97, 'length': 21, 'alive': True, 'delay': 7, 'body': [(0, 4), (1, 4), (2, 4), (3, 4), (4, 4), (4, 3), (5, 3), (5, 4), (5, 5), (5, 6), (5, 7), (6, 7), (6, 8), (5, 8), (5, 9), (4, 9), (4, 10), (3, 10), (2, 10), (2, 9), (1, 9)]}, {'name': 'mark_snake_test BLUE', 'health': 99, 'length': 12, 'alive': False, 'delay': 0, 'body': [(10, 1), (10, 0), (9, 0), (8, 0), (7, 0), (6, 0), (5, 0), (4, 0), (3, 0), (2, 0), (1, 0), (0, 0)]}, {'name': 'mark_snake_test GREEN', 'health': 70, 'length': 6, 'alive': False, 'delay': 15, 'body': [(0, 7), (0, 6), (1, 6), (2, 6), (3, 6), (4, 6)]}, {'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 24, 'alive': True, 'delay': 3, 'body': [(5, 1), (5, 0), (6, 0), (7, 0), (7, 1), (8, 1), (8, 2), (8, 3), (8, 4), (8, 5), (8, 6), (7, 6), (7, 5), (7, 4), (7, 3), (7, 2), (6, 2), (5, 2), (4, 2), (3, 2), (3, 3), (2, 3), (1, 3), (0, 3)]}], 'food': [(2, 0), (10, 1), (6, 1), (7, 7), (0, 8)]}
     log = {'id': '0248b4ca-67d9-488b-9eae-a57758f6db15', 'turn': 145, 'me': {'name': 'mark_snake', 'health': 94, 'length': 10, 'body': [(5, 8), (5, 9), (5, 10), (4, 10), (3, 10), (3, 9), (4, 9), (4, 8), (4, 7), (5, 7)], 'id': 'gs_kSFF8xHS83RHPMgRJcRXHHT7'}, 'others': [{'name': 'snakey_wakey', 'health': 83, 'length': 15, 'body': [(7, 4), (7, 3), (7, 2), (6, 2), (5, 2), (4, 2), (3, 2), (3, 1), (3, 0), (2, 0), (2, 1), (2, 2), (2, 3), (3, 3), (4, 3)], 'id': 'gs_SXKvfcddwGhhWFXHDdTmHVRQ'}, {'name': 'Aurora', 'health': 54, 'length': 12, 'body': [(5, 4), (6, 4), (6, 5), (5, 5), (4, 5), (4, 6), (3, 6), (2, 6), (1, 6), (0, 6), (0, 5), (0, 4)], 'id': 'gs_QjmwP7TgXDwjxqkwG9pMhVkc'}, {'name': 'Combat Reptile', 'health': 69, 'length': 6, 'body': [(0, 7), (0, 8), (0, 9), (1, 9), (1, 10), (2, 10)], 'id': 'gs_r3jRtk6HQw7kcVvPPcBRDk4V'}], 'food': [(0, 3), (10, 3)], 'module': 'territory', 'decision_path': ['1vn', 'border analysis move go (3, 7)'], 'next_coord': (5, 7), 'next_move': 'down', 'time': '0.046s'}
     log = {'id': '0248b4ca-67d9-488b-9eae-a57758f6db15', 'turn': 146, 'me': {'name': 'mark_snake', 'health': 93, 'length': 10, 'body': [(5, 7), (5, 8), (5, 9), (5, 10), (4, 10), (3, 10), (3, 9), (4, 9), (4, 8), (4, 7)], 'id': 'gs_kSFF8xHS83RHPMgRJcRXHHT7'}, 'others': [{'name': 'snakey_wakey', 'health': 82, 'length': 15, 'body': [(7, 5), (7, 4), (7, 3), (7, 2), (6, 2), (5, 2), (4, 2), (3, 2), (3, 1), (3, 0), (2, 0), (2, 1), (2, 2), (2, 3), (3, 3)], 'id': 'gs_SXKvfcddwGhhWFXHDdTmHVRQ'}, {'name': 'Aurora', 'health': 53, 'length': 12, 'body': [(4, 4), (5, 4), (6, 4), (6, 5), (5, 5), (4, 5), (4, 6), (3, 6), (2, 6), (1, 6), (0, 6), (0, 5)], 'id': 'gs_QjmwP7TgXDwjxqkwG9pMhVkc'}, {'name': 'Combat Reptile', 'health': 68, 'length': 6, 'body': [(1, 7), (0, 7), (0, 8), (0, 9), (1, 9), (1, 10)], 'id': 'gs_r3jRtk6HQw7kcVvPPcBRDk4V'}], 'food': [(0, 3), (10, 3)], 'module': 'territory', 'decision_path': ['1vn', 'avoid deadend [(5, 6)] moves [(5, 6)]', 'split possible confine [(4, 7)]'], 'next_coord': (6, 7), 'next_move': 'right', 'time': '0.105s'}
+    log = {'id': '325ebf53-24b6-4861-b815-42339ff4d3be', 'turn': 160, 'me': {'name': 'mark_snake', 'health': 93, 'length': 11, 'body': [(4, 4), (3, 4), (3, 3), (2, 3), (1, 3), (0, 3), (0, 4), (0, 5), (0, 6), (1, 6), (2, 6)], 'id': 'gs_wXtChFGPyHrjQvqcTHbBW8kb'}, 'others': [{'name': 'mini snake', 'health': 76, 'length': 10, 'body': [(10, 0), (9, 0), (8, 0), (7, 0), (7, 1), (8, 1), (9, 1), (9, 2), (9, 3), (9, 4)], 'id': 'gs_Bkb4w6dJv7DTWpGPf3y7HdTQ'}, {'name': 'go-st', 'health': 98, 'length': 12, 'body': [(4, 8), (5, 8), (6, 8), (7, 8), (7, 9), (7, 10), (8, 10), (9, 10), (10, 10), (10, 9), (10, 8), (10, 7)], 'id': 'gs_DCrw3kCQQTmttrv4RYTCX3fD'}, {'name': '@~~~~@', 'health': 61, 'length': 16, 'body': [(5, 1), (6, 1), (6, 2), (7, 2), (7, 3), (6, 3), (6, 4), (7, 4), (8, 4), (8, 5), (7, 5), (6, 5), (5, 5), (5, 4), (5, 3), (5, 2)], 'id': 'gs_Yc8qvJ6BM4k8Dh6q8kyxVCc3'}], 'food': [(10, 1)], 'module': 'territory', 'decision_path': ['1vn', 'split possible confine [(4, 5)]'], 'next_coord': (4, 3), 'next_move': 'down', 'time': '0.068s'}
 
     game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
