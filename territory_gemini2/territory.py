@@ -509,12 +509,12 @@ def decision_flow(g: GameTurn, is_pred):
     def split_avoid_possible_confine(moves):
         if ngroup(moves) <= 1: return
 
+        others = get_relevant_opponents_next_steps()
         for mg in g.me.move_groups:
             group = [a for a in mg if a in g.me.territory_allowed_moves]
             if len(group) == 0: continue
             a = take_first(group)
             me2 = snake_next_step(g.me, a)
-            others = get_relevant_opponents_next_steps()
             ng = next_game_turn([me2]+others)
             flood_game_turn(ng)
             ng.set_me(me2)
