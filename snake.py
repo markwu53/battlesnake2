@@ -3,7 +3,8 @@ import typing
 #import split.decision_flow as local_main
 #import territory.territory as local_main
 # import territory2.territory as local_main
-import territory_gemini.territory as local_main
+# import territory_gemini.territory as local_main
+import territory_gemini2.territory as local_main
 
 # info is called when you create your Battlesnake on play.battlesnake.com
 # and controls your Battlesnake's appearance
