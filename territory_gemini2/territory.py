@@ -1045,9 +1045,28 @@ def decision_flow(g: GameTurn, is_pred):
         def length_rank(st):
             snake, tail = st
             return len(tail)
+        def tail_end_deadend(st):
+            snake, tail = st
+            tail_end = tail[-1]
+            exposure_snakes = 0
+            for other in g.others:
+                exposure_number = 0
+                for e in adj_cells(tail_end):
+                    if e in other.territory:
+                        if other.territory_point_level[e] == g.me.territory_point_level[tail_end]+1:
+                            exposure_number += 1
+                if exposure_number > 1: return False
+                if exposure_number == 1:
+                    exposure_snakes += 1
+            if exposure_snakes > 1: return False
+            return True
 
         snake_tails = pick_not(dead_start)(snake_tails)
         if len(snake_tails) == 0: return
+
+        snake_tails = pick_not(tail_end_deadend)(snake_tails)
+        if len(snake_tails) == 0: return
+        # for snake, tail in snake_tails: print(f"{g.me.name} {snake.name} {g.me.to_snake_border_distance[snake.head]} {tail}")
 
         snake_tails = pick(within(4))(snake_tails)
         if len(snake_tails) == 0: return
@@ -1337,21 +1356,20 @@ def territory_allowed_moves(g: GameTurn):
             snake.territory_allowed_moves = list(snake.territory_layers[1])
 
 def break_into_connected_components(lst):
-    connected = {p: q for p in lst for q in lst if q > p 
-                            and (is_adjacent(p,q) or distance_vector_abs(p,q) == (1,1)) }
+    pairs = {(p, q) for p in lst for q in lst if q > p and (is_adjacent(p,q) or distance_vector_abs(p,q) == (1,1))}
     points = set(lst)
-
     components = []
-    while len(points) != 0:
+    while True:
         point = take_first(sorted(list(points)))
-        component = [point]
+        component = {point}
         points.discard(point)
-        while point in connected:
-            point = connected[point]
-            component.append(point)
-            points.discard(point)
+        while True:
+            new_points = {q for p in component for q in points if (p, q) in pairs or (q, p) in pairs}
+            if len(new_points) == 0: break
+            component.update(new_points)
+            points -= new_points
         components.append(component)
-
+        if len(points) == 0: break
     if len(components) != 0:
         components = sorted(components, key=len)
     return components
@@ -1847,6 +1865,8 @@ if __name__ == "__main__":
     log = {'id': 'be569a95-5647-4eae-8d8e-1d7fed5e1cfc', 'turn': 91, 'me': {'name': 'mark_snake_test RED', 'health': 94, 'length': 17, 'body': [(5, 8), (5, 7), (5, 6), (5, 5), (5, 4), (4, 4), (3, 4), (2, 4), (2, 3), (2, 2), (3, 2), (3, 1), (2, 1), (2, 0), (3, 0), (4, 0), (5, 0)], 'id': 'mark_snake_test RED'}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 53, 'length': 6, 'body': [(7, 8), (7, 7), (7, 6), (6, 6), (6, 7), (6, 8)], 'id': 'mark_snake_test BLUE'}, {'name': 'mark_snake_test GREEN', 'health': 97, 'length': 14, 'body': [(2, 9), (2, 10), (1, 10), (0, 10), (0, 9), (0, 8), (0, 7), (0, 6), (0, 5), (0, 4), (1, 4), (1, 5), (1, 6), (1, 7)], 'id': 'mark_snake_test GREEN'}, {'name': 'mark_snake_test YELLOW', 'health': 91, 'length': 8, 'body': [(8, 7), (8, 6), (8, 5), (8, 4), (8, 3), (8, 2), (7, 2), (6, 2)], 'id': 'mark_snake_test YELLOW'}], 'food': [(8, 10)], 'module': 'territory', 'decision_path': ['1vn', 'border analysis move go (3, 8)'], 'next_coord': (4, 8), 'next_move': 'left', 'time': '0.034s'}
     log = {'id': 'caca6c01-7fd9-44ca-b72e-dbc3f8199ddf', 'turn': 114, 'me': {'name': 'mark_snake_test RED', 'health': 76, 'length': 15, 'body': [(8, 6), (7, 6), (6, 6), (5, 6), (5, 5), (5, 4), (5, 3), (4, 3), (4, 4), (3, 4), (3, 5), (4, 5), (4, 6), (4, 7), (5, 7)], 'id': 'mark_snake_test RED'}, 'others': [{'name': 'mark_snake_test GREEN', 'health': 83, 'length': 9, 'body': [(6, 8), (5, 8), (4, 8), (3, 8), (2, 8), (2, 7), (2, 6), (1, 6), (1, 5)], 'id': 'mark_snake_test GREEN'}, {'name': 'mark_snake_test YELLOW', 'health': 98, 'length': 12, 'body': [(9, 9), (9, 10), (10, 10), (10, 9), (10, 8), (10, 7), (10, 6), (10, 5), (10, 4), (9, 4), (9, 3), (9, 2)], 'id': 'mark_snake_test YELLOW'}], 'food': [(8, 8), (2, 5)], 'module': 'territory', 'decision_path': ['1vn', 'border analysis move go (3, 2)'], 'next_coord': (8, 5), 'next_move': 'down', 'time': '0.022s'}
     log = {'id': '0dbb9f2c-cd5b-4837-91b0-9c97cb58d443', 'turn': 97, 'me': {'name': 'mark_snake_test RED', 'health': 100, 'length': 14, 'body': [(6, 9), (6, 8), (6, 7), (6, 6), (6, 5), (7, 5), (8, 5), (8, 6), (7, 6), (7, 7), (7, 8), (8, 8), (9, 8), (9, 8)], 'id': 'mark_snake_test RED'}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 85, 'length': 9, 'body': [(3, 8), (4, 8), (5, 8), (5, 7), (5, 6), (5, 5), (5, 4), (4, 4), (3, 4)], 'id': 'mark_snake_test BLUE'}, {'name': 'mark_snake_test GREEN', 'health': 50, 'length': 6, 'body': [(2, 3), (1, 3), (1, 4), (1, 5), (2, 5), (2, 6)], 'id': 'mark_snake_test GREEN'}, {'name': 'mark_snake_test YELLOW', 'health': 95, 'length': 14, 'body': [(10, 5), (10, 4), (10, 3), (10, 2), (10, 1), (10, 0), (9, 0), (8, 0), (7, 0), (6, 0), (5, 0), (4, 0), (3, 0), (3, 1)], 'id': 'mark_snake_test YELLOW'}], 'food': [(1, 7), (9, 6)], 'module': 'territory', 'decision_path': ['1vn', 'border analysis move go (4, 9)'], 'next_coord': (5, 9), 'next_move': 'left', 'time': '0.016s'}
+    log = {'id': '578424a0-8568-49a4-993e-2411700d0caa', 'turn': 151, 'me': {'name': 'mark_snake_test RED', 'health': 72, 'length': 12, 'body': [(4, 1), (4, 2), (5, 2), (6, 2), (7, 2), (8, 2), (9, 2), (9, 1), (9, 0), (8, 0), (7, 0), (6, 0)], 'id': 'mark_snake_test RED'}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 97, 'length': 20, 'body': [(9, 4), (8, 4), (8, 5), (8, 6), (9, 6), (10, 6), (10, 7), (10, 8), (10, 9), (9, 9), (9, 8), (9, 7), (8, 7), (8, 8), (7, 8), (7, 7), (7, 6), (7, 5), (6, 5), (6, 4)], 'id': 'mark_snake_test BLUE'}, {'name': 'mark_snake_test GREEN', 'health': 98, 'length': 13, 'body': [(3, 0), (2, 0), (1, 0), (1, 1), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (1, 5), (2, 5), (2, 6), (2, 7)], 'id': 'mark_snake_test GREEN'}, {'name': 'mark_snake_test YELLOW', 'health': 86, 'length': 16, 'body': [(5, 8), (5, 9), (4, 9), (3, 9), (2, 9), (1, 9), (1, 8), (0, 8), (0, 9), (0, 10), (1, 10), (2, 10), (3, 10), (4, 10), (5, 10), (6, 10)], 'id': 'mark_snake_test YELLOW'}], 'food': [(10, 4)], 'module': 'territory', 'decision_path': ['1vn', 'avoided suppress (5, 1) from mark_snake_test GREEN', 'choose collision [(4, 0)] against mark_snake_test GREEN'], 'next_coord': (4, 0), 'next_move': 'down', 'time': '0.051s'}
+    log = {'id': '578424a0-8568-49a4-993e-2411700d0caa', 'turn': 150, 'me': {'name': 'mark_snake_test RED', 'health': 73, 'length': 12, 'body': [(4, 2), (5, 2), (6, 2), (7, 2), (8, 2), (9, 2), (9, 1), (9, 0), (8, 0), (7, 0), (6, 0), (5, 0)], 'id': 'mark_snake_test RED'}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 98, 'length': 20, 'body': [(8, 4), (8, 5), (8, 6), (9, 6), (10, 6), (10, 7), (10, 8), (10, 9), (9, 9), (9, 8), (9, 7), (8, 7), (8, 8), (7, 8), (7, 7), (7, 6), (7, 5), (6, 5), (6, 4), (7, 4)], 'id': 'mark_snake_test BLUE'}, {'name': 'mark_snake_test GREEN', 'health': 99, 'length': 13, 'body': [(2, 0), (1, 0), (1, 1), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (1, 5), (2, 5), (2, 6), (2, 7), (2, 8)], 'id': 'mark_snake_test GREEN'}, {'name': 'mark_snake_test YELLOW', 'health': 87, 'length': 16, 'body': [(5, 9), (4, 9), (3, 9), (2, 9), (1, 9), (1, 8), (0, 8), (0, 9), (0, 10), (1, 10), (2, 10), (3, 10), (4, 10), (5, 10), (6, 10), (6, 9)], 'id': 'mark_snake_test YELLOW'}], 'food': [(10, 4)], 'module': 'territory', 'decision_path': ['1vn', 'border analysis move go (4, 1)'], 'next_coord': (4, 1), 'next_move': 'down', 'time': '0.047s'}
 
     game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
