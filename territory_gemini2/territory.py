@@ -1095,6 +1095,11 @@ def decision_flow(g: GameTurn, is_pred):
             
             area = test_point_area(path_set, take_first(test_points))
             return path_set.union(area)
+        def tail_end_connectivity(st):
+            area = tail_end_space_set(st)
+            if not area: return 0
+            total_conn = sum(g.me.territory_connection_number[p] for p in area)
+            return total_conn
 
         snake_tails = pick_not(dead_start)(snake_tails)
         if len(snake_tails) == 0: return
@@ -1111,6 +1116,7 @@ def decision_flow(g: GameTurn, is_pred):
         else:
             snake_tails = take_first_group(length_rank, reverse=True)(snake_tails)
             snake_tails = take_first_group(distance_rank)(snake_tails)
+            snake_tails = take_first_group(tail_end_connectivity, reverse=True)(snake_tails)
         return take_first(snake_tails)
 
     def border_analysis_move(moves):
@@ -1895,6 +1901,7 @@ if __name__ == "__main__":
     log = {'id': 'f6c98cdf-1931-402e-abd4-ea897ebb1552', 'turn': 287, 'me': {'name': 'mark_snake', 'health': 90, 'length': 16, 'body': [(5, 6), (6, 6), (6, 7), (5, 7), (4, 7), (3, 7), (2, 7), (2, 8), (2, 9), (2, 10), (1, 10), (1, 9), (1, 8), (1, 7), (0, 7), (0, 6)], 'id': 'gs_hbQ6yp8vRb3tQfqJHVtprvkR'}, 'others': [{'name': 'Geriatric Jagwire', 'health': 76, 'length': 18, 'body': [(7, 4), (6, 4), (6, 3), (7, 3), (7, 2), (6, 2), (5, 2), (5, 3), (4, 3), (4, 4), (3, 4), (3, 3), (2, 3), (2, 4), (1, 4), (1, 5), (2, 5), (3, 5)], 'id': 'gs_JbWWbBh6Q6q3YJFFGYyydwHJ'}], 'food': [(2, 0), (7, 0), (1, 0), (0, 1), (10, 6), (9, 6)], 'module': 'territory', 'decision_path': ['1v1', 'border analysis move go (5, 5)'], 'next_coord': (5, 5), 'next_move': 'down', 'time': '0.047s'}
     log = {'id': 'f6c98cdf-1931-402e-abd4-ea897ebb1552', 'turn': 288, 'me': {'name': 'mark_snake', 'health': 90, 'length': 16, 'body': [(5,5), (5, 6), (6, 6), (6, 7), (5, 7), (4, 7), (3, 7), (2, 7), (2, 8), (2, 9), (2, 10), (1, 10), (1, 9), (1, 8), (1, 7), (0, 7)], 'id': 'gs_hbQ6yp8vRb3tQfqJHVtprvkR'}, 'others': [{'name': 'Geriatric Jagwire', 'health': 76, 'length': 18, 'body': [(7,5), (7, 4), (6, 4), (6, 3), (7, 3), (7, 2), (6, 2), (5, 2), (5, 3), (4, 3), (4, 4), (3, 4), (3, 3), (2, 3), (2, 4), (1, 4), (1, 5), (2, 5)], 'id': 'gs_JbWWbBh6Q6q3YJFFGYyydwHJ'}], 'food': [(2, 0), (7, 0), (1, 0), (0, 1), (10, 6), (9, 6)], 'module': 'territory', 'decision_path': ['1v1', 'border analysis move go (5, 5)'], 'next_coord': (5, 5), 'next_move': 'down', 'time': '0.047s'}
     log = {'id': '8985fa58-e771-40a8-8eb7-50f5b4df9737', 'turn': 112, 'me': {'name': 'mark_snake', 'health': 90, 'length': 9, 'body': [(0, 0), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (1, 6), (2, 6)], 'id': 'gs_qpbJXXPVvQqQxrmhR6G4SXxF'}, 'others': [{'name': 'snakey_wakey', 'health': 99, 'length': 13, 'body': [(10, 2), (10, 1), (9, 1), (9, 2), (9, 3), (9, 4), (9, 5), (9, 6), (8, 6), (7, 6), (6, 6), (6, 5), (6, 4)], 'id': 'gs_4qkSRcPKXDtmJRVCqpJQHMHb'}, {'name': 'go-st', 'health': 93, 'length': 11, 'body': [(5, 1), (6, 1), (7, 1), (8, 1), (8, 2), (7, 2), (6, 2), (5, 2), (4, 2), (3, 2), (2, 2)], 'id': 'gs_RF9qvcP6y9bFWwTYQHKWrtQB'}, {'name': 'Snaky  McSnakeface', 'health': 74, 'length': 9, 'body': [(6, 8), (6, 7), (5, 7), (5, 8), (4, 8), (3, 8), (3, 7), (3, 6), (3, 5)], 'id': 'gs_Y9kKdcFgyqv6qVFVtTpVCxjb'}], 'food': [(7, 9)], 'module': 'territory', 'decision_path': ['1vn'], 'next_coord': (1, 0), 'next_move': 'right', 'time': '0.005s'}
+    log = {'id': '23df298b-3f57-423f-b6ac-2da5cab78853', 'turn': 82, 'me': {'name': 'mark_snake', 'health': 73, 'length': 7, 'body': [(8, 2), (7, 2), (6, 2), (6, 1), (5, 1), (5, 2), (5, 3)], 'id': 'gs_QQ6WbpKmDKvRv6QJyKRgyFdT'}, 'others': [{'name': 'Aurora', 'health': 98, 'length': 10, 'body': [(9, 5), (9, 6), (9, 7), (8, 7), (8, 8), (8, 9), (7, 9), (7, 10), (6, 10), (5, 10)], 'id': 'gs_F8W66vF4XtDj77MkR8b8q9V9'}, {'name': 'Combat Reptile', 'health': 64, 'length': 5, 'body': [(4, 6), (5, 6), (5, 7), (4, 7), (3, 7)], 'id': 'gs_WvF8VCWJgHHSBFJyDVYMycb6'}, {'name': 'Slytherin', 'health': 73, 'length': 9, 'body': [(4, 4), (4, 3), (4, 2), (4, 1), (3, 1), (3, 2), (3, 3), (3, 4), (3, 5)], 'id': 'gs_3J8rKTSwSWbGFTKd8DTDJSrd'}], 'food': [(0, 10)], 'module': 'territory', 'decision_path': ['1vn', 'border analysis move go (8, 3)'], 'next_coord': (8, 3), 'next_move': 'up', 'time': '0.056s'}
 
     game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
