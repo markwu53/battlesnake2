@@ -258,12 +258,14 @@ def decision_flow(g: GameTurn, is_pred):
     def suppress_situation(killer: Snake, target: Snake):
         if not all([len(layer) == 1 for layer in target.territory_layers]): return False
         if len(target.to_snake_border[killer.head]) == 0: return False
+        if len(killer.to_snake_border[target.head]) == 0: return False
         if len(target.all_border) != len(target.to_snake_border[killer.head]): return False
         return True
 
     def probable_suppress_situation(killer: Snake, target: Snake):
         if not all([len(layer) == 1 for layer in target.territory_layers]): return False
         if len(target.to_snake_border[killer.head]) == 0: return False
+        if len(killer.to_snake_border[target.head]) == 0: return False
         return True
 
     def avoid_leading_suppress_kill(ground_type):
@@ -2021,6 +2023,7 @@ if __name__ == "__main__":
     log = {'id': '5dc59340-5427-4bff-a442-ae54a5071044', 'turn': 57, 'me': {'name': 'mark_snake', 'health': 97, 'length': 9, 'body': [(6, 1), (7, 1), (8, 1), (9, 1), (9, 2), (9, 3), (9, 4), (9, 5), (10, 5)], 'id': 'gs_hBtq7HbQVbrfRWQmqHMPyhJS'}, 'others': [{'name': 'mini snake', 'health': 79, 'length': 7, 'body': [(8, 7), (9, 7), (9, 8), (10, 8), (10, 9), (9, 9), (8, 9)], 'id': 'gs_gWF86qDmGjthqJFrQvt8ByfK'}, {'name': 'Aurora', 'health': 74, 'length': 7, 'body': [(5, 2), (5, 3), (5, 4), (5, 5), (4, 5), (3, 5), (3, 4)], 'id': 'gs_8yrFWr8Qc9CfRxCcwHpkjRkY'}, {'name': 'Geriatric Jagwire', 'health': 82, 'length': 7, 'body': [(3, 8), (3, 9), (3, 10), (4, 10), (5, 10), (5, 9), (5, 8)], 'id': 'gs_FyJhRt7QxQJ7FHpSxkTGrkpT'}], 'food': [(6, 10)], 'module': 'territory', 'decision_path': ['get food (1, 0) via [(6, 0)]'], 'next_coord': (6, 0), 'next_move': 'down', 'time': '0.116s'}
     log = {'id': '7dda3039-472f-4a71-b7d0-8cb480e27bb3', 'turn': 48, 'me': {'name': 'mark_snake_test RED', 'health': 94, 'length': 9, 'body': [(7, 5), (6, 5), (5, 5), (4, 5), (4, 6), (4, 7), (3, 7), (3, 8), (2, 8)], 'id': 'mark_snake_test RED'}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 99, 'length': 8, 'body': [(10, 2), (10, 3), (9, 3), (8, 3), (7, 3), (6, 3), (5, 3), (5, 4)], 'id': 'mark_snake_test BLUE'}, {'name': 'mark_snake_test GREEN', 'health': 98, 'length': 9, 'body': [(1, 1), (1, 0), (2, 0), (2, 1), (2, 2), (2, 3), (1, 3), (1, 4), (1, 5)], 'id': 'mark_snake_test GREEN'}, {'name': 'mark_snake_test YELLOW', 'health': 73, 'length': 6, 'body': [(4, 4), (4, 3), (4, 2), (4, 1), (3, 1), (3, 2)], 'id': 'mark_snake_test YELLOW'}], 'food': [(0, 0), (1, 8)], 'module': 'territory', 'decision_path': [], 'next_coord': (8, 5), 'next_move': 'right', 'time': '0.038s'}
     log = {'id': '7dda3039-472f-4a71-b7d0-8cb480e27bb3', 'turn': 49, 'nalive': 4, 'snakes': [{'name': 'mark_snake_test RED', 'health': 93, 'length': 9, 'alive': True, 'delay': 37, 'body': [(8, 5), (7, 5), (6, 5), (5, 5), (4, 5), (4, 6), (4, 7), (3, 7), (3, 8)]}, {'name': 'mark_snake_test BLUE', 'health': 98, 'length': 8, 'alive': True, 'delay': 13, 'body': [(9, 2), (10, 2), (10, 3), (9, 3), (8, 3), (7, 3), (6, 3), (5, 3)]}, {'name': 'mark_snake_test GREEN', 'health': 97, 'length': 9, 'alive': True, 'delay': 37, 'body': [(0, 1), (1, 1), (1, 0), (2, 0), (2, 1), (2, 2), (2, 3), (1, 3), (1, 4)]}, {'name': 'mark_snake_test YELLOW', 'health': 72, 'length': 6, 'alive': True, 'delay': 51, 'body': [(3, 4), (4, 4), (4, 3), (4, 2), (4, 1), (3, 1)]}], 'food': [(0, 0), (1, 8), (9, 4)]}
+    log = {'id': '9edbb436-e1ac-4c8c-870b-cd2466d9df88', 'turn': 6, 'nalive': 4, 'snakes': [{'name': 'mark_snake_test RED', 'health': 96, 'length': 4, 'alive': True, 'delay': 27, 'body': [(5, 3), (4, 3), (4, 2), (4, 1)]}, {'name': 'mark_snake_test BLUE', 'health': 100, 'length': 5, 'alive': True, 'delay': 53, 'body': [(9, 7), (9, 6), (9, 5), (9, 4), (9, 4)]}, {'name': 'mark_snake_test GREEN', 'health': 96, 'length': 4, 'alive': True, 'delay': 40, 'body': [(9, 9), (9, 10), (8, 10), (7, 10)]}, {'name': 'mark_snake_test YELLOW', 'health': 98, 'length': 4, 'alive': True, 'delay': 43, 'body': [(0, 8), (0, 7), (0, 6), (1, 6)]}], 'food': [(5, 5), (2, 0)]}
 
     # game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
