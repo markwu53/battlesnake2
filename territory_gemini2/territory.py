@@ -1098,14 +1098,16 @@ def decision_flow(g: GameTurn, is_pred):
 
         def move_space(a):
             me2 = snake_next_step(g.me, a)
-            ng = next_game_turn([me2])
+            ng = next_game_turn([me2]+others)
             flood_game_turn(ng)
             return me2.territory
 
+        others = others_go_squeeze_me(g)
         split_space = [(mg, len(move_space(take_first(mg)))) for mg in move_groups]
         mg1, mg2 = sorted(split_space, key=lambda x: x[1], reverse=True)
         factor = 3
-        unbalanced = mg1[1] / mg2[1] >= factor
+        unbalanced_index = mg1[1] / mg2[1] 
+        unbalanced = unbalanced_index >= factor
         if not unbalanced: return
         moves = [a for a in mg1[0] if a in moves]
         if len(moves) != 0:
@@ -1227,9 +1229,7 @@ def decision_flow(g: GameTurn, is_pred):
 
         snake_tails = pick_not(dead_start)(snake_tails)
         if len(snake_tails) == 0: return
-        # for snake, tail in snake_tails: print(f"{g.me.name} {snake.name} {g.me.to_snake_border_distance[snake.head]} {tail}")
 
-        # for st in snake_tails: print(f"length-distance ratio {st[1]} {length_distance_ratio(st)}")
         snake_tails = pick(lambda st: length_distance_ratio(st) >= 0.5)(snake_tails)
         # snake_tails = pick(within(4))(snake_tails)
         if len(snake_tails) == 0: return
@@ -1749,9 +1749,11 @@ def adjacent_indexes(g: GameTurn):
         for snake2 in g.snakes:
             adj_list = []
             for i,c in enumerate(snake2.body):
-                if c == snake.head: continue
-                if c in snake.territory: adj_list.append((i, c))
+                # if c == snake.head: continue
+                # if c in snake.territory: adj_list.append((i, c))
+                # if c in snake.territory: continue
                 def c_good():
+                    if c in snake.territory: return False
                     for a in adj_cells(c):
                         if not a in snake.territory: continue
                         if a == snake.head: continue
@@ -2097,6 +2099,7 @@ if __name__ == "__main__":
     log = {'id': 'c8b265e2-b722-41e7-a83c-c5ceb5a9e45e', 'turn': 45, 'nalive': 4, 'snakes': [{'name': 'mark_snake_test RED', 'health': 64, 'length': 6, 'alive': True, 'delay': 2, 'body': [(0, 5), (0, 4), (1, 4), (2, 4), (3, 4), (3, 5)]}, {'name': 'mark_snake_test BLUE', 'health': 95, 'length': 7, 'alive': True, 'delay': 31, 'body': [(1, 2), (1, 3), (2, 3), (2, 2), (3, 2), (4, 2), (5, 2)]}, {'name': 'mark_snake_test GREEN', 'health': 96, 'length': 10, 'alive': True, 'delay': 50, 'body': [(10, 1), (10, 2), (10, 3), (10, 4), (10, 5), (10, 6), (10, 7), (10, 8), (10, 9), (10, 10)]}, {'name': 'mark_snake_test YELLOW', 'health': 98, 'length': 8, 'alive': True, 'delay': 31, 'body': [(3, 6), (4, 6), (4, 5), (4, 4), (5, 4), (5, 5), (5, 6), (5, 7)]}], 'food': [(0, 9)]}
     log = {'id': '2a91c5f1-be74-4117-8d29-486cd8cb5e34', 'turn': 117, 'me': {'name': 'mark_snake', 'health': 95, 'length': 12, 'body': [(6, 1), (7, 1), (8, 1), (8, 2), (9, 2), (10, 2), (10, 3), (10, 4), (10, 5), (10, 6), (9, 6), (9, 5)], 'id': 'gs_88CfGS4c7g4YMWJ7dH4TdytB'}, 'others': [{'name': 'mini snake', 'health': 99, 'length': 8, 'body': [(5, 2), (5, 1), (5, 0), (4, 0), (4, 1), (4, 2), (4, 3), (5, 3)], 'id': 'gs_yvdyKqYqtpgmT9yF4yWGR8bH'}, {'name': 'SmartyRat', 'health': 93, 'length': 9, 'body': [(4, 7), (4, 8), (5, 8), (6, 8), (6, 9), (7, 9), (7, 10), (8, 10), (9, 10)], 'id': 'gs_kCXPmDq9X7yS9Gmd7cfFPfmP'}, {'name': 'Geriatric Jagwire', 'health': 88, 'length': 13, 'body': [(5, 4), (5, 5), (4, 5), (3, 5), (3, 6), (2, 6), (2, 5), (2, 4), (2, 3), (1, 3), (0, 3), (0, 2), (0, 1)], 'id': 'gs_vw9JrY38XbYgXk9WpjRFGM6Q'}], 'food': [(0, 9), (9, 0)], 'module': 'territory', 'decision_path': ['avoided suppress (6, 2) from Geriatric Jagwire'], 'next_coord': (6, 0), 'next_move': 'down', 'time': '0.010s'}
     log = {'id': 'a26bd410-43f3-469a-84ff-dde4bfbfc849', 'turn': 190, 'me': {'name': 'mark_snake', 'health': 92, 'length': 17, 'body': [(1, 3), (0, 3), (0, 4), (0, 5), (0, 6), (1, 6), (1, 7), (2, 7), (2, 8), (3, 8), (4, 8), (4, 7), (5, 7), (6, 7), (6, 8), (5, 8), (5, 9)], 'id': 'gs_6fmhBkq378RQkktMrRPTXmvD'}, 'others': [{'name': 'Game of Chicken', 'health': 96, 'length': 17, 'body': [(10, 4), (10, 3), (10, 2), (10, 1), (10, 0), (9, 0), (9, 1), (8, 1), (8, 2), (8, 3), (8, 4), (8, 5), (7, 5), (6, 5), (5, 5), (5, 6), (4, 6)], 'id': 'gs_ybkpvXQS97P9C3bkC4jgwF7Q'}, {'name': 'Hovering Hobbs', 'health': 80, 'length': 7, 'body': [(2, 2), (3, 2), (4, 2), (5, 2), (5, 3), (4, 3), (3, 3)], 'id': 'gs_4Vgff7jJtwS7qHymfrSwqDk8'}], 'food': [(0, 1), (8, 6)], 'module': 'territory', 'decision_path': ['get food (0, 1) via [(1, 2)]'], 'next_coord': (1, 2), 'next_move': 'down', 'time': '0.097s'}
+    log = {'id': '98c8fb72-49f3-4891-9a6f-958d52d3f6f5', 'turn': 416, 'me': {'name': 'mark_snake', 'health': 92, 'length': 33, 'body': [(9, 5), (9, 6), (9, 7), (9, 8), (9, 9), (9, 10), (8, 10), (7, 10), (6, 10), (5, 10), (4, 10), (3, 10), (3, 9), (3, 8), (2, 8), (1, 8), (1, 7), (1, 6), (1, 5), (2, 5), (3, 5), (3, 4), (3, 3), (3, 2), (3, 1), (3, 0), (4, 0), (5, 0), (6, 0), (7, 0), (8, 0), (9, 0), (10, 0)], 'id': 'gs_7bJYfq7fBMhfCckJvPW34DvX'}, 'others': [{'name': 'Aurora', 'health': 92, 'length': 21, 'body': [(8, 4), (7, 4), (7, 3), (6, 3), (5, 3), (5, 4), (6, 4), (6, 5), (6, 6), (6, 7), (5, 7), (5, 6), (4, 6), (4, 7), (4, 8), (5, 8), (6, 8), (7, 8), (7, 7), (7, 6), (7, 5)], 'id': 'gs_KQrKWBDXBH3gcHVjW4BXYP4F'}], 'food': [(0, 10), (1, 2), (2, 2), (1, 4), (5, 2), (2, 7), (1, 0), (0, 9), (10, 7)], 'module': 'territory', 'decision_path': ['general possible confine (10, 5)', 'border analysis move go (9, 4)'], 'next_coord': (9, 4), 'next_move': 'down', 'time': '0.068s'}
 
     game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
