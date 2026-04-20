@@ -108,6 +108,7 @@ def decision_flow(g: GameTurn, is_pred):
 
             , split_avoid_other_eating_food_confine
             , split_avoid_food_confine_branch
+            , split_unbalanced_branches
             , split_avoid_head_no_choice_path
 
             , (probable_suppress_kill)
@@ -115,10 +116,10 @@ def decision_flow(g: GameTurn, is_pred):
             , border_loose_chased
 
             , cond(len(g.others) > 1)(get_food(6))
-            , cond(len(g.others) > 1)(split_take_larger)
+            # , cond(len(g.others) > 1)(split_take_larger)
             , (cond(len(g.others) > 1)(border_analysis_move))
 
-            , cond(len(g.others) == 1)(split_take_larger)
+            # , cond(len(g.others) == 1)(split_take_larger)
             , (cond(len(g.others) == 1)(border_analysis_move))
             , cond(len(g.others) == 1)(get_food(4))
             , cond(len(g.others) == 1)(territory_meander)
@@ -262,6 +263,10 @@ def decision_flow(g: GameTurn, is_pred):
         if len(target.to_snake_border[killer.head]) == 0: return False
         if len(killer.to_snake_border[target.head]) == 0: return False
         if len(target.all_border) != len(target.to_snake_border[killer.head]): return False
+        if len(target.to_snake_border[killer.head]) == 1:
+            border_point = take_first(list(target.to_snake_border[killer.head]))
+            if border_point == target.head:
+                return False
         return True
 
     def probable_suppress_situation(killer: Snake, target: Snake):
@@ -993,8 +998,9 @@ def decision_flow(g: GameTurn, is_pred):
             flood_game_turn(ng)
             ng.set_me(me2)
 
+            factor = 4
             no_choice_path = head_no_choice_path(ng.me)
-            if len(no_choice_path) >= 4:
+            if len(no_choice_path) >= factor:
                 moves = [p for p in moves if p != a]
                 if len(moves) != 0:
                     if not is_pred: g.me.decision_path.append(f"split avoid head no choice path {a}")
@@ -1082,6 +1088,28 @@ def decision_flow(g: GameTurn, is_pred):
             if not is_pred: g.me.decision_path.append(f"get food {food_target} via {food_moves}")
             return food_moves
         return fn
+
+    def split_unbalanced_branches(moves):
+        if ngroup(moves) != 2: return
+
+        move_groups = [[a for a in mg if a in g.me.territory] for mg in g.me.move_groups]
+        if any([len(mg) == 0 for mg in move_groups]): return
+
+        def move_space(a):
+            me2 = snake_next_step(g.me, a)
+            ng = next_game_turn([me2])
+            flood_game_turn(ng)
+            return me2.territory
+
+        split_space = [(mg, len(move_space(take_first(mg)))) for mg in move_groups]
+        mg1, mg2 = sorted(split_space, key=lambda x: x[1], reverse=True)
+        factor = 3
+        unbalanced = mg1[1] / mg2[1] >= factor
+        if not unbalanced: return
+        moves = [a for a in mg1[0] if a in moves]
+        if len(moves) != 0:
+            if not is_pred: g.me.decision_path.append(f"split unbalanced take larger {mg1}")
+            return moves
 
     def split_take_larger(moves):
         if ngroup(moves) <= 1: return
@@ -2064,6 +2092,8 @@ if __name__ == "__main__":
     log = {'id': '4dda9dd2-9986-4846-8e17-70896a214a81', 'turn': 116, 'me': {'name': 'mark_snake', 'health': 94, 'length': 11, 'body': [(10, 6), (10, 5), (10, 4), (9, 4), (9, 3), (9, 2), (9, 1), (8, 1), (7, 1), (7, 2), (7, 3)], 'id': 'gs_xtY6mJkBM6STp4D4XTQfXKWT'}, 'others': [{'name': 'Sandworm', 'health': 100, 'length': 13, 'body': [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (4, 1), (3, 1), (3, 2), (3, 3), (3, 4), (2, 4), (1, 4), (1, 4)], 'id': 'gs_GgX9fFwTKTSDB3PHbBmy7qjV'}, {'name': 'Game of Chicken', 'health': 85, 'length': 14, 'body': [(6, 6), (6, 5), (6, 4), (5, 4), (5, 5), (4, 5), (3, 5), (3, 6), (3, 7), (4, 7), (4, 6), (5, 6), (5, 7), (5, 8)], 'id': 'gs_M9CG4cpRKVm6rgWVT6hGMCbc'}], 'food': [(0, 2), (10, 9), (9, 7)], 'module': 'territory', 'decision_path': ['get food (9, 7) via [(9, 6), (10, 7)]', 'border analysis move go (9, 6)'], 'next_coord': (9, 6), 'next_move': 'left', 'time': '0.122s'}
     log = {'id': '77e14058-e80f-4a9a-865c-c0c4b819939e', 'turn': 277, 'me': {'name': 'mark_snake', 'health': 100, 'length': 19, 'body': [(9, 2), (8, 2), (7, 2), (6, 2), (5, 2), (5, 3), (5, 4), (5, 5), (5, 6), (6, 6), (6, 5), (6, 4), (7, 4), (7, 5), (7, 6), (8, 6), (9, 6), (10, 6), (10, 6)], 'id': 'gs_mpTwc4Q9CtYH8ShPH9PRqmMd'}, 'others': [{'name': 'Hovering Hobbs', 'health': 93, 'length': 13, 'body': [(0, 3), (1, 3), (1, 2), (2, 2), (2, 1), (2, 0), (3, 0), (4, 0), (4, 1), (3, 1), (3, 2), (3, 3), (3, 4)], 'id': 'gs_VPccRgSd9cFgMxVTmdSjVYvH'}], 'food': [(1, 7)], 'module': 'territory', 'decision_path': ['territory meander to (10, 6) via [(9, 1)]'], 'next_coord': (9, 1), 'next_move': 'down', 'time': '0.032s'}
     log = {'id': 'e1d50a78-f30e-4a66-9d34-e4f26c99d65f', 'turn': 228, 'nalive': 2, 'snakes': [{'name': 'mark_snake_test RED', 'health': 100, 'length': 30, 'alive': True, 'delay': 7, 'body': [(4, 8), (5, 8), (6, 8), (6, 9), (6, 10), (7, 10), (7, 9), (8, 9), (8, 8), (8, 7), (8, 6), (9, 6), (10, 6), (10, 5), (9, 5), (9, 4), (9, 3), (8, 3), (7, 3), (6, 3), (6, 4), (7, 4), (7, 5), (7, 6), (6, 6), (6, 5), (5, 5), (5, 6), (5, 7), (5, 7)]}, {'name': 'mark_snake_test BLUE', 'health': 97, 'length': 28, 'alive': True, 'delay': 17, 'body': [(3, 9), (3, 8), (2, 8), (1, 8), (0, 8), (0, 7), (1, 7), (1, 6), (1, 5), (1, 4), (1, 3), (1, 2), (1, 1), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0), (7, 0), (8, 0), (9, 0), (9, 1), (9, 2), (8, 2), (7, 2), (6, 2), (5, 2)]}, {'name': 'mark_snake_test GREEN', 'health': 87, 'length': 4, 'alive': False, 'delay': 43, 'body': [(3, 8), (3, 7), (4, 7), (5, 7)]}, {'name': 'mark_snake_test YELLOW', 'health': 89, 'length': 4, 'alive': False, 'delay': 54, 'body': [(3, 8), (2, 8), (1, 8), (1, 7)]}], 'food': [(4, 10), (8, 4), (1, 10), (10, 10)]}
+    log = {'id': 'e8936795-115e-41e4-a110-cac02442db0d', 'turn': 132, 'nalive': 3, 'snakes': [{'name': 'mark_snake_test RED', 'health': 95, 'length': 10, 'alive': True, 'delay': 26, 'body': [(8, 10), (9, 10), (10, 10), (10, 9), (10, 8), (10, 7), (9, 7), (8, 7), (8, 8), (8, 9)]}, {'name': 'mark_snake_test BLUE', 'health': 100, 'length': 19, 'alive': True, 'delay': 4, 'body': [(10, 4), (9, 4), (8, 4), (7, 4), (7, 5), (7, 6), (7, 7), (7, 8), (7, 9), (6, 9), (5, 9), (4, 9), (3, 9), (2, 9), (1, 9), (0, 9), (0, 8), (1, 8), (1, 8)]}, {'name': 'mark_snake_test GREEN', 'health': 68, 'length': 11, 'alive': False, 'delay': 0, 'body': [(9, 0), (10, 0), (9, 0), (8, 0), (7, 0), (6, 0), (6, 1), (5, 1), (5, 0), (4, 0), (3, 0)]}, {'name': 'mark_snake_test YELLOW', 'health': 92, 'length': 17, 'alive': True, 'delay': 1, 'body': [(10, 2), (10, 3), (9, 3), (9, 2), (9, 1), (8, 1), (7, 1), (6, 1), (5, 1), (4, 1), (3, 1), (2, 1), (1, 1), (1, 2), (1, 3), (1, 4), (2, 4)]}], 'food': [(0, 6), (8, 6)]}
+    log = {'id': 'c8b265e2-b722-41e7-a83c-c5ceb5a9e45e', 'turn': 45, 'nalive': 4, 'snakes': [{'name': 'mark_snake_test RED', 'health': 64, 'length': 6, 'alive': True, 'delay': 2, 'body': [(0, 5), (0, 4), (1, 4), (2, 4), (3, 4), (3, 5)]}, {'name': 'mark_snake_test BLUE', 'health': 95, 'length': 7, 'alive': True, 'delay': 31, 'body': [(1, 2), (1, 3), (2, 3), (2, 2), (3, 2), (4, 2), (5, 2)]}, {'name': 'mark_snake_test GREEN', 'health': 96, 'length': 10, 'alive': True, 'delay': 50, 'body': [(10, 1), (10, 2), (10, 3), (10, 4), (10, 5), (10, 6), (10, 7), (10, 8), (10, 9), (10, 10)]}, {'name': 'mark_snake_test YELLOW', 'health': 98, 'length': 8, 'alive': True, 'delay': 31, 'body': [(3, 6), (4, 6), (4, 5), (4, 4), (5, 4), (5, 5), (5, 6), (5, 7)]}], 'food': [(0, 9)]}
 
     # game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
