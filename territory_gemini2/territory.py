@@ -380,7 +380,6 @@ def decision_flow(g: GameTurn, is_pred):
             # firm ground
             if ground_type != 0: continue
 
-            print(snake.name, snake.head, g.me.head)
             tails = g.me.to_snake_border_tails[snake.head]
             if len(tails) != 1: continue
             tail = take_first(tails)
