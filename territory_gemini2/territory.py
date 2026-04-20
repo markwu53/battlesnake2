@@ -95,11 +95,11 @@ def decision_flow(g: GameTurn, is_pred):
             , avoid_single_confront_collision
 
             , (suppress_kill_killer_ground)
-            , cond(not g.me.suppress_kill)(straight_line_confine_kill(0.8))
 
             , wayout
             , cond(len(g.others) <= 2)(avoid_confront_confine)
             , (avoid_general_possible_confine)
+            , cond(not g.me.suppress_kill)(straight_line_confine_kill(0.8))
 
             , (avoid_suppress_kill("killer_ground"))
             , (avoid_leading_suppress_kill("killer_ground"))
@@ -2063,10 +2063,11 @@ if __name__ == "__main__":
     log = {'id': '9edbb436-e1ac-4c8c-870b-cd2466d9df88', 'turn': 6, 'nalive': 4, 'snakes': [{'name': 'mark_snake_test RED', 'health': 96, 'length': 4, 'alive': True, 'delay': 27, 'body': [(5, 3), (4, 3), (4, 2), (4, 1)]}, {'name': 'mark_snake_test BLUE', 'health': 100, 'length': 5, 'alive': True, 'delay': 53, 'body': [(9, 7), (9, 6), (9, 5), (9, 4), (9, 4)]}, {'name': 'mark_snake_test GREEN', 'health': 96, 'length': 4, 'alive': True, 'delay': 40, 'body': [(9, 9), (9, 10), (8, 10), (7, 10)]}, {'name': 'mark_snake_test YELLOW', 'health': 98, 'length': 4, 'alive': True, 'delay': 43, 'body': [(0, 8), (0, 7), (0, 6), (1, 6)]}], 'food': [(5, 5), (2, 0)]}
     log = {'id': '4dda9dd2-9986-4846-8e17-70896a214a81', 'turn': 116, 'me': {'name': 'mark_snake', 'health': 94, 'length': 11, 'body': [(10, 6), (10, 5), (10, 4), (9, 4), (9, 3), (9, 2), (9, 1), (8, 1), (7, 1), (7, 2), (7, 3)], 'id': 'gs_xtY6mJkBM6STp4D4XTQfXKWT'}, 'others': [{'name': 'Sandworm', 'health': 100, 'length': 13, 'body': [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (4, 1), (3, 1), (3, 2), (3, 3), (3, 4), (2, 4), (1, 4), (1, 4)], 'id': 'gs_GgX9fFwTKTSDB3PHbBmy7qjV'}, {'name': 'Game of Chicken', 'health': 85, 'length': 14, 'body': [(6, 6), (6, 5), (6, 4), (5, 4), (5, 5), (4, 5), (3, 5), (3, 6), (3, 7), (4, 7), (4, 6), (5, 6), (5, 7), (5, 8)], 'id': 'gs_M9CG4cpRKVm6rgWVT6hGMCbc'}], 'food': [(0, 2), (10, 9), (9, 7)], 'module': 'territory', 'decision_path': ['get food (9, 7) via [(9, 6), (10, 7)]', 'border analysis move go (9, 6)'], 'next_coord': (9, 6), 'next_move': 'left', 'time': '0.122s'}
     log = {'id': '77e14058-e80f-4a9a-865c-c0c4b819939e', 'turn': 277, 'me': {'name': 'mark_snake', 'health': 100, 'length': 19, 'body': [(9, 2), (8, 2), (7, 2), (6, 2), (5, 2), (5, 3), (5, 4), (5, 5), (5, 6), (6, 6), (6, 5), (6, 4), (7, 4), (7, 5), (7, 6), (8, 6), (9, 6), (10, 6), (10, 6)], 'id': 'gs_mpTwc4Q9CtYH8ShPH9PRqmMd'}, 'others': [{'name': 'Hovering Hobbs', 'health': 93, 'length': 13, 'body': [(0, 3), (1, 3), (1, 2), (2, 2), (2, 1), (2, 0), (3, 0), (4, 0), (4, 1), (3, 1), (3, 2), (3, 3), (3, 4)], 'id': 'gs_VPccRgSd9cFgMxVTmdSjVYvH'}], 'food': [(1, 7)], 'module': 'territory', 'decision_path': ['territory meander to (10, 6) via [(9, 1)]'], 'next_coord': (9, 1), 'next_move': 'down', 'time': '0.032s'}
+    log = {'id': 'e1d50a78-f30e-4a66-9d34-e4f26c99d65f', 'turn': 228, 'nalive': 2, 'snakes': [{'name': 'mark_snake_test RED', 'health': 100, 'length': 30, 'alive': True, 'delay': 7, 'body': [(4, 8), (5, 8), (6, 8), (6, 9), (6, 10), (7, 10), (7, 9), (8, 9), (8, 8), (8, 7), (8, 6), (9, 6), (10, 6), (10, 5), (9, 5), (9, 4), (9, 3), (8, 3), (7, 3), (6, 3), (6, 4), (7, 4), (7, 5), (7, 6), (6, 6), (6, 5), (5, 5), (5, 6), (5, 7), (5, 7)]}, {'name': 'mark_snake_test BLUE', 'health': 97, 'length': 28, 'alive': True, 'delay': 17, 'body': [(3, 9), (3, 8), (2, 8), (1, 8), (0, 8), (0, 7), (1, 7), (1, 6), (1, 5), (1, 4), (1, 3), (1, 2), (1, 1), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0), (7, 0), (8, 0), (9, 0), (9, 1), (9, 2), (8, 2), (7, 2), (6, 2), (5, 2)]}, {'name': 'mark_snake_test GREEN', 'health': 87, 'length': 4, 'alive': False, 'delay': 43, 'body': [(3, 8), (3, 7), (4, 7), (5, 7)]}, {'name': 'mark_snake_test YELLOW', 'health': 89, 'length': 4, 'alive': False, 'delay': 54, 'body': [(3, 8), (2, 8), (1, 8), (1, 7)]}], 'food': [(4, 10), (8, 4), (1, 10), (10, 10)]}
 
-    game_state = init_from_log(log)
+    # game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
     #game_state = init_from_db_log(id, turn, self_name)
-    # game_state = init_from_game_engine_log(log, self_name)
+    game_state = init_from_game_engine_log(log, self_name)
     main(game_state, log=True)
 
