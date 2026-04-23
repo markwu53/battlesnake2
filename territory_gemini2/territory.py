@@ -1,4 +1,5 @@
 import time
+import math
 
 class Snake:
     def __init__(self, name, body, health, id=None):
@@ -1197,8 +1198,8 @@ def decision_flow(g: GameTurn, is_pred):
             score *= tail_end_connectivity(st)
             score *= length_rank(st)
             distance = distance_rank(st)
-            if distance == 0:
-                distance = 0.5
+            if distance == 0: distance = 0.5
+            if len(g.others) == 1: distance = math.sqrt(distance)
             score /= distance
             return score
 
@@ -1230,6 +1231,8 @@ def decision_flow(g: GameTurn, is_pred):
                 ]
         if len(snake_tails) == 0: return
         # for snake, tail in snake_tails: print(f"{g.me.name} {snake.name} {g.me.to_snake_border_distance[snake.head]} {tail}")
+        # print(g.me.all_border)
+        # print(sorted(list([p for p in g.me.body if p in g.me.territory])))
 
         st = choose_border_tail(snake_tails)
         if st is None: return
@@ -2063,6 +2066,9 @@ if __name__ == "__main__":
     log = {'id': 'cc4a476e-b222-4f84-9904-c92abcab438b', 'turn': 122, 'me': {'name': 'mark_snake', 'health': 100, 'length': 14, 'body': [(10, 8), (10, 7), (10, 6), (10, 5), (10, 4), (10, 3), (9, 3), (8, 3), (8, 2), (8, 1), (7, 1), (6, 1), (5, 1), (5, 1)], 'id': 'gs_mjH4Fjv8HwXYfphYhJHMWwrS'}, 'others': [{'name': 'Geriatric Jagwire', 'health': 74, 'length': 10, 'body': [(5, 9), (5, 8), (5, 7), (6, 7), (6, 6), (5, 6), (4, 6), (3, 6), (2, 6), (2, 5)], 'id': 'gs_VwVwKxrdKT3hKBhJJMQb9mPH'}, {'name': 'Snaky  McSnakeface', 'health': 66, 'length': 8, 'body': [(8, 10), (7, 10), (7, 9), (7, 8), (7, 7), (7, 6), (7, 5), (7, 4)], 'id': 'gs_SCG4VYx4RXHtDj38tpbSf8gF'}, {'name': 'Combat Reptile', 'health': 91, 'length': 7, 'body': [(3, 1), (2, 1), (2, 2), (2, 3), (3, 3), (3, 4), (2, 4)], 'id': 'gs_T3v49vJgWqMyRJTHwDBmPYD3'}], 'food': [(0, 9), (0, 0), (3, 10), (10, 9), (1, 10), (0, 3)], 'module': 'territory', 'decision_path': ['get food (10, 9) via [(10, 9)]'], 'next_coord': (10, 9), 'next_move': 'up', 'time': '0.021s'}
     log = {'id': 'cc4a476e-b222-4f84-9904-c92abcab438b', 'turn': 122, 'me': {'name': 'mark_snake', 'health': 100, 'length': 14, 'body': [(10, 8), (10, 7), (10, 6), (10, 5), (10, 4), (10, 3), (9, 3), (8, 3), (8, 2), (8, 1), (7, 1), (6, 1), (5, 1), (5, 1)], 'id': 'gs_mjH4Fjv8HwXYfphYhJHMWwrS'}, 'others': [{'name': 'Geriatric Jagwire', 'health': 74, 'length': 10, 'body': [(5, 9), (5, 8), (5, 7), (6, 7), (6, 6), (5, 6), (4, 6), (3, 6), (2, 6), (2, 5)], 'id': 'gs_VwVwKxrdKT3hKBhJJMQb9mPH'}, {'name': 'Snaky  McSnakeface', 'health': 66, 'length': 8, 'body': [(8, 10), (7, 10), (7, 9), (7, 8), (7, 7), (7, 6), (7, 5), (7, 4)], 'id': 'gs_SCG4VYx4RXHtDj38tpbSf8gF'}, {'name': 'Combat Reptile', 'health': 91, 'length': 7, 'body': [(3, 1), (2, 1), (2, 2), (2, 3), (3, 3), (3, 4), (2, 4)], 'id': 'gs_T3v49vJgWqMyRJTHwDBmPYD3'}], 'food': [(0, 9), (0, 0), (3, 10), (1, 10), (0, 3)], 'module': 'territory', 'decision_path': ['get food (10, 9) via [(10, 9)]'], 'next_coord': (10, 9), 'next_move': 'up', 'time': '0.021s'}
     log = {'id': 'ee9f4172-cd46-40a9-afa9-b738b71f9df1', 'turn': 83, 'me': {'name': 'mark_snake', 'health': 91, 'length': 13, 'body': [(6, 9), (7, 9), (8, 9), (9, 9), (10, 9), (10, 8), (9, 8), (8, 8), (7, 8), (7, 7), (7, 6), (7, 5), (8, 5)], 'id': 'gs_S44MXrrrCMHSr376tFJ4J8WT'}, 'others': [{'name': 'Game of Chicken', 'health': 84, 'length': 7, 'body': [(4, 7), (3, 7), (2, 7), (1, 7), (0, 7), (0, 6), (1, 6)], 'id': 'gs_FBpqhhXw6PKfS3D8c7RttfXY'}, {'name': 'HydraOxide', 'health': 85, 'length': 9, 'body': [(4, 9), (3, 9), (2, 9), (1, 9), (0, 9), (0, 8), (1, 8), (2, 8), (3, 8)], 'id': 'gs_p3hjrxTYPqFKkdxbCjCPqX4d'}, {'name': 'go-st', 'health': 95, 'length': 8, 'body': [(4, 5), (3, 5), (2, 5), (1, 5), (0, 5), (0, 4), (1, 4), (2, 4)], 'id': 'gs_DXR7cfmMdkDJXTFmKdHyppmQ'}], 'food': [(3, 0), (9, 4), (0, 3), (2, 1)], 'module': 'territory', 'decision_path': ['general possible confine (6, 10)', 'next step try kill Game of Chicken (5, 9)'], 'next_coord': (5, 9), 'next_move': 'left', 'time': '0.053s'}
+    log = {'id': '62bd9025-322d-4f03-ab85-f173f42565d9', 'turn': 189, 'me': {'name': 'mark_snake', 'health': 85, 'length': 19, 'body': [(7, 2), (7, 3), (7, 4), (7, 5), (7, 6), (7, 7), (8, 7), (9, 7), (9, 6), (9, 5), (9, 4), (9, 3), (10, 3), (10, 2), (10, 1), (10, 0), (9, 0), (8, 0), (8, 1)], 'id': 'gs_XWQmXpJdW73bXm8CV9JWqQdS'}, 'others': [{'name': 'poc', 'health': 40, 'length': 13, 'body': [(5, 2), (6, 2), (6, 3), (6, 4), (6, 5), (6, 6), (6, 7), (6, 8), (5, 8), (4, 8), (3, 8), (3, 7), (3, 6)], 'id': 'gs_vCVw9rTjy4d9H37TDSWxhjm9'}], 'food': [(4, 10), (5, 7)], 'module': 'territory', 'decision_path': ['border analysis move go (6, 1)'], 'next_coord': (7, 1), 'next_move': 'down', 'time': '0.016s'}
+    log = {'id': '62bd9025-322d-4f03-ab85-f173f42565d9', 'turn': 191, 'me': {'name': 'mark_snake', 'health': 83, 'length': 19, 'body': [(6, 1), (7, 1), (7, 2), (7, 3), (7, 4), (7, 5), (7, 6), (7, 7), (8, 7), (9, 7), (9, 6), (9, 5), (9, 4), (9, 3), (10, 3), (10, 2), (10, 1), (10, 0), (9, 0)], 'id': 'gs_XWQmXpJdW73bXm8CV9JWqQdS'}, 'others': [{'name': 'poc', 'health': 38, 'length': 13, 'body': [(3, 2), (4, 2), (5, 2), (6, 2), (6, 3), (6, 4), (6, 5), (6, 6), (6, 7), (6, 8), (5, 8), (4, 8), (3, 8)], 'id': 'gs_vCVw9rTjy4d9H37TDSWxhjm9'}], 'food': [(4, 10), (5, 7)], 'module': 'territory', 'decision_path': ['border analysis move go (4, 1)'], 'next_coord': (5, 1), 'next_move': 'left', 'time': '0.014s'}
+    log = {'id': '62bd9025-322d-4f03-ab85-f173f42565d9', 'turn': 194, 'me': {'name': 'mark_snake', 'health': 80, 'length': 19, 'body': [(3, 1), (4, 1), (5, 1), (6, 1), (7, 1), (7, 2), (7, 3), (7, 4), (7, 5), (7, 6), (7, 7), (8, 7), (9, 7), (9, 6), (9, 5), (9, 4), (9, 3), (10, 3), (10, 2)], 'id': 'gs_XWQmXpJdW73bXm8CV9JWqQdS'}, 'others': [{'name': 'poc', 'health': 35, 'length': 13, 'body': [(2, 4), (3, 4), (3, 3), (3, 2), (4, 2), (5, 2), (6, 2), (6, 3), (6, 4), (6, 5), (6, 6), (6, 7), (6, 8)], 'id': 'gs_vCVw9rTjy4d9H37TDSWxhjm9'}], 'food': [(4, 10), (5, 7)], 'module': 'territory', 'decision_path': ['border analysis move go (2, 2)'], 'next_coord': (2, 1), 'next_move': 'left', 'time': '0.015s'}
 
     game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
