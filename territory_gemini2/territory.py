@@ -70,8 +70,13 @@ class GameTurn:
             self.other = self.others[0]
         return self
 
-g_width = 11
-g_height = 11
+class Game:
+    def __init__(self):
+        self.width = 11
+        self.height = 11
+        self.food_switch = False
+
+game = Game()
 
 def decision_flow(g: GameTurn, is_pred):
 
@@ -122,7 +127,7 @@ def decision_flow(g: GameTurn, is_pred):
             , (cond(len(g.others) > 1)(border_analysis_move))
 
             # , cond(len(g.others) == 1)(split_take_larger)
-            # , cond(len(g.others) == 1)(get_food(1))
+            , cond(len(g.others) == 1)(clear_food)
             , (cond(len(g.others) == 1)(border_analysis_move))
             , cond(len(g.others) == 1)(get_food(4))
             , cond(len(g.others) == 1)(territory_meander)
@@ -147,6 +152,7 @@ def decision_flow(g: GameTurn, is_pred):
 
     def turn_0(moves):
         if g.turn != 0: return
+        game.food_switch = False
         border_move = [a for a in moves if on_border(a)]
         if len(border_move) != 0:
             return border_move
@@ -1085,6 +1091,18 @@ def decision_flow(g: GameTurn, is_pred):
             if not is_pred: g.me.decision_path.append(f"border loose chased go straight")
             return moves
 
+    def clear_food(moves):
+        nfood = len([f for f in g.food if f in g.me.territory])
+        if not is_pred and game.food_switch and nfood <= 2:
+            if not is_pred: g.me.decision_path.append(f"clear food switch off")
+            game.food_switch = False
+            return
+        if not is_pred and not game.food_switch and nfood >= 8:
+            game.food_switch = True
+        if not is_pred and game.food_switch:
+            if not is_pred: g.me.decision_path.append(f"clear food")
+            return get_food(5)(moves)
+
     def get_food(distance_factor):
         def fn(moves):
             #if g.me.health >= 80 and g.me.length > 20: return
@@ -1448,18 +1466,18 @@ def is_adjacent(p, q):
 
 def pos_on_board(pos):
     x,y = pos
-    return 0 <= x < g_width and 0 <= y < g_height
+    return 0 <= x < game.width and 0 <= y < game.height
 
 def on_border(p):
     x,y = p
-    if x == 0 or x == g_width-1: return True
-    if y == 0 or y == g_height-1: return True
+    if x == 0 or x == game.width-1: return True
+    if y == 0 or y == game.height-1: return True
     return False
 
 def distance_to_border(p):
     x,y = p
-    dx = min([x, g_width-x-1])
-    dy = min([y, g_height-y-1])
+    dx = min([x, game.width-x-1])
+    dy = min([y, game.height-y-1])
     return (dx, dy)
 
 def adj_cells(pos):
@@ -2094,6 +2112,7 @@ if __name__ == "__main__":
     log = {'id': '42d5d252-1769-448c-8f59-209b5c490bd6', 'turn': 185, 'me': {'name': 'mark_snake', 'health': 48, 'length': 10, 'body': [(5, 8), (4, 8), (3, 8), (2, 8), (1, 8), (0, 8), (0, 9), (1, 9), (1, 10), (2, 10)], 'id': 'gs_KkGMJSjFxqY7YFCvxdvTWyyQ'}, 'others': [{'name': 'Sandworm', 'health': 90, 'length': 13, 'body': [(7, 2), (7, 3), (7, 4), (8, 4), (8, 5), (7, 5), (6, 5), (6, 4), (5, 4), (4, 4), (3, 4), (3, 5), (3, 6)], 'id': 'gs_WgfwBTSR6gXKr97PT7bx7g4J'}, {'name': 'Przze v2', 'health': 94, 'length': 13, 'body': [(7, 8), (7, 7), (8, 7), (9, 7), (9, 6), (10, 6), (10, 5), (10, 4), (10, 3), (9, 3), (9, 2), (10, 2), (10, 1)], 'id': 'gs_jCC7bxTmJGxMpFS9h7v9JjhB'}, {'name': 'SnattleBake_v060s', 'health': 78, 'length': 14, 'body': [(1, 6), (1, 7), (2, 7), (2, 6), (2, 5), (2, 4), (2, 3), (3, 3), (3, 2), (3, 1), (3, 0), (2, 0), (1, 0), (0, 0)], 'id': 'gs_XrGt4X9TkFcwKDwjvrRmDDgb'}], 'food': [(7, 1)], 'module': 'territory', 'decision_path': ['avoid single confront collision [(6, 8)]', 'border analysis move go (5, 9)'], 'next_coord': (5, 9), 'next_move': 'up', 'time': '0.084s'}
     log = {'id': '42d5d252-1769-448c-8f59-209b5c490bd6', 'turn': 186, 'me': {'name': 'mark_snake', 'health': 47, 'length': 10, 'body': [(5, 9), (5, 8), (4, 8), (3, 8), (2, 8), (1, 8), (0, 8), (0, 9), (1, 9), (1, 10)], 'id': 'gs_KkGMJSjFxqY7YFCvxdvTWyyQ'}, 'others': [{'name': 'Sandworm', 'health': 89, 'length': 13, 'body': [(8, 2), (7, 2), (7, 3), (7, 4), (8, 4), (8, 5), (7, 5), (6, 5), (6, 4), (5, 4), (4, 4), (3, 4), (3, 5)], 'id': 'gs_WgfwBTSR6gXKr97PT7bx7g4J'}, {'name': 'Przze v2', 'health': 93, 'length': 13, 'body': [(7, 9), (7, 8), (7, 7), (8, 7), (9, 7), (9, 6), (10, 6), (10, 5), (10, 4), (10, 3), (9, 3), (9, 2), (10, 2)], 'id': 'gs_jCC7bxTmJGxMpFS9h7v9JjhB'}, {'name': 'SnattleBake_v060s', 'health': 77, 'length': 14, 'body': [(1, 5), (1, 6), (1, 7), (2, 7), (2, 6), (2, 5), (2, 4), (2, 3), (3, 3), (3, 2), (3, 1), (3, 0), (2, 0), (1, 0)], 'id': 'gs_XrGt4X9TkFcwKDwjvrRmDDgb'}], 'food': [(7, 1)], 'module': 'territory', 'decision_path': ['avoid single confront collision [(6, 9)]', 'border analysis move go (5, 10)'], 'next_coord': (5, 10), 'next_move': 'up', 'time': '0.053s'}
     log = {'id': '553f378f-576a-4da7-832d-2bcf28389bd4', 'turn': 147, 'nalive': 3, 'snakes': [{'name': 'mark_snake_test RED', 'health': 84, 'length': 17, 'alive': True, 'delay': 1, 'body': [(4, 9), (5, 9), (5, 8), (5, 7), (5, 6), (5, 5), (4, 5), (4, 6), (4, 7), (3, 7), (3, 8), (2, 8), (1, 8), (1, 9), (1, 10), (0, 10), (0, 9)]}, {'name': 'mark_snake_test BLUE', 'health': 87, 'length': 16, 'alive': True, 'delay': 0, 'body': [(3, 10), (4, 10), (5, 10), (6, 10), (7, 10), (8, 10), (8, 9), (7, 9), (6, 9), (6, 8), (6, 7), (7, 7), (8, 7), (9, 7), (10, 7), (10, 6)]}, {'name': 'mark_snake_test GREEN', 'health': 98, 'length': 15, 'alive': True, 'delay': 10, 'body': [(3, 0), (2, 0), (1, 0), (1, 1), (0, 1), (0, 2), (0, 3), (1, 3), (2, 3), (3, 3), (4, 3), (4, 2), (5, 2), (6, 2), (6, 1)]}, {'name': 'mark_snake_test YELLOW', 'health': 94, 'length': 9, 'alive': False, 'delay': 3, 'body': [(9, 4), (10, 4), (10, 5), (10, 6), (10, 7), (10, 8), (10, 9), (9, 9), (8, 9)]}], 'food': [(8, 0), (1, 2)]}
+    log = {'id': '3611dac6-7668-49b5-8071-1faf25b2526d', 'turn': 16, 'nalive': 4, 'snakes': [{'name': 'mark_snake_test RED', 'health': 92, 'length': 5, 'alive': True, 'delay': 10, 'body': [(1, 7), (1, 6), (2, 6), (2, 5), (3, 5)]}, {'name': 'mark_snake_test BLUE', 'health': 97, 'length': 6, 'alive': True, 'delay': 55, 'body': [(0, 2), (0, 1), (1, 1), (2, 1), (3, 1), (4, 1)]}, {'name': 'mark_snake_test GREEN', 'health': 99, 'length': 6, 'alive': True, 'delay': 56, 'body': [(3, 9), (4, 9), (5, 9), (6, 9), (7, 9), (8, 9)]}, {'name': 'mark_snake_test YELLOW', 'health': 88, 'length': 4, 'alive': True, 'delay': 56, 'body': [(6, 8), (7, 8), (8, 8), (8, 7)]}], 'food': [(2, 7)]}
 
     # game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
