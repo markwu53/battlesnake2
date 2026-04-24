@@ -1277,9 +1277,9 @@ def decision_flow(g: GameTurn, is_pred):
         if len(snake_tails) == 0: return
 
         # snake_tails = prefer(distance_zero)(snake_tails)
-        # for st in snake_tails: print(f"{g.me.name} {st[0].name} {tail_end_connectivity(st)} {length_rank(st)} {distance_rank(st)} {scoring3(st)} {st[1]} ")
+        # for st in snake_tails: print(f"{g.me.name} {st[0].name} {tail_end_connectivity(st)} {length_rank(st)} {distance_rank(st)} {scoring(st)} {st[1]} ")
 
-        snake_tails = take_first_group(scoring3, reverse=True)(snake_tails)
+        snake_tails = take_first_group(scoring, reverse=True)(snake_tails)
 
         # snake_tails = take_first_group(tail_end_connectivity, reverse=True)(snake_tails)
         # snake_tails = take_first_group(length_rank, reverse=True)(snake_tails)
