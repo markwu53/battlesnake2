@@ -121,6 +121,7 @@ def decision_flow(g: GameTurn, is_pred):
             , (next_step_kill)
             , border_loose_chased
             , avoid_44
+            # , testing
 
             , cond(len(g.others) > 1)(get_food(6))
             # , cond(len(g.others) > 1)(split_take_larger)
@@ -1107,6 +1108,11 @@ def decision_flow(g: GameTurn, is_pred):
             if not is_pred: g.me.decision_path.append(f"clear food")
             return get_food(5)(moves)
 
+    def testing(moves):
+        for other in g.others:
+            if other.length > g.me.length:
+                print(g.me.head, other.name, g.me.to_snake_border[other.head])
+
     def get_food(distance_factor):
         def fn(moves):
             #if g.me.health >= 80 and g.me.length > 20: return
@@ -1279,7 +1285,7 @@ def decision_flow(g: GameTurn, is_pred):
         # snake_tails = prefer(distance_zero)(snake_tails)
         # for st in snake_tails: print(f"{g.me.name} {st[0].name} {tail_end_connectivity(st)} {length_rank(st)} {distance_rank(st)} {scoring(st)} {st[1]} ")
 
-        snake_tails = take_first_group(scoring, reverse=True)(snake_tails)
+        snake_tails = take_first_group(scoring2, reverse=True)(snake_tails)
 
         # snake_tails = take_first_group(tail_end_connectivity, reverse=True)(snake_tails)
         # snake_tails = take_first_group(length_rank, reverse=True)(snake_tails)
@@ -2111,6 +2117,8 @@ if __name__ == "__main__":
     log = {'id': '3611dac6-7668-49b5-8071-1faf25b2526d', 'turn': 16, 'nalive': 4, 'snakes': [{'name': 'mark_snake_test RED', 'health': 92, 'length': 5, 'alive': True, 'delay': 10, 'body': [(1, 7), (1, 6), (2, 6), (2, 5), (3, 5)]}, {'name': 'mark_snake_test BLUE', 'health': 97, 'length': 6, 'alive': True, 'delay': 55, 'body': [(0, 2), (0, 1), (1, 1), (2, 1), (3, 1), (4, 1)]}, {'name': 'mark_snake_test GREEN', 'health': 99, 'length': 6, 'alive': True, 'delay': 56, 'body': [(3, 9), (4, 9), (5, 9), (6, 9), (7, 9), (8, 9)]}, {'name': 'mark_snake_test YELLOW', 'health': 88, 'length': 4, 'alive': True, 'delay': 56, 'body': [(6, 8), (7, 8), (8, 8), (8, 7)]}], 'food': [(2, 7)]}
     log = {'id': '4cebc591-6e30-4592-8a85-169b95fdfe06', 'turn': 213, 'me': {'name': 'mark_snake', 'health': 58, 'length': 13, 'body': [(0, 9), (0, 8), (0, 7), (0, 6), (0, 5), (0, 4), (0, 3), (0, 2), (0, 1), (1, 1), (2, 1), (2, 0), (3, 0)], 'id': 'gs_VJPw6RXd9JRPTRCVtqxgBSxP'}, 'others': [{'name': 'Przze v2', 'health': 100, 'length': 19, 'body': [(9, 8), (9, 7), (9, 6), (9, 5), (9, 4), (9, 3), (9, 2), (8, 2), (7, 2), (7, 3), (6, 3), (5, 3), (5, 2), (6, 2), (6, 1), (7, 1), (8, 1), (9, 1), (9, 1)], 'id': 'gs_6J8vWmYHDVJSg874tQ684wBF'}, {'name': 'Slytherin', 'health': 77, 'length': 15, 'body': [(2, 7), (2, 6), (2, 5), (3, 5), (3, 4), (3, 3), (4, 3), (4, 4), (5, 4), (5, 5), (6, 5), (7, 5), (8, 5), (8, 6), (8, 7)], 'id': 'gs_mjmBxGkjFgb8TBwKjYdXrYG3'}], 'food': [(1, 7), (7, 9), (7, 0)], 'module': 'territory', 'decision_path': [], 'next_coord': (0, 10), 'next_move': 'up', 'time': '0.037s'}
     log = {'id': '38ba0019-2fae-44f0-9d9d-35fd75c0ac70', 'turn': 95, 'me': {'name': 'mark_snake', 'health': 100, 'length': 9, 'body': [(5, 6), (5, 7), (5, 8), (4, 8), (3, 8), (2, 8), (2, 9), (1, 9), (1, 9)], 'id': 'gs_bCxxw3BkH4D9wKBwQCxRQPmJ'}, 'others': [{'name': 'Przze v2', 'health': 96, 'length': 9, 'body': [(0, 1), (0, 2), (0, 3), (1, 3), (1, 2), (2, 2), (3, 2), (3, 1), (3, 0)], 'id': 'gs_7x98x3qkJJbhqfYyhhM6DP9D'}, {'name': 'Geriatric Jagwire', 'health': 93, 'length': 11, 'body': [(4, 5), (3, 5), (2, 5), (2, 4), (3, 4), (3, 3), (4, 3), (5, 3), (6, 3), (7, 3), (7, 4)], 'id': 'gs_9xrFBHMbBbM4qXpWHxyVHWSF'}, {'name': 'poc', 'health': 98, 'length': 12, 'body': [(8, 5), (8, 4), (8, 3), (8, 2), (9, 2), (9, 3), (9, 4), (9, 5), (9, 6), (9, 7), (8, 7), (7, 7)], 'id': 'gs_kkKqWw67qFtTvS7tjBg9WC8T'}], 'food': [(2, 6)], 'module': 'territory', 'decision_path': ['avoided suppress (5, 5) from Geriatric Jagwire', 'split avoid head no choice path (6, 6)'], 'next_coord': (4, 6), 'next_move': 'left', 'time': '0.100s'}
+    log = {'id': '96cb82af-244d-47c5-bc5b-37df7be24bb2', 'turn': 53, 'me': {'name': 'mark_snake', 'health': 74, 'length': 7, 'body': [(10, 1), (9, 1), (8, 1), (7, 1), (7, 2), (8, 2), (8, 3)], 'id': 'gs_FrWCbPJFcj7Cj7qHVfjX4qp9'}, 'others': [{'name': 'Aurora', 'health': 94, 'length': 9, 'body': [(9, 8), (9, 7), (8, 7), (7, 7), (6, 7), (5, 7), (4, 7), (3, 7), (3, 8)], 'id': 'gs_RdjMR7jXHDJjVJ3qryTqKKDR'}, {'name': 'Przze v2', 'health': 98, 'length': 6, 'body': [(2, 5), (1, 5), (1, 4), (2, 4), (3, 4), (4, 4)], 'id': 'gs_vvY6MJSYMkh3TRcyYPC6cwXY'}, {'name': 'poc', 'health': 89, 'length': 8, 'body': [(9, 4), (9, 5), (9, 6), (8, 6), (8, 5), (7, 5), (7, 4), (6, 4)], 'id': 'gs_f9SXpFWh6gSdQVhCvXR6PVk9'}], 'food': [(2, 7)], 'module': 'territory', 'decision_path': ['split unbalanced take larger ([(10, 0)], 7)'], 'next_coord': (10, 0), 'next_move': 'down', 'time': '0.068s'}
+    log = {'id': '71d833ce-56fa-4de4-beae-1819deca718b', 'turn': 319, 'me': {'name': 'mark_snake', 'health': 90, 'length': 16, 'body': [(10, 9), (10, 10), (9, 10), (8, 10), (7, 10), (6, 10), (5, 10), (4, 10), (4, 9), (5, 9), (5, 8), (4, 8), (3, 8), (2, 8), (1, 8), (0, 8)], 'id': 'gs_Sx87gv9M7q8yHCxS8rk4qdR8'}, 'others': [{'name': 'snakey_wakey', 'health': 50, 'length': 21, 'body': [(2, 7), (3, 7), (3, 6), (4, 6), (5, 6), (6, 6), (6, 7), (7, 7), (8, 7), (8, 6), (9, 6), (10, 6), (10, 5), (9, 5), (8, 5), (7, 5), (6, 5), (6, 4), (5, 4), (5, 5), (4, 5)], 'id': 'gs_8PTHDmxP3CSpF7VRbkRcbRjK'}, {'name': 'Geriatric Jagwire', 'health': 91, 'length': 23, 'body': [(4, 3), (4, 2), (5, 2), (6, 2), (7, 2), (8, 2), (9, 2), (9, 1), (10, 1), (10, 0), (9, 0), (8, 0), (7, 0), (6, 0), (5, 0), (4, 0), (3, 0), (2, 0), (1, 0), (0, 0), (0, 1), (1, 1), (2, 1)], 'id': 'gs_BGStyy6GJT4SX6cCSTjxc7Ff'}], 'food': [(3, 9), (10, 3), (10, 7)], 'module': 'territory', 'decision_path': ['get food (10, 7) via [(10, 8)]'], 'next_coord': (10, 8), 'next_move': 'down', 'time': '0.046s'}
 
     game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
