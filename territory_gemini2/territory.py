@@ -1353,16 +1353,16 @@ def decision_flow(g: GameTurn, is_pred):
                 score *= 1.2
             return score
 
-        # for st in snake_tails: print(f"{g.me.name} {st[0].name} {len(tail_end_space_set(st))} {tail_end_connectivity(st)} {length_rank(st)} {distance_rank(st)} {exposure_number(st)} {scoring5(st)} {st[1]} ")
-        snake_tails = pick_not(dead_start)(snake_tails)
-        if len(snake_tails) == 0: return
+        # snake_tails = pick_not(dead_start)(snake_tails)
+        # if len(snake_tails) == 0: return
 
-        snake_tails = pick(lambda st: length_distance_ratio(st) >= 0.5)(snake_tails)
+        # snake_tails = pick(lambda st: length_distance_ratio(st) >= 0.5)(snake_tails)
         # snake_tails = pick(within(4))(snake_tails)
-        if len(snake_tails) == 0: return
+        # if len(snake_tails) == 0: return
 
-        snake_tails = pick(lambda st: connectivity_density(st) > 2)(snake_tails)
-        if len(snake_tails) == 0: return
+        # snake_tails = pick(lambda st: connectivity_density(st) > 2)(snake_tails)
+        # if len(snake_tails) == 0: return
+        # for st in snake_tails: print(f"{g.me.name} {st[0].name} {len(tail_end_space_set(st))} {tail_end_connectivity(st)} {length_rank(st)} {distance_rank(st)} {exposure_number(st)} {scoring5(st)} {st[1]} ")
 
         # snake_tails = prefer(distance_zero)(snake_tails)
 
@@ -2169,10 +2169,11 @@ if __name__ == "__main__":
     log = {'id': '1159043a-3c3c-4396-b764-e2fa4096a8c8', 'turn': 177, 'me': {'name': 'mark_snake', 'health': 91, 'length': 16, 'body': [(2, 7), (1, 7), (1, 6), (1, 5), (1, 4), (1, 3), (0, 3), (0, 2), (0, 1), (1, 1), (2, 1), (2, 2), (2, 3), (2, 4), (2, 5), (2, 6)], 'id': 'gs_qwBMx9hMVJwBxPBQwvTcwGFV'}, 'others': [{'name': 'Game of Chicken', 'health': 87, 'length': 18, 'body': [(6, 9), (6, 10), (7, 10), (8, 10), (8, 9), (8, 8), (8, 7), (8, 6), (8, 5), (9, 5), (9, 4), (9, 3), (9, 2), (9, 1), (8, 1), (8, 2), (8, 3), (8, 4)], 'id': 'gs_frSVCFRGbmDphcdgBTp3wXdJ'}, {'name': 'Snaky  McSnakeface', 'health': 95, 'length': 11, 'body': [(3, 6), (3, 7), (4, 7), (5, 7), (6, 7), (6, 6), (5, 6), (5, 5), (4, 5), (4, 4), (5, 4)], 'id': 'gs_WfV766GxD6pSfMbTkXtDYxC6'}], 'food': [(4, 0)], 'module': 'territory', 'decision_path': ['border analysis move go (2, 6)'], 'next_coord': (2, 6), 'next_move': 'down', 'time': '0.042s'}
     log = {'id': 'aaabb255-636a-4b78-9c81-7458eb5876c5', 'turn': 80, 'me': {'name': 'mark_snake', 'health': 86, 'length': 6, 'body': [(8, 4), (9, 4), (10, 4), (10, 3), (9, 3), (9, 2)], 'id': 'gs_cGPQXQcCmQp4WbRSWq4j8BhF'}, 'others': [{'name': 'Przze v2', 'health': 91, 'length': 11, 'body': [(8, 2), (8, 1), (7, 1), (7, 2), (6, 2), (6, 1), (5, 1), (5, 2), (4, 2), (4, 1), (3, 1)], 'id': 'gs_KXd6dKWdb6CV7r9bvJHWRk6Y'}, {'name': 'Geriatric Jagwire', 'health': 59, 'length': 5, 'body': [(2, 4), (2, 5), (2, 6), (1, 6), (1, 7)], 'id': 'gs_8xwPr6dwW3pqC6T8RSVgd3KY'}, {'name': 'Snaky  McSnakeface', 'health': 82, 'length': 10, 'body': [(9, 5), (8, 5), (7, 5), (6, 5), (5, 5), (4, 5), (4, 4), (5, 4), (6, 4), (7, 4)], 'id': 'gs_cjRRWgPXvcmm4BHkKVRPx3bP'}], 'food': [(9, 6), (2, 10)], 'module': 'territory', 'decision_path': ['avoided suppress firm ground (7, 4) from Przze v2'], 'next_coord': (8, 3), 'next_move': 'down', 'time': '0.008s'}
     log = {'id': 'aaabb255-636a-4b78-9c81-7458eb5876c5', 'turn': 80, 'me': {'name': 'mark_snake', 'health': 86, 'length': 6, 'body': [(8, 4), (9, 4), (10, 4), (10, 3), (9, 3), (9, 2)], 'id': 'gs_cGPQXQcCmQp4WbRSWq4j8BhF'}, 'others': [{'name': 'Przze v2', 'health': 91, 'length': 11, 'body': [(8, 2), (8, 1), (7, 1), (7, 2), (6, 2), (6, 1), (5, 1), (5, 2), (4, 2), (4, 1), (3, 1)], 'id': 'gs_KXd6dKWdb6CV7r9bvJHWRk6Y'}, {'name': 'Snaky  McSnakeface', 'health': 82, 'length': 10, 'body': [(9, 5), (8, 5), (7, 5), (6, 5), (5, 5), (4, 5), (4, 4), (5, 4), (6, 4), (7, 4)], 'id': 'gs_cjRRWgPXvcmm4BHkKVRPx3bP'}], 'food': [(9, 6), (2, 10)], 'module': 'territory', 'decision_path': ['avoided suppress firm ground (7, 4) from Przze v2'], 'next_coord': (8, 3), 'next_move': 'down', 'time': '0.008s'}
+    log = {'id': 'cdcca20a-53f9-4d6b-aa1b-f14b43ca2d6a', 'turn': 113, 'nalive': 3, 'snakes': [{'name': 'mark_snake_test RED', 'health': 99, 'length': 17, 'alive': True, 'delay': 18, 'body': [(10, 3), (10, 4), (9, 4), (9, 5), (9, 6), (9, 7), (9, 8), (8, 8), (8, 7), (8, 6), (7, 6), (7, 7), (6, 7), (6, 6), (6, 5), (6, 4), (6, 3)]}, {'name': 'mark_snake_test BLUE', 'health': 78, 'length': 12, 'alive': True, 'delay': 34, 'body': [(3, 4), (3, 5), (3, 6), (3, 7), (3, 8), (3, 9), (4, 9), (5, 9), (6, 9), (7, 9), (8, 9), (9, 9)]}, {'name': 'mark_snake_test GREEN', 'health': 97, 'length': 17, 'alive': True, 'delay': 27, 'body': [(7, 0), (6, 0), (5, 0), (4, 0), (4, 1), (3, 1), (3, 0), (2, 0), (1, 0), (1, 1), (0, 1), (0, 2), (0, 3), (1, 3), (1, 4), (1, 5), (1, 6)]}, {'name': 'mark_snake_test YELLOW', 'health': 94, 'length': 9, 'alive': False, 'delay': 3, 'body': [(9, 7), (10, 7), (10, 8), (10, 9), (10, 10), (9, 10), (8, 10), (8, 9), (9, 9)]}], 'food': [(2, 3), (5, 5)]}
 
-    game_state = init_from_log(log)
+    # game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
     #game_state = init_from_db_log(id, turn, self_name)
-    # game_state = init_from_game_engine_log(log, self_name)
+    game_state = init_from_game_engine_log(log, self_name)
     main(game_state, log=True)
 
