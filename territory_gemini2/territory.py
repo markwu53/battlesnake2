@@ -906,7 +906,7 @@ def decision_flow(g: GameTurn, is_pred):
             shortest_distance = max([g.me.territory_point_level[a] for a in wayout_point_next])
             if shortest_distance >= wayout_length: return
             wayout_targets = [a for a in wayout_point_next if g.me.territory_point_level[a] == shortest_distance]
-            return take_first(wayout_targets)
+            return wayout_point, take_first(wayout_targets)
 
     def get_adjacent_indexes(g: GameTurn):
         adj_indexes = dict()
@@ -926,16 +926,23 @@ def decision_flow(g: GameTurn, is_pred):
         if len(g.me.all_border) != 0: return
 
         adj_indexes = get_adjacent_indexes(g)
-        wayout_target = choose_wayout_point(adj_indexes)
-        if wayout_target is None: return
+        wayout_info = choose_wayout_point(adj_indexes)
+        if wayout_info is None: return
+        wayout_point, wayout_target = wayout_info
 
-        shortest_moves = [a for a in moves if tree_distance(a, wayout_target) >= 0]
-        if len(shortest_moves) != 0:
-            if not is_pred: g.me.decision_path.append(f"wayout to {wayout_target} via {moves}")
-            return take_first_group(
-                lambda a: min(distance_vector_abs(a, wayout_target)))(
-                    prefer(lambda a: a not in shortest_moves)(moves))
+        start = {wayout_point}
+        area = {p for p in g.me.territory if p != g.me.head}
+        layers, remaining = flood_wayout(start, area)
 
+        links = {p: (i, len(da), len(db)) for i,layer in enumerate(layers) for p in layer for da,db in [layer[p]]}
+
+        moves = [a for a in moves if a in links]
+        if len(moves) != 0:
+            min_value = min([links[a] for a in moves], key=lambda x: (-x[0], x[1], x[2]))
+            moves = [a for a in moves if links[a] == min_value]
+            if not is_pred: g.me.decision_path.append(f"wayout to {wayout_point} via {moves}")
+            return moves
+    
     def wayout_with_exposure(moves):
         if len(g.me.all_border) == 0: return
         if len(g.me.all_border) > 2: return
@@ -953,15 +960,23 @@ def decision_flow(g: GameTurn, is_pred):
                 adj_list = adj_indexes[head]
                 adj_list = [(i, c) for i,c in adj_list if min(distance_pq(c, b) for b in g.me.all_border) > 2]
                 adj_indexes[head] = adj_list
-        wayout_target = choose_wayout_point(adj_indexes)
-        if wayout_target is None: return
 
-        shortest_moves = [a for a in moves if tree_distance(a, wayout_target) >= 0]
-        if len(shortest_moves) != 0:
-            if not is_pred: g.me.decision_path.append(f"wayout with exposure to {wayout_target} via {moves}")
-            return take_first_group(
-                lambda a: min(distance_vector_abs(a, wayout_target)))(
-                    prefer(lambda a: a not in shortest_moves)(moves))
+        wayout_info = choose_wayout_point(adj_indexes)
+        if wayout_info is None: return
+        wayout_point, wayout_target = wayout_info
+
+        start = {wayout_point}
+        area = {p for p in g.me.territory if p != g.me.head}
+        layers, remaining = flood_wayout(start, area)
+
+        links = {p: (i, len(da), len(db)) for i,layer in enumerate(layers) for p in layer for da,db in [layer[p]]}
+
+        moves = [a for a in moves if a in links]
+        if len(moves) != 0:
+            min_value = min([links[a] for a in moves], key=lambda x: (-x[0], x[1], x[2]))
+            moves = [a for a in moves if links[a] == min_value]
+            if not is_pred: g.me.decision_path.append(f"wayout with exposure to {wayout_point} via {moves}")
+            return moves
 
     def wayout(moves):
         #if len(g.me.all_border) != 0: return
@@ -1570,17 +1585,19 @@ def decision_flow(g: GameTurn, is_pred):
         if len(adj_list) == 0: return
 
         _, target = adj_list[-1]
-        shortest_moves = [a for a in moves if tree_distance(a, target) >= 0]
-        if ngroup(moves) == 1:
-            meander_moves = [a for a in moves if a not in shortest_moves]
-            if len(meander_moves) != 0:
-                if not is_pred: g.me.decision_path.append(f"territory meander to {target} via {meander_moves}")
-                return meander_moves
-        else:
-            moves = [a for a in moves if a in shortest_moves]
-            if len(moves) != 0:
-                if not is_pred: g.me.decision_path.append(f"territory meander to {target} via {moves}")
-                return moves
+
+        start = {target}
+        area = {p for p in g.me.territory if p != g.me.head}
+        layers, remaining = flood_wayout(start, area)
+
+        links = {p: (i, len(da), len(db)) for i,layer in enumerate(layers) for p in layer for da,db in [layer[p]]}
+
+        moves = [a for a in moves if a in links]
+        if len(moves) != 0:
+            min_value = min([links[a] for a in moves], key=lambda x: (-x[0], x[1], x[2]))
+            moves = [a for a in moves if links[a] == min_value]
+            if not is_pred: g.me.decision_path.append(f"territory meander to {target} via {moves}")
+            return moves
 
     def ________DECISION_MAIN_FLOW________():
         return
@@ -2252,6 +2269,8 @@ if __name__ == "__main__":
     log = {'id': '34763021-f19a-44b3-8a29-1fda4537e6d4', 'turn': 133, 'me': {'name': 'mark_snake', 'health': 68, 'length': 9, 'body': [(6, 1), (5, 1), (4, 1), (3, 1), (3, 0), (2, 0), (2, 1), (2, 2), (2, 3)], 'id': 'gs_4Gp9xxhXWcQ7WhB3gjWdydmC'}, 'others': [{'name': 'SmartyRat', 'health': 99, 'length': 9, 'body': [(7, 2), (7, 3), (6, 3), (6, 4), (6, 5), (6, 6), (6, 7), (6, 8), (6, 9)], 'id': 'gs_qSK7HRq7Tm7vD8cTgDSqb84b'}, {'name': 'Red Yarn', 'health': 98, 'length': 15, 'body': [(4, 5), (4, 4), (3, 4), (2, 4), (1, 4), (1, 3), (1, 2), (0, 2), (0, 3), (0, 4), (0, 5), (1, 5), (1, 6), (1, 7), (2, 7)], 'id': 'gs_7RpSmjCSg6xb3Rgxv3PMr6P8'}], 'food': [(10, 3)], 'module': 'territory', 'decision_path': ['wayout to (3, 0) via [(6, 0)]'], 'next_coord': (6, 0), 'next_move': 'down', 'time': '0.016s'}
     log = {'id': '2b0af7aa-f2fa-42e0-a0a2-f2d70165cc5c', 'turn': 96, 'nalive': 4, 'snakes': [{'name': 'mark_snake_test RED', 'health': 94, 'length': 13, 'alive': True, 'delay': 17, 'body': [(7, 7), (8, 7), (9, 7), (9, 6), (9, 5), (9, 4), (10, 4), (10, 3), (10, 2), (9, 2), (8, 2), (8, 3), (8, 4)]}, {'name': 'mark_snake_test BLUE', 'health': 96, 'length': 10, 'alive': True, 'delay': 61, 'body': [(6, 6), (6, 7), (6, 8), (5, 8), (4, 8), (3, 8), (3, 7), (3, 6), (3, 5), (3, 4)]}, {'name': 'mark_snake_test GREEN', 'health': 98, 'length': 12, 'alive': True, 'delay': 0, 'body': [(8, 10), (9, 10), (10, 10), (10, 9), (9, 9), (8, 9), (7, 9), (6, 9), (5, 9), (4, 9), (3, 9), (2, 9)]}, {'name': 'mark_snake_test YELLOW', 'health': 83, 'length': 9, 'alive': True, 'delay': 92, 'body': [(6, 4), (6, 3), (6, 2), (6, 1), (6, 0), (7, 0), (8, 0), (9, 0), (10, 0)]}], 'food': [(10, 5), (8, 8)]}
     log = {'id': 'bbfd75c1-3644-4fa9-930e-334ba6a69cf9', 'turn': 84, 'nalive': 3, 'snakes': [{'name': 'mark_snake_test RED', 'health': 96, 'length': 12, 'alive': True, 'delay': 13, 'body': [(2, 0), (3, 0), (4, 0), (5, 0), (6, 0), (6, 1), (7, 1), (8, 1), (9, 1), (10, 1), (10, 2), (10, 3)]}, {'name': 'mark_snake_test BLUE', 'health': 89, 'length': 12, 'alive': True, 'delay': 38, 'body': [(4, 4), (4, 3), (4, 2), (5, 2), (6, 2), (7, 2), (8, 2), (8, 3), (8, 4), (7, 4), (7, 5), (6, 5)]}, {'name': 'mark_snake_test GREEN', 'health': 96, 'length': 10, 'alive': True, 'delay': 1, 'body': [(1, 5), (1, 4), (0, 4), (0, 3), (0, 2), (1, 2), (2, 2), (2, 3), (2, 4), (3, 4)]}, {'name': 'mark_snake_test YELLOW', 'health': 86, 'length': 6, 'alive': False, 'delay': 26, 'body': [(0, 7), (0, 8), (1, 8), (2, 8), (3, 8), (4, 8)]}], 'food': [(1, 0), (9, 3), (1, 6)]}
+    log = {'id': '900d7af9-0104-4f38-a81f-daa212ed6b55', 'turn': 273, 'nalive': 2, 'snakes': [{'name': 'mark_snake_test RED', 'health': 98, 'length': 31, 'alive': True, 'delay': 14, 'body': [(1, 0), (1, 1), (1, 2), (2, 2), (3, 2), (4, 2), (4, 3), (4, 4), (4, 5), (4, 6), (3, 6), (2, 6), (2, 7), (1, 7), (0, 7), (0, 8), (0, 9), (0, 10), (1, 10), (1, 9), (1, 8), (2, 8), (2, 9), (3, 9), (3, 8), (3, 7), (4, 7), (5, 7), (5, 6), (5, 5), (5, 4)]}, {'name': 'mark_snake_test BLUE', 'health': 94, 'length': 7, 'alive': False, 'delay': 0, 'body': [(0, 5), (0, 4), (0, 3), (0, 2), (0, 1), (0, 0), (1, 0)]}, {'name': 'mark_snake_test GREEN', 'health': 96, 'length': 13, 'alive': False, 'delay': 3, 'body': [(3, 4), (3, 3), (2, 3), (1, 3), (1, 2), (0, 2), (0, 1), (1, 1), (2, 1), (3, 1), (4, 1), (4, 2), (4, 3)]}, {'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 32, 'alive': True, 'delay': 28, 'body': [(10, 1), (10, 2), (10, 3), (10, 4), (10, 5), (9, 5), (9, 4), (8, 4), (8, 5), (8, 6), (9, 6), (9, 7), (9, 8), (9, 9), (9, 10), (8, 10), (7, 10), (6, 10), (5, 10), (4, 10), (4, 9), (4, 8), (5, 8), (6, 8), (7, 8), (7, 7), (7, 6), (6, 6), (6, 5), (6, 4), (6, 3), (6, 3)]}], 'food': [(0, 5), (6, 0), (1, 3), (5, 9), (6, 1), (5, 1), (3, 4), (3, 1)]}
+    log = {'id': '900d7af9-0104-4f38-a81f-daa212ed6b55', 'turn': 272, 'nalive': 2, 'snakes': [{'name': 'mark_snake_test RED', 'health': 99, 'length': 31, 'alive': True, 'delay': 12, 'body': [(1, 1), (1, 2), (2, 2), (3, 2), (4, 2), (4, 3), (4, 4), (4, 5), (4, 6), (3, 6), (2, 6), (2, 7), (1, 7), (0, 7), (0, 8), (0, 9), (0, 10), (1, 10), (1, 9), (1, 8), (2, 8), (2, 9), (3, 9), (3, 8), (3, 7), (4, 7), (5, 7), (5, 6), (5, 5), (5, 4), (5, 3)]}, {'name': 'mark_snake_test BLUE', 'health': 94, 'length': 7, 'alive': False, 'delay': 0, 'body': [(0, 5), (0, 4), (0, 3), (0, 2), (0, 1), (0, 0), (1, 0)]}, {'name': 'mark_snake_test GREEN', 'health': 96, 'length': 13, 'alive': False, 'delay': 3, 'body': [(3, 4), (3, 3), (2, 3), (1, 3), (1, 2), (0, 2), (0, 1), (1, 1), (2, 1), (3, 1), (4, 1), (4, 2), (4, 3)]}, {'name': 'mark_snake_test YELLOW', 'health': 96, 'length': 31, 'alive': True, 'delay': 20, 'body': [(10, 2), (10, 3), (10, 4), (10, 5), (9, 5), (9, 4), (8, 4), (8, 5), (8, 6), (9, 6), (9, 7), (9, 8), (9, 9), (9, 10), (8, 10), (7, 10), (6, 10), (5, 10), (4, 10), (4, 9), (4, 8), (5, 8), (6, 8), (7, 8), (7, 7), (7, 6), (6, 6), (6, 5), (6, 4), (6, 3), (6, 2)]}], 'food': [(0, 5), (6, 0), (1, 3), (10, 1), (5, 9), (6, 1), (5, 1), (3, 4), (3, 1)]}
 
     # game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
