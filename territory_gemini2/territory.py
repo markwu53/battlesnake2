@@ -124,6 +124,7 @@ def decision_flow(g: GameTurn, is_pred):
             , avoid_44
             , chased_at_corner
             , parallel_near_border
+            , killer_22
             # , testing
 
             , cond(len(g.others) > 1)(get_food(6))
@@ -787,6 +788,35 @@ def decision_flow(g: GameTurn, is_pred):
             if not is_pred: g.me.decision_path.append(f"choose collision {moves} against {killer.name}")
             return moves
 
+    def killer_22(moves):
+        if len(moves) != 2: return
+        a, b = moves
+
+        for snake in g.others:
+            if snake.length <= g.me.length: continue
+            if distance_vector_abs(snake.head, g.me.head) != (2,2): continue
+            if not a in g.me.to_snake_border[snake.head]: continue
+            if not b in g.me.to_snake_border[snake.head]: continue
+            killer_danger_moves = [a for a in snake.allowed_moves if distance_pq(a, g.me.head) == 3]
+            if len(killer_danger_moves) != 2: continue
+            c, d = killer_danger_moves
+            if distance_vector_abs(a, c) != (1,1):
+                c, d = d, c
+                if distance_vector_abs(a, c) != (1,1):
+                    continue
+            if distance_vector_abs(b, d) != (1,1): continue
+            if not is_pred: 
+                old_me = g.me
+                g.set_me(snake)
+                killer_moves = decision_flow(g, is_pred=True)
+                g.set_me(old_me)
+                if len(killer_moves) != 1: continue
+                killer_move = take_first(killer_moves)
+                if killer_move not in [c, d]: continue
+                moves = [p for p in moves if distance_vector_abs(p, killer_move) != (1,1)]
+                g.me.decision_path.append(f"killer_22 {snake.name} take {moves}")
+                return moves
+
     def avoid_collision(moves):
         for snake in g.others:
             if distance_vector_abs(snake.head, g.me.head) != (1, 1): continue
@@ -810,7 +840,7 @@ def decision_flow(g: GameTurn, is_pred):
 
             me2 = snake_next_step(g.me, dodge_point)
             killer2 = snake_next_step(snake, killer_suppress_move)
-            
+ 
             # Resolve both moves in a hypothetical next turn
             ng = next_game_turn([me2, killer2])
             flood_game_turn(ng)
@@ -2328,6 +2358,7 @@ if __name__ == "__main__":
     log = {'id': '851698e3-c2d7-42fe-a614-48504dae6e30', 'turn': 107, 'me': {'name': 'mark_snake', 'health': 94, 'length': 7, 'body': [(9, 2), (9, 3), (8, 3), (8, 2), (8, 1), (8, 0), (9, 0)], 'id': 'gs_T4RjHF4T8jXFBWGj78CjWFR7'}, 'others': [{'name': 'snakey_wakey', 'health': 84, 'length': 8, 'body': [(2, 3), (2, 2), (2, 1), (1, 1), (1, 2), (1, 3), (1, 4), (2, 4)], 'id': 'gs_SJkhMtMgrvMyF7v48fGKmBFG'}, {'name': 'Przze v2', 'health': 63, 'length': 9, 'body': [(6, 1), (7, 1), (7, 2), (6, 2), (5, 2), (4, 2), (4, 3), (4, 4), (5, 4)], 'id': 'gs_cBmkjBcHX8gXP8HRR3mQBGyS'}, {'name': 'Geriatric Jagwire', 'health': 91, 'length': 10, 'body': [(6, 5), (6, 6), (5, 6), (4, 6), (4, 7), (3, 7), (2, 7), (2, 8), (1, 8), (0, 8)], 'id': 'gs_gBr4Yf4MWj4WDRdwTyVxdmSJ'}], 'food': [(10, 1), (6, 3)], 'module': 'territory', 'decision_path': ['general possible confine (10, 2)'], 'next_coord': (9, 1), 'next_move': 'down', 'time': '0.018s'}
     log = {'id': '851698e3-c2d7-42fe-a614-48504dae6e30', 'turn': 101, 'me': {'name': 'mark_snake', 'health': 100, 'length': 7, 'body': [(9, 0), (9, 1), (9, 2), (9, 3), (8, 3), (8, 4), (8, 4)], 'id': 'gs_T4RjHF4T8jXFBWGj78CjWFR7'}, 'others': [{'name': 'snakey_wakey', 'health': 90, 'length': 8, 'body': [(1, 4), (2, 4), (2, 3), (2, 2), (2, 1), (1, 1), (0, 1), (0, 2)], 'id': 'gs_SJkhMtMgrvMyF7v48fGKmBFG'}, {'name': 'Przze v2', 'health': 69, 'length': 9, 'body': [(4, 3), (4, 4), (5, 4), (5, 3), (6, 3), (6, 4), (6, 5), (6, 6), (6, 7)], 'id': 'gs_cBmkjBcHX8gXP8HRR3mQBGyS'}, {'name': 'Geriatric Jagwire', 'health': 97, 'length': 10, 'body': [(2, 7), (2, 8), (1, 8), (0, 8), (0, 7), (0, 6), (0, 5), (1, 5), (2, 5), (2, 6)], 'id': 'gs_gBr4Yf4MWj4WDRdwTyVxdmSJ'}], 'food': [(10, 1)], 'module': 'territory', 'decision_path': ['split avoid head no choice path (10, 0)'], 'next_coord': (8, 0), 'next_move': 'left', 'time': '0.039s'}
     log = {'id': '9b44225b-afa5-48cc-bf70-52cbfe1e54de', 'turn': 53, 'me': {'name': 'mark_snake', 'health': 95, 'length': 9, 'body': [(9, 2), (9, 1), (9, 0), (8, 0), (7, 0), (6, 0), (5, 0), (5, 1), (6, 1)], 'id': 'gs_xqTkT6xv8YYtQFjg3K6Ddr48'}, 'others': [{'name': 'Game of Chicken', 'health': 99, 'length': 12, 'body': [(8, 3), (7, 3), (6, 3), (5, 3), (5, 2), (4, 2), (4, 3), (4, 4), (3, 4), (2, 4), (1, 4), (0, 4)], 'id': 'gs_8rbt83Ym8vQFTc7hjRYMBk8f'}, {'name': 'Hovering Hobbs', 'health': 87, 'length': 4, 'body': [(5, 8), (4, 8), (3, 8), (3, 7)], 'id': 'gs_ydFh4c6mBj7wRHd86G3g7jHf'}, {'name': 'Gregory Megory', 'health': 82, 'length': 7, 'body': [(3, 6), (4, 6), (4, 5), (5, 5), (5, 6), (6, 6), (7, 6)], 'id': 'gs_btVcyryvbpD3pDvyJDrbVjyB'}], 'food': [(9, 4)], 'module': 'territory', 'decision_path': ['dodge point unsafe choose collision', 'border analysis move go (10, 2)'], 'next_coord': (10, 2), 'next_move': 'right', 'time': '0.083s'}
+    log = {'id': '9b44225b-afa5-48cc-bf70-52cbfe1e54de', 'turn': 52, 'me': {'name': 'mark_snake', 'health': 96, 'length': 9, 'body': [(9, 1), (9, 0), (8, 0), (7, 0), (6, 0), (5, 0), (5, 1), (6, 1), (7, 1)], 'id': 'gs_xqTkT6xv8YYtQFjg3K6Ddr48'}, 'others': [{'name': 'Game of Chicken', 'health': 100, 'length': 12, 'body': [(7, 3), (6, 3), (5, 3), (5, 2), (4, 2), (4, 3), (4, 4), (3, 4), (2, 4), (1, 4), (0, 4), (0, 4)], 'id': 'gs_8rbt83Ym8vQFTc7hjRYMBk8f'}, {'name': 'Hovering Hobbs', 'health': 88, 'length': 4, 'body': [(4, 8), (3, 8), (3, 7), (4, 7)], 'id': 'gs_ydFh4c6mBj7wRHd86G3g7jHf'}, {'name': 'Gregory Megory', 'health': 83, 'length': 7, 'body': [(4, 6), (4, 5), (5, 5), (5, 6), (6, 6), (7, 6), (8, 6)], 'id': 'gs_btVcyryvbpD3pDvyJDrbVjyB'}], 'food': [(9, 4)], 'module': 'territory', 'decision_path': ['general possible confine (10, 1)', 'border analysis move go (9, 2)'], 'next_coord': (9, 2), 'next_move': 'up', 'time': '0.063s'}
 
     game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
