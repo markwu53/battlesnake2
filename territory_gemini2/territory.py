@@ -1248,11 +1248,9 @@ def decision_flow(g: GameTurn, is_pred):
                     if has_wayout(nng):
                         return 999
                     max_space = max([max_space, len(me3.territory)])
-                return max_space
+                return max_space+1
             # if next_step_wayout(): return 999
             return next_step_wayout()
-
-            return True
 
         move_space = [(a, confined(a)) for a in moves]
         confined_moves = [a for a,n in move_space if n != 999]
@@ -2407,10 +2405,11 @@ if __name__ == "__main__":
     log = {'id': '11c5d416-58a2-4857-8f82-ec88fd752a5d', 'turn': 45, 'me': {'name': 'mark_snake', 'health': 92, 'length': 6, 'body': [(2, 1), (3, 1), (4, 1), (4, 0), (5, 0), (5, 1)], 'id': 'gs_VGKWrGdqSDDjqTdbhPMtCwGQ'}, 'others': [{'name': 'poc', 'health': 67, 'length': 5, 'body': [(5, 6), (4, 6), (4, 5), (3, 5), (2, 5)], 'id': 'gs_7CGHwqkmBHWw79TjdFXRvVc9'}, {'name': 'Combat Reptile', 'health': 80, 'length': 7, 'body': [(3, 2), (4, 2), (5, 2), (6, 2), (6, 3), (6, 4), (6, 5)], 'id': 'gs_Kb3KBVdqr3G6J6DJc3J8BTqQ'}], 'food': [(2, 0), (8, 9)], 'module': 'territory', 'decision_path': ['avoid single suppress collision [(2, 2)]', 'get food (2, 0) via [(2, 0)]'], 'next_coord': (2, 0), 'next_move': 'down', 'time': '0.021s'}
     log = {'id': '11c5d416-58a2-4857-8f82-ec88fd752a5d', 'turn': 45, 'me': {'name': 'mark_snake', 'health': 92, 'length': 6, 'body': [(2, 1), (3, 1), (4, 1), (4, 0), (5, 0), (5, 1)], 'id': 'gs_VGKWrGdqSDDjqTdbhPMtCwGQ'}, 'others': [{'name': 'poc', 'health': 67, 'length': 5, 'body': [(5, 6), (4, 6), (4, 5), (3, 5), (2, 5)], 'id': 'gs_7CGHwqkmBHWw79TjdFXRvVc9'}, {'name': 'Combat Reptile', 'health': 80, 'length': 7, 'body': [(3, 2), (4, 2), (5, 2), (6, 2), (6, 3), (6, 4), (6, 5)], 'id': 'gs_Kb3KBVdqr3G6J6DJc3J8BTqQ'}], 'food': [(8, 9)], 'module': 'territory', 'decision_path': ['avoid single suppress collision [(2, 2)]', 'get food (2, 0) via [(2, 0)]'], 'next_coord': (2, 0), 'next_move': 'down', 'time': '0.021s'}
     log = {'id': '89552ad6-221e-4cbe-b9da-e72d7e59931a', 'turn': 111, 'me': {'name': 'mark_snake', 'health': 94, 'length': 12, 'body': [(1, 2), (1, 3), (1, 4), (1, 5), (0, 5), (0, 6), (0, 7), (1, 7), (1, 8), (2, 8), (3, 8), (3, 7)], 'id': 'gs_xKyMHm4kvb668R7gddRPDbtK'}, 'others': [{'name': 'mini snake', 'health': 98, 'length': 7, 'body': [(2, 1), (2, 2), (2, 3), (2, 4), (2, 5), (3, 5), (3, 4)], 'id': 'gs_Dq6Gv6RFVF69pHdMfGthW8HT'}, {'name': 'Przze v2', 'health': 100, 'length': 9, 'body': [(9, 0), (9, 1), (8, 1), (7, 1), (6, 1), (5, 1), (4, 1), (4, 2), (4, 2)], 'id': 'gs_x4frYGwqCf6gyFhTxbFCjJm7'}, {'name': 'poc', 'health': 100, 'length': 17, 'body': [(7, 6), (6, 6), (5, 6), (4, 6), (4, 5), (5, 5), (6, 5), (7, 5), (8, 5), (9, 5), (9, 4), (10, 4), (10, 5), (10, 6), (10, 7), (10, 8), (10, 8)], 'id': 'gs_yvFtbFtS4MkGbkkTpK4R6fv9'}], 'food': [(0, 9)], 'module': 'territory', 'decision_path': ['all possible confined', 'wayout with exposure to (2, 1) via [(0, 2)]'], 'next_coord': (0, 2), 'next_move': 'left', 'time': '0.044s'}
+    log = {'id': '3c37445d-a554-428a-9be3-aebabcf39075', 'turn': 167, 'nalive': 2, 'snakes': [{'name': 'mark_snake_test RED', 'health': 82, 'length': 17, 'alive': True, 'delay': 8, 'body': [(2, 7), (1, 7), (1, 6), (0, 6), (0, 5), (0, 4), (0, 3), (0, 2), (1, 2), (2, 2), (2, 3), (2, 4), (3, 4), (3, 5), (3, 6), (3, 7), (4, 7)]}, {'name': 'mark_snake_test BLUE', 'health': 99, 'length': 25, 'alive': True, 'delay': 14, 'body': [(5, 6), (6, 6), (6, 5), (5, 5), (5, 4), (5, 3), (5, 2), (4, 2), (3, 2), (3, 1), (4, 1), (5, 1), (6, 1), (7, 1), (8, 1), (8, 2), (8, 3), (8, 4), (8, 5), (8, 6), (9, 6), (9, 7), (9, 8), (8, 8), (7, 8)]}, {'name': 'mark_snake_test GREEN', 'health': 82, 'length': 4, 'alive': False, 'delay': 10, 'body': [(1, 3), (2, 3), (2, 4), (2, 5)]}, {'name': 'mark_snake_test YELLOW', 'health': 84, 'length': 4, 'alive': False, 'delay': 28, 'body': [(1, 3), (1, 2), (1, 1), (2, 1)]}], 'food': [(7, 0), (8, 0), (0, 9)]}
 
-    game_state = init_from_log(log)
+    # game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
     #game_state = init_from_db_log(id, turn, self_name)
-    # game_state = init_from_game_engine_log(log, self_name)
+    game_state = init_from_game_engine_log(log, self_name)
     main(game_state, log=True)
 
