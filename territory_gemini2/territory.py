@@ -1381,7 +1381,7 @@ def decision_flow(g: GameTurn, is_pred):
         def fn(moves):
             #if g.me.health >= 80 and g.me.length > 20: return
             #if len(g.others) == 1 and g.me.length >= g.other.length +5 and g.me.health > 50: return
-            if g.me.length >= max([snake.length for snake in g.others]) +5 and g.me.health > 50: return
+            # if g.me.length >= max([snake.length for snake in g.others]) +5 and g.me.health > 50: return
 
             good_food = [f for f in g.food if f in g.me.territory and g.me.territory_point_level[f] <= distance_factor]
             if len(good_food) == 0: return
