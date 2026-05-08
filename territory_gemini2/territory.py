@@ -1367,7 +1367,7 @@ def decision_flow(g: GameTurn, is_pred):
             if not is_pred: g.me.decision_path.append(f"clear food switch off")
             game.food_switch = False
             return
-        if not is_pred and not game.food_switch and nfood >= 8:
+        if not is_pred and not game.food_switch and nfood >= 5:
             game.food_switch = True
         if not is_pred and game.food_switch:
             if not is_pred: g.me.decision_path.append(f"clear food")
