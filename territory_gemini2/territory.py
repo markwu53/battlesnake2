@@ -1363,7 +1363,7 @@ def decision_flow(g: GameTurn, is_pred):
 
     def clear_food(moves):
         nfood = len([f for f in g.food if f in g.me.territory])
-        if not is_pred and game.food_switch and nfood <= 2:
+        if not is_pred and game.food_switch and nfood <= 1:
             if not is_pred: g.me.decision_path.append(f"clear food switch off")
             game.food_switch = False
             return
