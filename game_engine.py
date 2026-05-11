@@ -90,10 +90,10 @@ class GameEngine:
 
     def call_snake_model(self, snake, game_state):
         if snake.name in [ "mark_snake_test RED", ]:
-            territory_gemini.main(game_state, log=False) 
+            territory_gemini.main(game_state, log=True) 
             return {"move": game_state["next_move"]}
         elif snake.name in [ "mark_snake_test GREEN", ]:
-            territory.main(game_state, log=True) 
+            territory.main(game_state, log=False) 
             return {"move": game_state["next_move"]}
         else:
             df_split.main(game_state, log=False)
