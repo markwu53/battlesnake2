@@ -137,7 +137,7 @@ def decision_flow(g: GameTurn, is_pred):
                 par([
                     seq([ 
                         clear_food
-                        , cond(g.me.health <= 20 or g.me.length <= g.other.length)(get_food(6))
+                        , cond(g.me.health <= 20)(get_food(6))
                         , border_analysis_move 
                         , get_food(4) ])
                     , territory_meander
