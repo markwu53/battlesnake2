@@ -95,7 +95,7 @@ def decision_flow(g: GameTurn, is_pred):
             , avoid_leading_suppress_kill("firm_ground")
 
             , (suppress_kill_firm_ground)
-            , kill_vulnerable
+            , (kill_vulnerable)
 
             , avoid_single_confront_collision
 
@@ -107,7 +107,7 @@ def decision_flow(g: GameTurn, is_pred):
             , (avoid_general_possible_confine)
             , cond(not g.me.suppress_kill)(straight_line_confine_kill(0.8))
 
-            , choose_collision
+            , (choose_collision)
             , avoid_collision
             , (avoid_suppress_kill("killer_ground"))
             , (avoid_leading_suppress_kill("killer_ground"))
@@ -494,7 +494,7 @@ def decision_flow(g: GameTurn, is_pred):
                     return valid_moves
             else:
                 shortest_moves = [a for a in g.me.allowed_moves if tree_distance(a, attack_point) >= 0]
-                valid_moves = [a for a in moves if a not in shortest_moves]
+                valid_moves = [a for a in moves if a not in shortest_moves and a in g.me.territory]
                 if len(valid_moves) != 0:
                     if not is_pred: g.me.decision_path.append(f"attack vulnerable meander {snake.name} {attack_point}")
                     return valid_moves
@@ -2430,10 +2430,11 @@ if __name__ == "__main__":
     log = {'id': 'd44bc982-dba8-4903-8d18-d974d5c382f5', 'turn': 169, 'me': {'name': 'mark_snake', 'health': 95, 'length': 12, 'body': [(5, 2), (5, 3), (6, 3), (6, 2), (6, 1), (7, 1), (7, 2), (8, 2), (8, 3), (7, 3), (7, 4), (7, 5), (7, 6), (8, 6)], 'id': 'gs_tP4Bf9cSQDgyc8WwVg4rTWvQ'}, 'others': [{'name': 'Aurora', 'health': 87, 'length': 14, 'body': [(4, 1), (4, 0), (3, 0), (2, 0), (1, 0), (1, 1), (2, 1), (2, 2), (2, 3), (1, 3), (0, 3), (0, 4)], 'id': 'gs_QjvWQDy99jTKXmQSTygVpt79'}, {'name': 'Combat Reptile', 'health': 33, 'length': 10, 'body': [(8, 7), (7, 7), (7, 8), (7, 9), (6, 9), (6, 10), (5, 10), (5, 9), (5, 8), (5, 7)], 'id': 'gs_Wq78RFwbdqCg3M9vvyFkBX44'}, {'name': 'Slytherin', 'health': 100, 'length': 17, 'body': [(1, 10), (1, 9), (0, 9), (0, 8), (1, 8), (1, 7), (1, 6), (1, 5), (1, 4), (2, 4), (2, 5), (2, 6), (2, 7), (3, 7), (3, 8), (2, 8), (2, 8)], 'id': 'gs_hYy4cp3fSKwhyqv6ydRQcPGF'}], 'food': [(4, 5)], 'module': 'territory', 'decision_path': ['dodge point unsafe choose collision'], 'next_coord': (4, 2), 'next_move': 'up', 'time': '0.092s'}
     log = {'id': '79e2671a-ea62-432d-bea9-81be3163d3d5', 'turn': 103, 'me': {'name': 'mark_snake', 'health': 60, 'length': 7, 'body': [(1, 6), (0, 6), (0, 7), (0, 8), (1, 8), (2, 8), (2, 7)], 'id': 'gs_gCxtY7jTmdpK6RGTVp6DGfMR'}, 'others': [{'name': 'Przze v2', 'health': 78, 'length': 8, 'body': [(2, 1), (2, 0), (3, 0), (3, 1), (4, 1), (4, 2), (3, 2), (2, 2)], 'id': 'gs_3d3mbhbQXcwpQjggxH4PQjRb'}, {'name': 'ActionHero', 'health': 87, 'length': 13, 'body': [(7, 0), (6, 0), (5, 0), (5, 1), (6, 1), (6, 2), (6, 3), (7, 3), (7, 4), (7, 5), (8, 5), (9, 5), (9, 6)], 'id': 'gs_jKdGh96FYm9WHTcdqWGQBKdT'}, {'name': 'Gregory Megory', 'health': 95, 'length': 11, 'body': [(3, 6), (3, 7), (4, 7), (4, 8), (3, 8), (3, 9), (4, 9), (5, 9), (5, 8), (5, 7), (6, 7)], 'id': 'gs_vMgJwmPfrf7v9MDPY9FQp84J'}], 'food': [(0, 4), (0, 3)], 'module': 'territory', 'decision_path': ['general possible confine [(1, 5)]'], 'next_coord': (1, 7), 'next_move': 'up', 'time': '0.055s'}
     log = {'id': '86e9b840-9b50-4cb5-839b-b46ff3f04a9c', 'turn': 531, 'me': {'name': 'mark_snake', 'health': 93, 'length': 37, 'body': [(1, 2), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (5, 0), (4, 0), (3, 0), (2, 0), (1, 0), (0, 0), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8), (0, 9), (0, 10), (1, 10), (1, 9), (1, 8), (2, 8), (2, 9), (3, 9), (3, 10), (4, 10), (5, 10), (6, 10), (7, 10), (8, 10), (9, 10), (9, 9), (8, 9)], 'id': 'gs_jm3QW9P7Vk7XyJqbXDqBpMDc'}, 'others': [{'name': ' Kwisatz Haderach', 'health': 99, 'length': 34, 'body': [(10, 1), (10, 0), (9, 0), (9, 1), (8, 1), (7, 1), (6, 1), (6, 2), (5, 2), (4, 2), (4, 3), (5, 3), (6, 3), (7, 3), (8, 3), (9, 3), (9, 4), (8, 4), (8, 5), (7, 5), (6, 5), (6, 6), (5, 6), (5, 5), (4, 5), (3, 5), (2, 5), (2, 6), (2, 7), (1, 7), (1, 6), (1, 5), (1, 4), (1, 3)], 'id': 'gs_PYrHSqqTdw4t94KPJYPgHjqQ'}], 'food': [(6, 4), (6, 7), (9, 5), (10, 9), (7, 4)], 'module': 'territory', 'decision_path': [], 'next_coord': (1, 3), 'next_move': 'up', 'time': '0.008s'}
+    log = {'id': 'ee64bd82-688b-4670-822c-7c94eb1cc1fa', 'turn': 84, 'nalive': 3, 'snakes': [{'name': 'mark_snake_test RED', 'health': 86, 'length': 12, 'alive': True, 'delay': 21, 'body': [(4, 6), (4, 5), (4, 4), (4, 3), (4, 2), (5, 2), (6, 2), (6, 3), (6, 4), (7, 4), (7, 3), (8, 3)]}, {'name': 'mark_snake_test BLUE', 'health': 86, 'length': 10, 'alive': True, 'delay': 34, 'body': [(1, 9), (1, 8), (1, 7), (1, 6), (1, 5), (1, 4), (1, 3), (1, 2), (1, 1), (2, 1)]}, {'name': 'mark_snake_test GREEN', 'health': 91, 'length': 9, 'alive': False, 'delay': 1, 'body': [(4, 2), (4, 1), (5, 1), (5, 0), (4, 0), (3, 0), (3, 1), (3, 2), (3, 3)]}, {'name': 'mark_snake_test YELLOW', 'health': 69, 'length': 12, 'alive': True, 'delay': 24, 'body': [(5, 7), (6, 7), (7, 7), (7, 8), (6, 8), (5, 8), (4, 8), (4, 9), (3, 9), (2, 9), (2, 8), (2, 7)]}], 'food': [(3, 8)]}
 
-    game_state = init_from_log(log)
+    # game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
     #game_state = init_from_db_log(id, turn, self_name)
-    # game_state = init_from_game_engine_log(log, self_name)
+    game_state = init_from_game_engine_log(log, self_name)
     main(game_state, log=True)
 
