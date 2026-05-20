@@ -1706,7 +1706,7 @@ def decision_flow(g: GameTurn, is_pred):
         def direct(moves):
             for i,c in reversed(list(enumerate(g.other.body))):
                 if not c in g.me.territory: continue
-                if g.me.territory_point_level[c] in [g.other.length -i, g.other.length -i +1]:
+                if g.me.territory_point_level[c] - (g.other.length -i) in [2,3]:
                     moves = [a for a in moves if tree_distance(a, c) >= 0]
                     if len(moves) != 0:
                         if not is_pred: g.me.decision_path.append(f"chasing other tail to {c} via {moves}")
