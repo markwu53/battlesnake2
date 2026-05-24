@@ -149,8 +149,9 @@ def decision_flow(g: GameTurn, is_pred):
                     , chasing_my_tail
                 ])))
 
-            , avoid_split
             , prefer(in_territory)
+            , avoid_split
+            , prefer_less_next_moves
             , cond(g.me.length <= 7)(prefer_not(on_border))
             , prefer(is_straight)
 
@@ -815,6 +816,18 @@ def decision_flow(g: GameTurn, is_pred):
             if len(straight) != 0:
                 if not is_pred: g.me.decision_path.append(f"killer {snake.name} off_border_02 chasing go straight")
                 return straight
+
+    def prefer_less_next_moves(moves):
+        def next_moves_count(a):
+            me2 = snake_next_step(g.me, a)
+            ng = next_game_turn([me2])
+            flood_game_turn(ng)
+            ng.set_me(me2)
+            return len(ng.me.allowed_moves)
+        calc_moves = take_first_group(next_moves_count)(moves)
+        if len(calc_moves) != len(moves):
+            if not is_pred: g.me.decision_path.append(f"prefer less next moves {moves}")
+            return calc_moves
 
     def avoid_split(moves):
         def is_split(a):
