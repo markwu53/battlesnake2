@@ -119,7 +119,7 @@ def decision_flow(g: GameTurn, is_pred):
             , split_avoid_food_confine_branch
             , split_unbalanced_branches
             , split_avoid_head_no_choice_path
-            , nonsplit_unbalanced_branches
+            , nonsplit_unbalanced_branches(0.3)
 
             , (probable_suppress_kill)
             , (next_step_kill)
@@ -149,6 +149,7 @@ def decision_flow(g: GameTurn, is_pred):
                     , chasing_my_tail
                 ])))
 
+            , avoid_split
             , prefer(in_territory)
             , cond(g.me.length <= 7)(prefer_not(on_border))
             , prefer(is_straight)
@@ -815,6 +816,20 @@ def decision_flow(g: GameTurn, is_pred):
                 if not is_pred: g.me.decision_path.append(f"killer {snake.name} off_border_02 chasing go straight")
                 return straight
 
+    def avoid_split(moves):
+        def is_split(a):
+            me2 = snake_next_step(g.me, a)
+            ng = next_game_turn([me2])
+            flood_game_turn(ng)
+            ng.set_me(me2)
+            return ngroup(ng.me.allowed_moves, ng) > 1
+        split_moves = [a for a in moves if is_split(a)]
+        if len(split_moves) == 0: return
+        moves = [a for a in moves if a not in split_moves]
+        if len(moves) != 0:
+            if not is_pred: g.me.decision_path.append(f"avoid split {split_moves}")
+            return moves
+
     def avoid_off_border_crawling(moves):
         if not off_border(g.me.head): return
         if not off_border(g.me.neck): return
@@ -1193,38 +1208,41 @@ def decision_flow(g: GameTurn, is_pred):
             others.append(snake2)
         return others
 
-    def nonsplit_unbalanced_branches(moves):
-        if ngroup(moves) != 1: return
+    def nonsplit_unbalanced_branches(factor):
+        def fn(moves):
+            if ngroup(moves) != 1: return
 
-        def branch_territory(a):
-            others = others_go_squeeze_me(g)
-            me2 = snake_next_step(g.me, a)
-            ng = next_game_turn([me2]+others)
-            flood_game_turn(ng)
-            ng.set_me(me2)
-            if ngroup(me2.allowed_moves, ng) == 1:
-                return len(me2.territory)
+            def branch_territory(a):
+                others = others_go_squeeze_me(g)
+                me2 = snake_next_step(g.me, a)
+                ng = next_game_turn([me2]+others)
+                flood_game_turn(ng)
+                ng.set_me(me2)
+                if ngroup(me2.allowed_moves, ng) == 1:
+                    return len(me2.territory)
 
-            nothers = others_go_squeeze_me(ng)
-            max_space = 0
-            for b in me2.allowed_moves:
-                if any([b == other.head for other in nothers]): continue
-                me3 = snake_next_step(me2, b)
-                nng = next_game_turn([me3]+nothers, ng)
-                flood_game_turn(nng)
-                nng.set_me(me3)
-                max_space = max([max_space, len(me3.territory)])
-            return max_space+1
+                nothers = others_go_squeeze_me(ng)
+                max_space = 0
+                for b in me2.allowed_moves:
+                    if any([b == other.head for other in nothers]): continue
+                    me3 = snake_next_step(me2, b)
+                    nng = next_game_turn([me3]+nothers, ng)
+                    flood_game_turn(nng)
+                    nng.set_me(me3)
+                    max_space = max([max_space, len(me3.territory)])
+                return max_space+1
 
-        factor = 0.3
-        move_space = [(a, branch_territory(a)) for a in moves]
-        max_space = max([space for a, space in move_space])
-        if max_space == 0: return
-        move_space = [(a, space/max_space) for a, space in move_space]
-        moves = [a for a, space in move_space if space >= factor]
-        if len(moves) != 0:
-            if not is_pred: g.me.decision_path.append(f"nonsplit unbalanced branches {moves} with factor {factor}")
-            return moves
+            benchmark = len(g.me.territory)
+            if benchmark == 0: return
+            move_space = [(a, branch_territory(a)) for a in moves]
+            move_space = [(a, space/benchmark) for a, space in move_space]
+            bad_moves = [a for a, space in move_space if space < factor]
+            if len(bad_moves) == 0: return
+            moves = [a for a in moves if a not in bad_moves]
+            if len(moves) != 0:
+                if not is_pred: g.me.decision_path.append(f"nonsplit unbalanced branches {moves} with factor {factor}")
+                return moves
+        return fn
 
     def split_avoid_food_confine_branch(moves):
         if ngroup(moves) <= 1: return
@@ -2527,6 +2545,8 @@ if __name__ == "__main__":
     log = {'id': 'f82cb0b3-6370-4333-ad7a-bd2b30b4e330', 'turn': 366, 'me': {'name': 'mark_snake', 'health': 95, 'length': 33, 'body': [(10, 6), (9, 6), (8, 6), (7, 6), (7, 7), (6, 7), (5, 7), (4, 7), (3, 7), (2, 7), (1, 7), (1, 6), (1, 5), (2, 5), (3, 5), (3, 4), (2, 4), (1, 4), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8), (0, 9), (0, 10), (1, 10), (2, 10), (3, 10), (4, 10), (5, 10), (6, 10), (7, 10), (8, 10)], 'id': 'gs_xJg6qbxf6gjGBS3yJRqW73fc'}, 'others': [{'name': 'Hovering Hobbs', 'health': 98, 'length': 20, 'body': [(8, 4), (9, 4), (9, 5), (8, 5), (7, 5), (6, 5), (6, 4), (6, 3), (6, 2), (6, 1), (6, 0), (5, 0), (4, 0), (4, 1), (4, 2), (4, 3), (4, 4), (4, 5), (5, 5), (5, 6)], 'id': 'gs_WYPXX7SpdmxyVP9yDYRM6mkT'}], 'food': [(8, 3), (8, 2)], 'module': 'territory', 'decision_path': ['straight line confine kill Hovering Hobbs (10, 3) with factor 0.8'], 'next_coord': (10, 5), 'next_move': 'down', 'time': '0.024s'}
     log = {'id': 'd3c23d78-cad6-4050-865f-ebc87cf86b6b', 'turn': 276, 'me': {'name': 'mark_snake', 'health': 92, 'length': 24, 'body': [(9, 9), (9, 10), (8, 10), (7, 10), (6, 10), (5, 10), (4, 10), (3, 10), (2, 10), (2, 9), (2, 8), (3, 8), (4, 8), (5, 8), (5, 7), (5, 6), (6, 6), (6, 7), (7, 7), (7, 8), (7, 9), (8, 9), (8, 8), (8, 7)], 'id': 'gs_qr7JFGFXThYCcBG8qhWj8MQJ'}, 'others': [{'name': 'Slytherin', 'health': 89, 'length': 22, 'body': [(9, 7), (10, 7), (10, 6), (10, 5), (10, 4), (10, 3), (9, 3), (8, 3), (8, 2), (7, 2), (7, 1), (6, 1), (6, 2), (6, 3), (7, 3), (7, 4), (7, 5), (6, 5), (5, 5), (5, 4), (5, 3), (5, 2)], 'id': 'gs_Jb9yMMJJfSDQhfQ6VtJQqHQX'}], 'food': [(4, 0), (2, 3), (9, 8), (4, 2), (2, 6)], 'module': 'territory', 'decision_path': ['all confined keep largest [((10, 9), 3), ((9, 8), 4)]'], 'next_coord': (9, 8), 'next_move': 'down', 'time': '0.032s'}
     log = {'id': 'da70b0c2-2628-47d2-9f55-9dbc80b70607', 'turn': 313, 'me': {'name': 'mark_snake', 'health': 79, 'length': 18, 'body': [(1, 6), (1, 7), (1, 8), (1, 9), (0, 9), (0, 10), (1, 10), (2, 10), (2, 9), (2, 8), (2, 7), (2, 6), (2, 5), (2, 4), (1, 4), (0, 4), (0, 3), (0, 2)], 'id': 'gs_PGyD4B7bSrFVVv6cvjpqRXwP'}, 'others': [{'name': 'Sandworm', 'health': 62, 'length': 14, 'body': [(8, 7), (7, 7), (7, 8), (6, 8), (5, 8), (4, 8), (4, 9), (4, 10), (3, 10), (3, 9), (3, 8), (3, 7), (4, 7), (5, 7)], 'id': 'gs_X7vWh6jDVcSYfwyv8bwGxKMK'}, {'name': 'mini snake', 'health': 85, 'length': 18, 'body': [(7, 6), (7, 5), (6, 5), (5, 5), (4, 5), (4, 4), (5, 4), (5, 3), (5, 2), (5, 1), (6, 1), (6, 2), (7, 2), (8, 2), (9, 2), (9, 3), (9, 4), (8, 4)], 'id': 'gs_VdRqPjD6mF8bpK9GpMdMRVXF'}], 'food': [(6, 0), (3, 2), (3, 0), (1, 5)], 'module': 'territory', 'decision_path': ['get food (1, 5) via [(1, 5)]'], 'next_coord': (1, 5), 'next_move': 'down', 'time': '0.088s'}
+    log = {'id': 'b404e616-cc5f-4b53-b6d6-a7de88a03f71', 'turn': 265, 'me': {'name': 'mark_snake', 'health': 85, 'length': 27, 'body': [(7, 0), (7, 1), (8, 1), (8, 2), (7, 2), (6, 2), (5, 2), (4, 2), (4, 3), (4, 4), (5, 4), (5, 5), (5, 6), (5, 7), (6, 7), (6, 6), (6, 5), (7, 5), (8, 5), (9, 5), (10, 5), (10, 4), (9, 4), (9, 3), (9, 2), (9, 1), (9, 0)], 'id': 'gs_ymxvB9yS84p3DyXv3GMTtHXF'}, 'others': [{'name': 'mini snake', 'health': 86, 'length': 15, 'body': [(1, 6), (1, 5), (1, 4), (1, 3), (1, 2), (2, 2), (2, 1), (3, 1), (3, 2), (3, 3), (2, 3), (2, 4), (2, 5), (3, 5), (3, 6)], 'id': 'gs_hHP48gf8kXSWqw9kvkP8w6gd'}], 'food': [(1, 0), (0, 9), (0, 1), (10, 7), (0, 4)], 'module': 'territory', 'decision_path': ['split unbalanced take larger ([(8, 0)], 52)'], 'next_coord': (8, 0), 'next_move': 'right', 'time': '0.029s'}
+    log = {'id': 'b404e616-cc5f-4b53-b6d6-a7de88a03f71', 'turn': 261, 'me': {'name': 'mark_snake', 'health': 89, 'length': 27, 'body': [(7, 2), (6, 2), (5, 2), (4, 2), (4, 3), (4, 4), (5, 4), (5, 5), (5, 6), (5, 7), (6, 7), (6, 6), (6, 5), (7, 5), (8, 5), (9, 5), (10, 5), (10, 4), (9, 4), (9, 3), (9, 2), (9, 1), (9, 0), (8, 0), (7, 0), (6, 0), (5, 0)], 'id': 'gs_ymxvB9yS84p3DyXv3GMTtHXF'}, 'others': [{'name': 'mini snake', 'health': 90, 'length': 15, 'body': [(1, 2), (2, 2), (2, 1), (3, 1), (3, 2), (3, 3), (2, 3), (2, 4), (2, 5), (3, 5), (3, 6), (3, 7), (4, 7), (4, 8), (3, 8)], 'id': 'gs_hHP48gf8kXSWqw9kvkP8w6gd'}], 'food': [(1, 0), (0, 9), (0, 1), (10, 7), (0, 4)], 'module': 'territory', 'decision_path': ['nonsplit unbalanced branches [(8, 2), (7, 3), (7, 1)] with factor 0.3', 'chasing other body meander to (4, 1) via [(8, 2), (7, 3)]'], 'next_coord': (8, 2), 'next_move': 'right', 'time': '0.072s'}
 
     game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
