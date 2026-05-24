@@ -503,24 +503,6 @@ def decision_flow(g: GameTurn, is_pred):
                     if not is_pred: g.me.decision_path.append(f"attack vulnerable meander {snake.name} {attack_point}")
                     return valid_moves
 
-    def wayout_trimmed(snake: Snake, target_point):
-        dont_remove = {p for p in snake.territory if is_adjacent(p, target_point)}
-        remove = {p for p in snake.territory if True 
-                    and snake.territory_connection_number[p] == 1 
-                    and p != snake.head
-                    and p not in dont_remove
-                    }
-        front = remove
-        while len(front) != 0:
-            front = {q for p in front for q in adj_cells(p) if True 
-                     and q in snake.territory 
-                     and snake.territory_connection_number[q] == 2 
-                     and q not in remove
-                     and q not in dont_remove
-                     }
-            remove.update(front)
-        return {p for p in snake.territory if p not in remove}
-
     def ngroup(moves, ng: GameTurn=None):
         if ng is None: ng = g
         occupied = {p for snake in ng.snakes for p in snake.body[:-1]}
@@ -614,7 +596,7 @@ def decision_flow(g: GameTurn, is_pred):
             for index, c in enumerate(snake.body):
                 if not adjacent_to_territory(c): continue
                 if distance_to_territory_border(c) <= 2: continue
-                territory = g.me.territory
+                territory = wayout_trimmed(g.me, c)
                 nfood = len([f for f in g.food if f in territory])
                 food_tail = 1 if snake.health == 100 else 0
                 wayout_length = snake.length - index - 1 + food_tail 
@@ -622,6 +604,24 @@ def decision_flow(g: GameTurn, is_pred):
                 if wayout_length * factor <= wiggle_room:
                     return True
         return False
+
+    def wayout_trimmed(snake: Snake, target_point):
+        dont_remove = {p for p in snake.territory if is_adjacent(p, target_point)}
+        remove = {p for p in snake.territory if True 
+                    and snake.territory_connection_number[p] == 1 
+                    and p != snake.head
+                    and p not in dont_remove
+                    }
+        front = remove
+        while len(front) != 0:
+            front = {q for p in front for q in adj_cells(p) if True 
+                     and q in snake.territory 
+                     and snake.territory_connection_number[q] == 2 
+                     and q not in remove
+                     and q not in dont_remove
+                     }
+            remove.update(front)
+        return {p for p in snake.territory if p not in remove}
 
     def has_wayout(g: GameTurn):
         if len(g.me.territory) >= g.me.length: return True
@@ -2547,6 +2547,7 @@ if __name__ == "__main__":
     log = {'id': 'da70b0c2-2628-47d2-9f55-9dbc80b70607', 'turn': 313, 'me': {'name': 'mark_snake', 'health': 79, 'length': 18, 'body': [(1, 6), (1, 7), (1, 8), (1, 9), (0, 9), (0, 10), (1, 10), (2, 10), (2, 9), (2, 8), (2, 7), (2, 6), (2, 5), (2, 4), (1, 4), (0, 4), (0, 3), (0, 2)], 'id': 'gs_PGyD4B7bSrFVVv6cvjpqRXwP'}, 'others': [{'name': 'Sandworm', 'health': 62, 'length': 14, 'body': [(8, 7), (7, 7), (7, 8), (6, 8), (5, 8), (4, 8), (4, 9), (4, 10), (3, 10), (3, 9), (3, 8), (3, 7), (4, 7), (5, 7)], 'id': 'gs_X7vWh6jDVcSYfwyv8bwGxKMK'}, {'name': 'mini snake', 'health': 85, 'length': 18, 'body': [(7, 6), (7, 5), (6, 5), (5, 5), (4, 5), (4, 4), (5, 4), (5, 3), (5, 2), (5, 1), (6, 1), (6, 2), (7, 2), (8, 2), (9, 2), (9, 3), (9, 4), (8, 4)], 'id': 'gs_VdRqPjD6mF8bpK9GpMdMRVXF'}], 'food': [(6, 0), (3, 2), (3, 0), (1, 5)], 'module': 'territory', 'decision_path': ['get food (1, 5) via [(1, 5)]'], 'next_coord': (1, 5), 'next_move': 'down', 'time': '0.088s'}
     log = {'id': 'b404e616-cc5f-4b53-b6d6-a7de88a03f71', 'turn': 265, 'me': {'name': 'mark_snake', 'health': 85, 'length': 27, 'body': [(7, 0), (7, 1), (8, 1), (8, 2), (7, 2), (6, 2), (5, 2), (4, 2), (4, 3), (4, 4), (5, 4), (5, 5), (5, 6), (5, 7), (6, 7), (6, 6), (6, 5), (7, 5), (8, 5), (9, 5), (10, 5), (10, 4), (9, 4), (9, 3), (9, 2), (9, 1), (9, 0)], 'id': 'gs_ymxvB9yS84p3DyXv3GMTtHXF'}, 'others': [{'name': 'mini snake', 'health': 86, 'length': 15, 'body': [(1, 6), (1, 5), (1, 4), (1, 3), (1, 2), (2, 2), (2, 1), (3, 1), (3, 2), (3, 3), (2, 3), (2, 4), (2, 5), (3, 5), (3, 6)], 'id': 'gs_hHP48gf8kXSWqw9kvkP8w6gd'}], 'food': [(1, 0), (0, 9), (0, 1), (10, 7), (0, 4)], 'module': 'territory', 'decision_path': ['split unbalanced take larger ([(8, 0)], 52)'], 'next_coord': (8, 0), 'next_move': 'right', 'time': '0.029s'}
     log = {'id': 'b404e616-cc5f-4b53-b6d6-a7de88a03f71', 'turn': 261, 'me': {'name': 'mark_snake', 'health': 89, 'length': 27, 'body': [(7, 2), (6, 2), (5, 2), (4, 2), (4, 3), (4, 4), (5, 4), (5, 5), (5, 6), (5, 7), (6, 7), (6, 6), (6, 5), (7, 5), (8, 5), (9, 5), (10, 5), (10, 4), (9, 4), (9, 3), (9, 2), (9, 1), (9, 0), (8, 0), (7, 0), (6, 0), (5, 0)], 'id': 'gs_ymxvB9yS84p3DyXv3GMTtHXF'}, 'others': [{'name': 'mini snake', 'health': 90, 'length': 15, 'body': [(1, 2), (2, 2), (2, 1), (3, 1), (3, 2), (3, 3), (2, 3), (2, 4), (2, 5), (3, 5), (3, 6), (3, 7), (4, 7), (4, 8), (3, 8)], 'id': 'gs_hHP48gf8kXSWqw9kvkP8w6gd'}], 'food': [(1, 0), (0, 9), (0, 1), (10, 7), (0, 4)], 'module': 'territory', 'decision_path': ['nonsplit unbalanced branches [(8, 2), (7, 3), (7, 1)] with factor 0.3', 'chasing other body meander to (4, 1) via [(8, 2), (7, 3)]'], 'next_coord': (8, 2), 'next_move': 'right', 'time': '0.072s'}
+    log = {'id': 'c9f124e4-ab71-4bc5-9bb5-67a346a3b445', 'turn': 451, 'me': {'name': 'mark_snake', 'health': 64, 'length': 36, 'body': [(8, 3), (8, 2), (8, 1), (8, 0), (7, 0), (6, 0), (6, 1), (6, 2), (6, 3), (6, 4), (6, 5), (6, 6), (7, 6), (8, 6), (9, 6), (9, 7), (9, 8), (8, 8), (7, 8), (6, 8), (6, 9), (6, 10), (7, 10), (8, 10), (9, 10), (10, 10), (10, 9), (10, 8), (10, 7), (10, 6), (10, 5), (9, 5), (9, 4), (10, 4), (10, 3), (10, 2)], 'id': 'gs_pgBy4qK3wWHXg6Bb9VPfwmV9'}, 'others': [{'name': 'Geriatric Jagwire', 'health': 98, 'length': 33, 'body': [(1, 2), (1, 1), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0), (5, 1), (5, 2), (5, 3), (5, 4), (4, 4), (4, 3), (3, 3), (3, 4), (3, 5), (4, 5), (5, 5), (5, 6), (5, 7), (5, 8), (5, 9), (4, 9), (3, 9), (2, 9), (2, 8), (1, 8), (1, 7), (1, 6), (1, 5), (1, 4), (1, 3), (2, 3)], 'id': 'gs_xhHtgdJgYPWfDdV6QtRggmYc'}], 'food': [(0, 10), (8, 4), (9, 3), (4, 6), (0, 4)], 'module': 'territory', 'decision_path': ['get food (8, 4) via [(8, 4)]'], 'next_coord': (8, 4), 'next_move': 'up', 'time': '0.031s'}
 
     game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
