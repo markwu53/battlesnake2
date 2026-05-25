@@ -152,7 +152,7 @@ def decision_flow(g: GameTurn, is_pred):
             , prefer(in_territory)
             , avoid_split
             , prefer_less_next_moves
-            , cond(g.me.length <= 7)(prefer_not(on_border))
+            # , cond(g.me.length <= 7)(prefer_not(on_border))
             , prefer(is_straight)
 
             , undecided
