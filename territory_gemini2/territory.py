@@ -1805,9 +1805,13 @@ def decision_flow(g: GameTurn, is_pred):
         def meander(moves):
             factor = 0.66
             for i,c in reversed(list(enumerate(g.other.body))):
+                #do not chase near tail
                 if i >= g.other.length * factor: continue
                 if c in g.me.territory:
                     if g.me.territory_point_level[c] <= distance_pq(c, g.me.head) + 1: 
+                        continue
+                if c in g.other.territory:
+                    if g.other.territory_point_level[c] <= 4:
                         continue
                 nabor = [a for a in adj_cells(c) if a in g.me.territory and g.me.territory_point_level[a] - distance_pq(c, g.me.head) <= 4]
                 # nabor = [a for a in adj_cells(c) if a in g.me.territory and 10 <= g.me.territory_point_level[a] - distance_pq(c, g.me.head)]
