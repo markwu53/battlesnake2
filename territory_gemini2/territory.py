@@ -1063,20 +1063,44 @@ def decision_flow(g: GameTurn, is_pred):
         wayout_info = choose_wayout_point(adj_indexes)
         if wayout_info is None: return
         wayout_point, wayout_target = wayout_info
+        wayout_move_choice = meander_move(wayout_target, moves)
+        if wayout_move_choice is not None:
+            if not is_pred: g.me.decision_path.append(f"wayout without exposure to {wayout_point} via {wayout_move_choice}")
+            return [wayout_move_choice]
 
-        start = {wayout_point}
-        area = {p for p in g.me.territory if p != g.me.head}
-        layers, remaining = flood_wayout(start, area)
+        # start = {wayout_point}
+        # area = {p for p in g.me.territory if p != g.me.head}
+        # layers, remaining = flood_wayout(start, area)
 
-        links = {p: (i, len(da), len(db)) for i,layer in enumerate(layers) for p in layer for da,db in [layer[p]]}
+        # links = {p: (i, len(da), len(db)) for i,layer in enumerate(layers) for p in layer for da,db in [layer[p]]}
 
-        moves = [a for a in moves if a in links]
-        if len(moves) != 0:
-            min_value = min([links[a] for a in moves], key=lambda x: (-x[0], x[1], x[2]))
-            moves = [a for a in moves if links[a] == min_value]
-            if not is_pred: g.me.decision_path.append(f"wayout to {wayout_point} via {moves}")
-            return moves
-    
+        # moves = [a for a in moves if a in links]
+        # if len(moves) != 0:
+        #     min_value = min([links[a] for a in moves], key=lambda x: (-x[0], x[1], x[2]))
+        #     moves = [a for a in moves if links[a] == min_value]
+        #     if not is_pred: g.me.decision_path.append(f"wayout to {wayout_point} via {moves}")
+        #     return moves
+
+    def meander_move(target, moves):
+        shortest_moves = list({a for a in moves if tree_distance(a, target) >= 0})
+        meander_moves = [a for a in moves if a not in shortest_moves and a in g.me.territory]
+        if len(meander_moves) == 1:
+            return take_first(meander_moves)
+        if len(meander_moves) == 2:
+            if len(shortest_moves) != 1:
+                return take_first(meander_moves)
+            p = take_first(shortest_moves)
+            meander_move = [a for a in meander_moves if distance_vector_abs(a, p) != (1,1)]
+            if len(meander_move) != 1:
+                return take_first(meander_moves)
+            return take_first(meander_move)
+        # len(meander_moves) == 0
+        if len(shortest_moves) != 2:
+            return take_first(shortest_moves)
+        choices = take_first_group(lambda a: min(distance_vector_abs(a, target)))(shortest_moves)
+        return take_first(choices)
+
+
     def wayout_with_exposure(moves):
         if len(g.me.all_border) == 0: return
         if len(g.me.all_border) > 2: return
@@ -1098,90 +1122,23 @@ def decision_flow(g: GameTurn, is_pred):
         wayout_info = choose_wayout_point(adj_indexes)
         if wayout_info is None: return
         wayout_point, wayout_target = wayout_info
+        wayout_move_choice = meander_move(wayout_target, moves)
+        if wayout_move_choice is not None:
+            if not is_pred: g.me.decision_path.append(f"wayout with exposure to {wayout_point} via {wayout_move_choice}")
+            return [wayout_move_choice]
 
-        start = {wayout_point}
-        area = {p for p in g.me.territory if p != g.me.head}
-        layers, remaining = flood_wayout(start, area)
+        # start = {wayout_point}
+        # area = {p for p in g.me.territory if p != g.me.head}
+        # layers, remaining = flood_wayout(start, area)
 
-        links = {p: (i, len(da), len(db)) for i,layer in enumerate(layers) for p in layer for da,db in [layer[p]]}
+        # links = {p: (i, len(da), len(db)) for i,layer in enumerate(layers) for p in layer for da,db in [layer[p]]}
 
-        moves = [a for a in moves if a in links]
-        if len(moves) != 0:
-            min_value = min([links[a] for a in moves], key=lambda x: (-x[0], x[1], x[2]))
-            moves = [a for a in moves if links[a] == min_value]
-            if not is_pred: g.me.decision_path.append(f"wayout with exposure to {wayout_point} via {moves}")
-            return moves
-
-    def wayout(moves):
-        #if len(g.me.all_border) != 0: return
-        #can be confined but still see the enemy head
-        if len(g.me.all_border) > 2: return
-
-        def wayout_condition():
-            for snake in g.others:
-                if len(g.me.all_border) == len(g.me.to_snake_border[snake.head]):
-                    if snake.length <= g.me.length:
-                        return True
-            return False
-
-        if len(g.me.all_border) == 1:
-            border_point = take_first(list(g.me.all_border))
-            #this is collision, don't consider wayout
-            if border_point == g.me.head: return
-            if not wayout_condition(): return
-
-        if len(g.me.all_border) == 2:
-            if not wayout_condition(): return
-
-        adj_indexes = dict()
-        for snake in g.snakes:
-            adj_list = []
-            for i,c in enumerate(snake.body):
-                if c in g.me.territory: adj_list.append((i, c))
-                for a in adj_cells(c):
-                    if not a in g.me.territory: continue
-                    if a == g.me.head: continue
-                    adj_list.append((i, c))
-                    break
-            adj_indexes[snake.head] = adj_list
-
-        wayout_info = [
-            (snake, wayout_index, wayout_point, wayout_length) 
-                    for head in adj_indexes 
-                    for adj_cells in [adj_indexes[head]]
-                        if len(adj_cells) != 0
-                    for snake in [g.head_snake[head]]
-                    for wayout_index, wayout_point in [adj_cells[-1]]
-                    for wayout_length in [snake.length-wayout_index-1]
-                    ]
-        if len(wayout_info) == 0: return
-
-        min_wayout_length = min([wayout_length for snake, wayout_index, wayout_point, wayout_length in wayout_info])
-        wayout_choices = [wi for wi in wayout_info for snake, wayout_index, wayout_point, wayout_length in [wi] if wayout_length == min_wayout_length]
-        wayout_choice = take_first(wayout_choices)
-        if g.me.head in [snake.head for snake, wayout_index, wayout_point, wayout_length in wayout_choices]:
-            wayout_choices = [wi for wi in wayout_info for snake, wayout_index, wayout_point, wayout_length in [wi] if snake.head == g.me.head]
-            wayout_choice = take_first(wayout_choices)
-
-        snake, wayout_index, wayout_point, wayout_length = wayout_choice
-        wayout_point_next = [a for a in adj_cells(wayout_point) if a in g.me.territory]
-        if len(wayout_point_next) != 0:
-            shortest_distance = max([g.me.territory_point_level[a] for a in wayout_point_next])
-            if shortest_distance >= wayout_length:
-                return
-
-        start = {wayout_point}
-        area = {p for p in g.me.territory if p != g.me.head}
-        layers, remaining = flood_wayout(start, area)
-
-        links = {p: (i, len(da), len(db)) for i,layer in enumerate(layers) for p in layer for da,db in [layer[p]]}
-
-        moves = [a for a in moves if a in links]
-        if len(moves) != 0:
-            min_value = min([links[a] for a in moves], key=lambda x: (-x[0], x[1], x[2]))
-            moves = [a for a in moves if links[a] == min_value]
-            if not is_pred: g.me.decision_path.append(f"wayout to {wayout_point} via {moves}")
-            return moves
+        # moves = [a for a in moves if a in links]
+        # if len(moves) != 0:
+        #     min_value = min([links[a] for a in moves], key=lambda x: (-x[0], x[1], x[2]))
+        #     moves = [a for a in moves if links[a] == min_value]
+        #     if not is_pred: g.me.decision_path.append(f"wayout with exposure to {wayout_point} via {moves}")
+        #     return moves
 
     def split_avoid_other_eating_food_confine(moves):
         if ngroup(moves) <= 1: return
@@ -1816,19 +1773,23 @@ def decision_flow(g: GameTurn, is_pred):
                 # nabor = [a for a in adj_cells(c) if a in g.me.territory and 10 <= g.me.territory_point_level[a] - distance_pq(c, g.me.head)]
                 if len(nabor) == 0: continue
                 target = take_first(take_first_group(lambda a: g.me.territory_point_level[a], reverse=True)(nabor))
+                meander_move_choice = meander_move(target, moves)
+                if meander_move_choice is not None:
+                    if not is_pred: g.me.decision_path.append(f"chasing other body meander to {c} via {meander_move_choice}")
+                    return [meander_move_choice]
 
-                start = {target}
-                area = {p for p in g.me.territory if p != g.me.head}
-                layers, remaining = flood_wayout(start, area)
+                # start = {target}
+                # area = {p for p in g.me.territory if p != g.me.head}
+                # layers, remaining = flood_wayout(start, area)
 
-                links = {p: (i, len(da), len(db)) for i,layer in enumerate(layers) for p in layer for da,db in [layer[p]]}
+                # links = {p: (i, len(da), len(db)) for i,layer in enumerate(layers) for p in layer for da,db in [layer[p]]}
 
-                moves = [a for a in moves if a in links]
-                if len(moves) != 0:
-                    min_value = min([links[a] for a in moves], key=lambda x: (-x[0], x[1], x[2]))
-                    moves = [a for a in moves if links[a] == min_value]
-                    if not is_pred: g.me.decision_path.append(f"chasing other body meander to {c} via {moves}")
-                    return moves
+                # moves = [a for a in moves if a in links]
+                # if len(moves) != 0:
+                #     min_value = min([links[a] for a in moves], key=lambda x: (-x[0], x[1], x[2]))
+                #     moves = [a for a in moves if links[a] == min_value]
+                #     if not is_pred: g.me.decision_path.append(f"chasing other body meander to {c} via {moves}")
+                #     return moves
 
         return par([ nothing
             , direct
@@ -1854,19 +1815,23 @@ def decision_flow(g: GameTurn, is_pred):
                 nabor = [a for a in adj_cells(c) if a in g.me.territory]
                 if len(nabor) == 0: continue
                 target = take_first(take_first_group(lambda a: g.me.territory_point_level[a], reverse=True)(nabor))
+                meander_move_choice = meander_move(target, moves)
+                if meander_move_choice is not None:
+                    if not is_pred: g.me.decision_path.append(f"meander to {target} to chase my tail via {meander_move_choice}")
+                    return [meander_move_choice]
 
-                start = {target}
-                area = {p for p in g.me.territory if p != g.me.head}
-                layers, remaining = flood_wayout(start, area)
+                # start = {target}
+                # area = {p for p in g.me.territory if p != g.me.head}
+                # layers, remaining = flood_wayout(start, area)
 
-                links = {p: (i, len(da), len(db)) for i,layer in enumerate(layers) for p in layer for da,db in [layer[p]]}
+                # links = {p: (i, len(da), len(db)) for i,layer in enumerate(layers) for p in layer for da,db in [layer[p]]}
 
-                moves = [a for a in moves if a in links]
-                if len(moves) != 0:
-                    min_value = min([links[a] for a in moves], key=lambda x: (-x[0], x[1], x[2]))
-                    moves = [a for a in moves if links[a] == min_value]
-                    if not is_pred: g.me.decision_path.append(f"meander to {target} to chase my tail via {moves}")
-                    return moves
+                # moves = [a for a in moves if a in links]
+                # if len(moves) != 0:
+                #     min_value = min([links[a] for a in moves], key=lambda x: (-x[0], x[1], x[2]))
+                #     moves = [a for a in moves if links[a] == min_value]
+                #     if not is_pred: g.me.decision_path.append(f"meander to {target} to chase my tail via {moves}")
+                #     return moves
 
         return par([ nothing
             , direct
@@ -1880,19 +1845,23 @@ def decision_flow(g: GameTurn, is_pred):
         target = take_first_group(lambda a: g.me.territory_point_level[a])(tails)
         target = take_first(target)
         if target == g.me.tail: return
+        meander_move_choice = meander_move(target, moves)
+        if meander_move_choice is not None:
+            if not is_pred: g.me.decision_path.append(f"chasing other tail meander to {target} via {meander_move_choice}")
+            return [meander_move_choice]
 
-        start = {target}
-        area = {p for p in g.me.territory if p != g.me.head}
-        layers, remaining = flood_wayout(start, area)
+        # start = {target}
+        # area = {p for p in g.me.territory if p != g.me.head}
+        # layers, remaining = flood_wayout(start, area)
 
-        links = {p: (i, len(da), len(db)) for i,layer in enumerate(layers) for p in layer for da,db in [layer[p]]}
+        # links = {p: (i, len(da), len(db)) for i,layer in enumerate(layers) for p in layer for da,db in [layer[p]]}
 
-        moves = [a for a in moves if a in links]
-        if len(moves) != 0:
-            min_value = min([links[a] for a in moves], key=lambda x: (-x[0], x[1], x[2]))
-            moves = [a for a in moves if links[a] == min_value]
-            if not is_pred: g.me.decision_path.append(f"chasing other tail meander to {target} via {moves}")
-            return moves
+        # moves = [a for a in moves if a in links]
+        # if len(moves) != 0:
+        #     min_value = min([links[a] for a in moves], key=lambda x: (-x[0], x[1], x[2]))
+        #     moves = [a for a in moves if links[a] == min_value]
+        #     if not is_pred: g.me.decision_path.append(f"chasing other tail meander to {target} via {moves}")
+        #     return moves
 
     
     def ________DECISION_MAIN_FLOW________():
@@ -2579,6 +2548,7 @@ if __name__ == "__main__":
     log = {'id': '699172c4-caba-4f1b-b839-9be7a9e351ed', 'turn': 415, 'me': {'name': 'mark_snake', 'health': 91, 'length': 28, 'body': [(9, 6), (9, 5), (9, 4), (8, 4), (8, 5), (8, 6), (8, 7), (7, 7), (7, 8), (8, 8), (8, 9), (7, 9), (6, 9), (5, 9), (4, 9), (4, 10), (3, 10), (2, 10), (2, 9), (3, 9), (3, 8), (2, 8), (1, 8), (1, 9), (0, 9), (0, 8), (0, 7), (0, 6)], 'id': 'gs_RMcmj6CqtwmJX8WpH3JPgRv6'}, 'others': [{'name': 'Combat Reptile', 'health': 82, 'length': 26, 'body': [(3, 2), (3, 3), (3, 4), (4, 4), (5, 4), (5, 5), (5, 6), (6, 6), (6, 5), (6, 4), (7, 4), (7, 3), (6, 3), (5, 3), (4, 3), (4, 2), (5, 2), (5, 1), (6, 1), (6, 2), (7, 2), (8, 2), (9, 2), (10, 2), (10, 3), (10, 4)], 'id': 'gs_79PGhWrtStfpqr6Kj6gXMPhB'}], 'food': [(8, 10), (0, 10)], 'module': 'territory', 'decision_path': ['territory meander to (10, 4) via [(9, 7)]'], 'next_coord': (9, 7), 'next_move': 'up', 'time': '0.032s'}
     log = {'id': '4e6253ab-9cc6-4661-b640-5818afa2d7e9', 'turn': 129, 'me': {'name': 'mark_snake', 'health': 85, 'length': 10, 'body': [(6, 5), (6, 6), (6, 7), (6, 8), (6, 9), (6, 10), (7, 10), (8, 10), (8, 9), (7, 9)], 'id': 'gs_bjJVHQtY4Vk8bbmKX8HrVQwS'}, 'others': [{'name': 'mini snake', 'health': 80, 'length': 12, 'body': [(5, 4), (4, 4), (4, 5), (3, 5), (3, 4), (2, 4), (2, 3), (3, 3), (4, 3), (4, 2), (5, 2), (6, 2)], 'id': 'gs_kv9hVwyMKM6hJ9yRPX3CRmD9'}, {'name': 'Game of Chicken', 'health': 73, 'length': 7, 'body': [(4, 1), (5, 1), (6, 1), (7, 1), (8, 1), (8, 2), (7, 2)], 'id': 'gs_fwrpSQVm8QHT4kxgKmmmXMd6'}, {'name': 'sneakysnayk', 'health': 79, 'length': 9, 'body': [(9, 8), (10, 8), (10, 7), (10, 6), (10, 5), (10, 4), (9, 4), (9, 5), (9, 6)], 'id': 'gs_HBHpkBH7WCm786CtPRgbdXv7'}], 'food': [(2, 1), (0, 4)], 'module': 'territory', 'decision_path': ['dodge point unsafe choose collision'], 'next_coord': (5, 5), 'next_move': 'left', 'time': '0.080s'}
     log = {'id': '1f607cb0-d06c-4eea-b1e4-f2083fd449dd', 'turn': 498, 'me': {'name': 'mark_snake', 'health': 72, 'length': 34, 'body': [(0, 6), (0, 5), (0, 4), (0, 3), (0, 2), (1, 2), (1, 3), (2, 3), (3, 3), (3, 4), (4, 4), (5, 4), (6, 4), (6, 5), (6, 6), (7, 6), (8, 6), (8, 7), (8, 8), (7, 8), (7, 9), (8, 9), (8, 10), (7, 10), (6, 10), (5, 10), (4, 10), (4, 9), (4, 8), (3, 8), (2, 8), (1, 8), (0, 8), (0, 7)], 'id': 'gs_xMvJhMXHJgyFKwS6DQjg3VQS'}, 'others': [{'name': 'mini snake', 'health': 97, 'length': 27, 'body': [(4, 0), (3, 0), (2, 0), (1, 0), (0, 0), (0, 1), (1, 1), (2, 1), (2, 2), (3, 2), (4, 2), (4, 3), (5, 3), (6, 3), (7, 3), (7, 4), (7, 5), (8, 5), (9, 5), (9, 6), (9, 7), (9, 8), (9, 9), (9, 10), (10, 10), (10, 9), (10, 8)], 'id': 'gs_F6Sw34B6t4TmjKHKqJHky3gD'}], 'food': [(10, 0), (5, 2), (8, 1), (8, 4), (8, 0), (2, 10), (9, 4), (3, 6)], 'module': 'territory', 'decision_path': ['chasing other body meander to (10, 8) via [(0, 7)]'], 'next_coord': (0, 7), 'next_move': 'up', 'time': '0.026s'}
+    log = {'id': '019679bb-a368-455a-bec6-65952612481e', 'turn': 52, 'me': {'name': 'mark_snake', 'health': 94, 'length': 7, 'body': [(6, 0), (5, 0), (5, 1), (4, 1), (3, 1), (2, 1), (1, 1)], 'id': 'gs_vWfMwKyf36BkPKD94xS9S88b'}, 'others': [{'name': 'Geriatric Jagwire', 'health': 82, 'length': 7, 'body': [(8, 2), (7, 2), (6, 2), (5, 2), (5, 3), (5, 4), (6, 4)], 'id': 'gs_66bGdMJSMKmx4kK3gHRcgS3C'}, {'name': 'SnattleBake_v060s', 'health': 89, 'length': 8, 'body': [(1, 3), (2, 3), (3, 3), (4, 3), (4, 4), (4, 5), (3, 5), (3, 6)], 'id': 'gs_8QcrJYYcCJDkC3MRB9MWmCc4'}, {'name': 'poc', 'health': 100, 'length': 6, 'body': [(10, 8), (10, 9), (9, 9), (8, 9), (7, 9), (7, 9)], 'id': 'gs_cvxtHdC4Sb6Chr9PW4D7FWHM'}], 'food': [(9, 0)], 'module': 'territory', 'decision_path': ['wayout with exposure to (5, 1) via [(6, 1)]'], 'next_coord': (6, 1), 'next_move': 'up', 'time': '0.043s'}
 
     game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
