@@ -566,7 +566,6 @@ def decision_flow(g: GameTurn, is_pred):
                 total_exposure_number += exposure_number-1
             
             # > 1 is more conservative, > 0 sometimes work
-            print(total_exposure_number, g.me.name, g.me.head, snake.name, snake.head)
             if total_exposure_number > 1: return True
         return False
 
