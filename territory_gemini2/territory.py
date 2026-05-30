@@ -1766,10 +1766,12 @@ def decision_flow(g: GameTurn, is_pred):
                         return moves
 
         def meander(moves):
-            factor = 0.66
+            factor1 = 0.33
+            factor2 = 0.66
             for i,c in reversed(list(enumerate(g.other.body))):
                 #do not chase near tail
-                if i >= g.other.length * factor: continue
+                if i >= g.other.length * factor2: continue
+                if i <= g.other.length * factor1: continue
                 if c in g.me.territory:
                     if g.me.territory_point_level[c] <= distance_pq(c, g.me.head) + 1: 
                         continue
@@ -2559,6 +2561,7 @@ if __name__ == "__main__":
     log = {'id': 'ef15459c-599a-4b9f-a110-25a73e50dcbc', 'turn': 114, 'nalive': 3, 'snakes': [{'name': 'mark_snake_test RED', 'health': 78, 'length': 9, 'alive': True, 'delay': 25, 'body': [(1, 1), (1, 2), (2, 2), (3, 2), (4, 2), (4, 3), (4, 4), (5, 4), (5, 3)]}, {'name': 'mark_snake_test BLUE', 'health': 98, 'length': 11, 'alive': True, 'delay': 13, 'body': [(4, 0), (3, 0), (3, 1), (4, 1), (5, 1), (6, 1), (7, 1), (8, 1), (8, 2), (7, 2), (7, 3)]}, {'name': 'mark_snake_test GREEN', 'health': 81, 'length': 6, 'alive': False, 'delay': 1, 'body': [(0, 1), (0, 0), (0, 1), (0, 2), (1, 2), (2, 2)]}, {'name': 'mark_snake_test YELLOW', 'health': 98, 'length': 12, 'alive': True, 'delay': 31, 'body': [(5, 7), (5, 8), (5, 9), (5, 10), (6, 10), (7, 10), (8, 10), (9, 10), (9, 9), (9, 8), (9, 7), (9, 6)]}], 'food': [(10, 10), (10, 0)]}
     log = {'id': 'ef15459c-599a-4b9f-a110-25a73e50dcbc', 'turn': 113, 'nalive': 3, 'snakes': [{'name': 'mark_snake_test RED', 'health': 79, 'length': 9, 'alive': True, 'delay': 26, 'body': [(1, 2), (2, 2), (3, 2), (4, 2), (4, 3), (4, 4), (5, 4), (5, 3), (5, 2)]}, {'name': 'mark_snake_test BLUE', 'health': 99, 'length': 11, 'alive': True, 'delay': 36, 'body': [(3, 0), (3, 1), (4, 1), (5, 1), (6, 1), (7, 1), (8, 1), (8, 2), (7, 2), (7, 3), (7, 4)]}, {'name': 'mark_snake_test GREEN', 'health': 81, 'length': 6, 'alive': False, 'delay': 1, 'body': [(0, 1), (0, 0), (0, 1), (0, 2), (1, 2), (2, 2)]}, {'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 12, 'alive': True, 'delay': 32, 'body': [(5, 8), (5, 9), (5, 10), (6, 10), (7, 10), (8, 10), (9, 10), (9, 9), (9, 8), (9, 7), (9, 6), (9, 5)]}], 'food': [(10, 10), (10, 0)]}
     log = {'id': 'fcb22263-163e-4ad8-b9dc-d2d55f4d633a', 'turn': 205, 'me': {'name': 'mark_snake', 'health': 97, 'length': 18, 'body': [(9, 6), (9, 5), (10, 5), (10, 4), (9, 4), (9, 3), (9, 2), (9, 1), (10, 1), (10, 0), (9, 0), (8, 0), (8, 1), (8, 2), (8, 3), (8, 4), (7, 4), (6, 4)], 'id': 'gs_rHBTwFT4bbFQmxyG3btbpJQP'}, 'others': [{'name': 'slieks', 'health': 90, 'length': 10, 'body': [(10, 9), (10, 8), (9, 8), (8, 8), (7, 8), (7, 9), (7, 10), (6, 10), (5, 10), (4, 10)], 'id': 'gs_PJQRrB78F83xHSJ6yMyxxMP7'}, {'name': '@~~~~@', 'health': 85, 'length': 18, 'body': [(6, 5), (7, 5), (7, 6), (7, 7), (6, 7), (5, 7), (4, 7), (4, 8), (3, 8), (2, 8), (2, 7), (3, 7), (3, 6), (2, 6), (2, 5), (3, 5), (3, 4), (2, 4)], 'id': 'gs_P9WT4MQBGbjtM3YXQwfV9GrS'}], 'food': [(1, 3), (6, 9)], 'module': 'territory', 'decision_path': ['wayout with exposure to (8, 8) via (10, 6)'], 'next_coord': (10, 6), 'next_move': 'right', 'time': '0.039s'}
+    log = {'id': '325c466c-9a24-4280-b3c2-3d5b9b73e4cc', 'turn': 385, 'me': {'name': 'mark_snake', 'health': 88, 'length': 29, 'body': [(2, 7), (3, 7), (3, 6), (3, 5), (3, 4), (3, 3), (3, 2), (3, 1), (2, 1), (1, 1), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8), (0, 9), (1, 9), (2, 9), (3, 9), (3, 10), (4, 10), (4, 9), (4, 8), (3, 8), (2, 8), (1, 8)], 'id': 'gs_ThBb36WVRxyRPjSMM9vqGDVD'}, 'others': [{'name': 'Shapeshifter', 'health': 90, 'length': 26, 'body': [(6, 7), (5, 7), (4, 7), (4, 6), (5, 6), (6, 6), (7, 6), (8, 6), (9, 6), (9, 5), (9, 4), (8, 4), (8, 3), (8, 2), (8, 1), (8, 0), (7, 0), (7, 1), (7, 2), (7, 3), (7, 4), (7, 5), (6, 5), (5, 5), (5, 4), (6, 4)], 'id': 'gs_kwtXFJrX6GjkdXdpcDgFWfPC'}], 'food': [(4, 1), (6, 9)], 'module': 'territory', 'decision_path': ['chasing other body meander to (4, 7) via (2, 6)'], 'next_coord': (2, 6), 'next_move': 'down', 'time': '0.054s'}
 
     game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
