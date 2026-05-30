@@ -637,18 +637,25 @@ def decision_flow(g: GameTurn, is_pred):
     def split_avoid_definite_confine(moves):
         if ngroup(moves) <= 1: return
 
-        for mg in g.me.move_groups:
+        def confined(mg):
             a = take_first(mg)
             me2 = snake_next_step(g.me, a)
             ng = next_game_turn([me2])
             flood_game_turn(ng)
             ng.set_me(me2)
-            if len(ng.me.all_border) != 0: continue
-            if has_wayout(ng): continue
-            if not is_pred: g.me.decision_path.append(f"definite confine {mg}")
-            moves = [p for p in moves if p not in mg]
-            if len(moves) != 0:
-                return moves
+            if len(ng.me.all_border) != 0: return False
+            if has_wayout(ng): return False
+            return True
+
+        confined_move_groups = [mg for mg in g.me.move_groups if confined(mg)]
+        if len(confined_move_groups) == 0: return
+        moves_to_avoid = [a for mg in confined_move_groups for a in mg]
+        moves = [a for a in moves if a not in moves_to_avoid]
+        if len(moves) != 0:
+            if not is_pred: g.me.decision_path.append(f"avoid definite confine {confined_move_groups}")
+            return moves
+
+        if not is_pred: g.me.decision_path.append(f"all move groups are confined {confined_move_groups}")
 
     def avoid_single_confront_collision(moves):
         snakes = [snake for snake in g.others if snake.length > g.me.length
@@ -1083,7 +1090,33 @@ def decision_flow(g: GameTurn, is_pred):
 
     def meander_move(target, moves):
         shortest_moves = list({a for a in moves if tree_distance(a, target) >= 0})
-        meander_moves = [a for a in moves if a not in shortest_moves and a in g.me.territory]
+        # meander_moves = [a for a in moves if a not in shortest_moves and a in g.me.territory]
+        meander_moves = []
+
+        def diagonal_connected(a, b):
+            if distance_vector_abs(a, b) != (1,1): return False
+            c = [p for p in adj_cells(a) if p in adj_cells(b) and p != g.me.head]
+            if len(c) != 1: return False
+            c = take_first(c)
+            if c not in g.me.territory: return False
+            if g.me.territory_point_level[c] != 2: return False
+            return True
+
+        for a in moves:
+            if a in shortest_moves: continue
+            if a not in g.me.territory: continue
+            for b in shortest_moves:
+                if diagonal_connected(a, b):
+                    meander_moves.append(a)
+                    break
+                if distance_vector_abs(a, b) in [(0,2), (2,0)]:
+                    c = [p for p in moves if p in g.me.territory and p not in [a,b]]
+                    if len(c) != 1: continue
+                    c = take_first(c)
+                    if diagonal_connected(a, c) and diagonal_connected(b, c):
+                        meander_moves.append(a)
+                        break
+
         if len(meander_moves) == 1:
             return take_first(meander_moves)
         if len(meander_moves) == 2:
@@ -2562,6 +2595,7 @@ if __name__ == "__main__":
     log = {'id': 'ef15459c-599a-4b9f-a110-25a73e50dcbc', 'turn': 113, 'nalive': 3, 'snakes': [{'name': 'mark_snake_test RED', 'health': 79, 'length': 9, 'alive': True, 'delay': 26, 'body': [(1, 2), (2, 2), (3, 2), (4, 2), (4, 3), (4, 4), (5, 4), (5, 3), (5, 2)]}, {'name': 'mark_snake_test BLUE', 'health': 99, 'length': 11, 'alive': True, 'delay': 36, 'body': [(3, 0), (3, 1), (4, 1), (5, 1), (6, 1), (7, 1), (8, 1), (8, 2), (7, 2), (7, 3), (7, 4)]}, {'name': 'mark_snake_test GREEN', 'health': 81, 'length': 6, 'alive': False, 'delay': 1, 'body': [(0, 1), (0, 0), (0, 1), (0, 2), (1, 2), (2, 2)]}, {'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 12, 'alive': True, 'delay': 32, 'body': [(5, 8), (5, 9), (5, 10), (6, 10), (7, 10), (8, 10), (9, 10), (9, 9), (9, 8), (9, 7), (9, 6), (9, 5)]}], 'food': [(10, 10), (10, 0)]}
     log = {'id': 'fcb22263-163e-4ad8-b9dc-d2d55f4d633a', 'turn': 205, 'me': {'name': 'mark_snake', 'health': 97, 'length': 18, 'body': [(9, 6), (9, 5), (10, 5), (10, 4), (9, 4), (9, 3), (9, 2), (9, 1), (10, 1), (10, 0), (9, 0), (8, 0), (8, 1), (8, 2), (8, 3), (8, 4), (7, 4), (6, 4)], 'id': 'gs_rHBTwFT4bbFQmxyG3btbpJQP'}, 'others': [{'name': 'slieks', 'health': 90, 'length': 10, 'body': [(10, 9), (10, 8), (9, 8), (8, 8), (7, 8), (7, 9), (7, 10), (6, 10), (5, 10), (4, 10)], 'id': 'gs_PJQRrB78F83xHSJ6yMyxxMP7'}, {'name': '@~~~~@', 'health': 85, 'length': 18, 'body': [(6, 5), (7, 5), (7, 6), (7, 7), (6, 7), (5, 7), (4, 7), (4, 8), (3, 8), (2, 8), (2, 7), (3, 7), (3, 6), (2, 6), (2, 5), (3, 5), (3, 4), (2, 4)], 'id': 'gs_P9WT4MQBGbjtM3YXQwfV9GrS'}], 'food': [(1, 3), (6, 9)], 'module': 'territory', 'decision_path': ['wayout with exposure to (8, 8) via (10, 6)'], 'next_coord': (10, 6), 'next_move': 'right', 'time': '0.039s'}
     log = {'id': '325c466c-9a24-4280-b3c2-3d5b9b73e4cc', 'turn': 385, 'me': {'name': 'mark_snake', 'health': 88, 'length': 29, 'body': [(2, 7), (3, 7), (3, 6), (3, 5), (3, 4), (3, 3), (3, 2), (3, 1), (2, 1), (1, 1), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8), (0, 9), (1, 9), (2, 9), (3, 9), (3, 10), (4, 10), (4, 9), (4, 8), (3, 8), (2, 8), (1, 8)], 'id': 'gs_ThBb36WVRxyRPjSMM9vqGDVD'}, 'others': [{'name': 'Shapeshifter', 'health': 90, 'length': 26, 'body': [(6, 7), (5, 7), (4, 7), (4, 6), (5, 6), (6, 6), (7, 6), (8, 6), (9, 6), (9, 5), (9, 4), (8, 4), (8, 3), (8, 2), (8, 1), (8, 0), (7, 0), (7, 1), (7, 2), (7, 3), (7, 4), (7, 5), (6, 5), (5, 5), (5, 4), (6, 4)], 'id': 'gs_kwtXFJrX6GjkdXdpcDgFWfPC'}], 'food': [(4, 1), (6, 9)], 'module': 'territory', 'decision_path': ['chasing other body meander to (4, 7) via (2, 6)'], 'next_coord': (2, 6), 'next_move': 'down', 'time': '0.054s'}
+    log = {'id': 'bf63c58f-94db-48bb-b734-bdf844236ae6', 'turn': 270, 'me': {'name': 'mark_snake', 'health': 94, 'length': 24, 'body': [(1, 1), (1, 0), (0, 0), (0, 1), (0, 2), (0, 3), (0, 4), (1, 4), (2, 4), (2, 3), (2, 2), (3, 2), (4, 2), (5, 2), (6, 2), (6, 1), (6, 0), (7, 0), (8, 0), (9, 0), (10, 0), (10, 1), (9, 1), (9, 2)], 'id': 'gs_HHffXpV6yTVwtvvQ8HhQHxWC'}, 'others': [{'name': 'Aurora', 'health': 93, 'length': 22, 'body': [(5, 5), (5, 4), (4, 4), (4, 5), (4, 6), (3, 6), (2, 6), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (2, 10), (3, 10), (3, 9), (3, 8), (4, 8), (5, 8), (6, 8), (6, 7), (7, 7), (7, 6)], 'id': 'gs_RkBGYkKSJb7fGkHK4P8qP9M8'}], 'food': [(5, 10), (10, 2), (8, 2), (3, 1), (0, 8)], 'module': 'territory', 'decision_path': ['definite confine [(2, 1)]'], 'next_coord': (1, 2), 'next_move': 'up', 'time': '0.005s'}
 
     game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
