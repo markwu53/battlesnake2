@@ -1128,6 +1128,7 @@ def decision_flow(g: GameTurn, is_pred):
                 return take_first(meander_moves)
             return take_first(meander_move)
         # len(meander_moves) == 0
+        if len(shortest_moves) == 0: return
         if len(shortest_moves) != 2:
             return take_first(shortest_moves)
         choices = take_first_group(lambda a: min(distance_vector_abs(a, target)))(shortest_moves)
