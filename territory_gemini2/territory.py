@@ -133,6 +133,7 @@ def decision_flow(g: GameTurn, is_pred):
             , avoid_off_border_crawling
             , prefer_not_follow_tail_directly
             , dont_push_from_border
+            , dont_push_from_wall
             # , testing
 
             , cond(len(g.others) > 1)(get_food(6))
@@ -873,6 +874,28 @@ def decision_flow(g: GameTurn, is_pred):
             if len(moves) != 0:
                 if not is_pred: g.me.decision_path.append(f"don't push from border {collision_move} against {snake.name}")
                 return moves
+
+    def dont_push_from_wall(moves):
+        if not off_border(g.me.head): return
+
+        # purpose is to check if I am on off-border and the border is occupied so it's like a wall
+        # but here just make it simple by checking there are only 2 moves
+        # only push and one more move
+        if len(moves) != 2: return
+
+        for snake in g.others:
+            if snake.length > g.me.length: continue
+            if distance_vector_abs(snake.head, g.me.head) not in [(0,2), (2,0)]: continue
+            collision_moves = [a for a in moves if a in snake.allowed_moves]
+            if len(collision_moves) != 1: continue
+            collision_move = take_first(collision_moves)
+            another_move = [a for a in moves if a != collision_move]
+            if len(another_move) != 1: continue
+            another_move = take_first(another_move)
+            if not off_border(another_move): continue
+
+            if not is_pred: g.me.decision_path.append(f"don't push from wall {collision_move} against {snake.name}")
+            return [another_move]
 
     def prefer_not_follow_tail_directly(moves):
         other_tails = [snake.tail for snake in g.others]
@@ -2641,6 +2664,7 @@ if __name__ == "__main__":
     log = {'id': 'd3b51c0c-4e9c-4f02-973c-66eea0c5465f', 'turn': 130, 'me': {'name': 'mark_snake', 'health': 98, 'length': 9, 'body': [(2, 0), (1, 0), (1, 1), (1, 2), (1, 3), (1, 4), (2, 4), (3, 4), (3, 5)], 'id': 'gs_vbbCVfPbCKpKtW4HfwmT7dHF'}, 'others': [{'name': 'Geriatric Jagwire', 'health': 76, 'length': 10, 'body': [(7, 1), (6, 1), (5, 1), (4, 1), (3, 1), (3, 2), (3, 3), (4, 3), (5, 3), (5, 4)], 'id': 'gs_fWMHVdtW36Fby8pTxxSycKSP'}, {'name': 'poc', 'health': 97, 'length': 14, 'body': [(2, 6), (2, 7), (1, 7), (0, 7), (0, 8), (0, 9), (0, 10), (1, 10), (2, 10), (3, 10), (4, 10), (5, 10), (6, 10), (6, 9)], 'id': 'gs_8PQqmHDdr3jFBcQTYvTfCqh9'}, {'name': 'Combat Reptile', 'health': 61, 'length': 5, 'body': [(7, 7), (8, 7), (9, 7), (9, 6), (8, 6)], 'id': 'gs_kkTyftBb3v4Wt7wwvgY3DgRK'}], 'food': [(10, 1)], 'module': 'territory', 'decision_path': ['all possible confined [(3, 0), (2, 1)]', 'split avoid head no choice path (2, 1)'], 'next_coord': (3, 0), 'next_move': 'right', 'time': '0.044s'}
     log = {'id': '412eb218-7d79-47dd-9fac-d7790746e84b', 'turn': 130, 'me': {'name': 'mark_snake', 'health': 76, 'length': 9, 'body': [(10, 4), (9, 4), (8, 4), (8, 3), (8, 2), (8, 1), (8, 0), (9, 0), (9, 1)], 'id': 'gs_wQHFKkBppPTcP9MRKYR6tG6R'}, 'others': [{'name': 'Aurora', 'health': 90, 'length': 11, 'body': [(3, 3), (3, 4), (3, 5), (3, 6), (3, 7), (3, 8), (3, 9), (4, 9), (4, 8), (4, 7), (4, 6)], 'id': 'gs_TdjmVSf63wJbYDMWtpjDwbmX'}, {'name': 'Shapeshifter', 'health': 88, 'length': 13, 'body': [(5, 5), (5, 4), (6, 4), (6, 3), (5, 3), (5, 2), (4, 2), (3, 2), (2, 2), (2, 1), (2, 0), (1, 0), (0, 0)], 'id': 'gs_8GFSFdpr96BvKKtXvrSt3R8d'}, {'name': 'Slytherin', 'health': 97, 'length': 11, 'body': [(7, 5), (8, 5), (8, 6), (8, 7), (8, 8), (8, 9), (7, 9), (7, 10), (6, 10), (6, 9), (6, 8)], 'id': 'gs_TwbwkG6d3BWHw3BwJykVwgyW'}], 'food': [(0, 9)], 'module': 'territory', 'decision_path': ['split take larger ([(10, 3)], 48)'], 'next_coord': (10, 3), 'next_move': 'down', 'time': '0.042s'}
     log = {'id': '08e65bc6-f09f-4ac1-8052-02928ce7484c', 'turn': 319, 'me': {'name': 'mark_snake', 'health': 88, 'length': 24, 'body': [(10, 7), (10, 8), (10, 9), (10, 10), (9, 10), (8, 10), (7, 10), (7, 9), (8, 9), (9, 9), (9, 8), (8, 8), (7, 8), (6, 8), (5, 8), (4, 8), (3, 8), (3, 9), (4, 9), (4, 10), (3, 10), (2, 10), (2, 9), (2, 8)], 'id': 'gs_SRmTvgwDScBm3KYG7jCvbP7b'}, 'others': [{'name': 'Slytherin', 'health': 95, 'length': 21, 'body': [(8, 7), (7, 7), (7, 6), (7, 5), (6, 5), (5, 5), (5, 4), (5, 3), (4, 3), (4, 2), (3, 2), (3, 3), (2, 3), (1, 3), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8), (0, 9)], 'id': 'gs_dSrGdpkHGRppx4bdCmjbjk6K'}], 'food': [(10, 0), (8, 2), (5, 0), (9, 5)], 'module': 'territory', 'decision_path': ['all possible confined [(9, 7), (10, 6)]', 'border analysis move go (9, 7)'], 'next_coord': (9, 7), 'next_move': 'left', 'time': '0.019s'}
+    log = {'id': 'd8674782-571a-4d97-8e03-f4c5d96e416c', 'turn': 220, 'me': {'name': 'mark_snake', 'health': 88, 'length': 21, 'body': [(1, 9), (0, 9), (0, 8), (0, 7), (0, 6), (0, 5), (0, 4), (0, 3), (0, 2), (0, 1), (0, 0), (1, 0), (2, 0), (2, 1), (2, 2), (2, 3), (2, 4), (2, 5), (1, 5), (1, 6), (1, 7)], 'id': 'gs_7SyCCg3PRjCThvW6PVfyYBdP'}, 'others': [{'name': ' Kwisatz Haderach', 'health': 88, 'length': 10, 'body': [(3, 9), (3, 10), (4, 10), (4, 9), (4, 8), (4, 7), (4, 6), (4, 5), (5, 5), (5, 4)], 'id': 'gs_wbPdPQ86VvRQFmjbTrQwjt9f'}], 'food': [(8, 0), (10, 0), (9, 4), (2, 9), (6, 1), (6, 3)], 'module': 'territory', 'decision_path': ['general possible confine [(1, 10)]', 'border analysis move go (2, 9)'], 'next_coord': (2, 9), 'next_move': 'right', 'time': '0.045s'}
 
     game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
