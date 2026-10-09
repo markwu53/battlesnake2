@@ -72,6 +72,10 @@ def decision_flow(g: GameTurn):
             , avoid_border_suppressed
             , avoid_border_leading_suppressed
 
+            , avoid_collision_212
+            , process_collision_223
+            , choose_collision_222
+
             , avoid_single_confront_collision(2)
             , avoid_single_confront_collision(3)
 
@@ -156,7 +160,7 @@ def decision_flow(g: GameTurn):
         for a in moves:
             me2 = snake_next_step(g, g.me, a)
             ng = default_next_game_turn(me2, [])
-            if has_direct_wayout(a): continue
+            if has_direct_wayout(ng): continue
             moves_to_avoid.append(a)
         if len(moves_to_avoid) == 0: return
 
@@ -171,6 +175,67 @@ def decision_flow(g: GameTurn):
     def calculate_flood_territory(moves):
         flood_territory(g)
 
+    def choose_collision_222(moves):
+        #(1,1) position no dodge
+        if len(moves) != 2: return
+        for snake in g.others:
+            if snake.length <= g.me.length: continue
+            if distance_pq(snake.head, g.me.head) != 2: continue
+            if distance_vector_abs(snake.head, g.me.head) != (1,1): continue
+            collisions = [a for a in moves if a in snake.allowed_moves]
+            if len(collisions) != 2: continue
+            a, b = collisions
+
+            #switch to opponent perspective 
+            me2 = snake_next_step(g, snake, a)
+            snake2 = snake_next_step(g, g.me, b)
+            ng = default_next_game_turn(me2, [snake2])
+            if has_direct_wayout(ng):
+                g.me.decision_path.append(f"choose collision +")
+                return [b]
+            g.me.decision_path.append(f"choose collision -")
+            return [a]
+
+    def process_collision_223(moves):
+        #(1,1) position 2 collision 1 dodge
+        if len(moves) != 3: return
+        for snake in g.others:
+            if snake.length <= g.me.length: continue
+            if distance_pq(snake.head, g.me.head) != 2: continue
+            if distance_vector_abs(snake.head, g.me.head) != (1,1): continue
+            collisions = [a for a in moves if a in snake.allowed_moves]
+            if len(collisions) != 2: continue
+            dodge = [a for a in moves if a not in collisions]
+            dodge = take_first(dodge)
+            middle = [a for a in collisions if distance_vector_abs(a, dodge) == (1,1)]
+            middle = take_first(middle)
+            opposite = [a for a in moves if a != middle and a != dodge]
+            opposite = take_first(opposite)
+
+            me2 = snake_next_step(g, g.me, dodge)
+            snake2 = snake_next_step(g, snake, middle)
+            ng = default_next_game_turn(me2, [snake2])
+            if has_direct_wayout(ng):
+                g.me.decision_path.append(f"collision 223 take dodge")
+                return [dodge]
+            g.me.decision_path.append(f"collision 223 take opposite")
+            return [opposite]
+
+    def avoid_collision_212(moves):
+        #(1,1) position 1 collision 1 other
+        if len(moves) != 2: return
+
+        for snake in g.others:
+            if snake.length <= g.me.length: continue
+            if distance_pq(snake.head, g.me.head) != 2: continue
+            if distance_vector_abs(snake.head, g.me.head) != (1,1): continue
+            if is_adjacent(snake.head, g.me.neck): continue
+            collisions = [a for a in moves if a in snake.allowed_moves]
+            if len(collisions) != 1: continue
+            moves = [a for a in moves if a not in collisions]
+            g.me.decision_path.append(f"avoid collision 21 from {snake.name}")
+            return moves
+
     def avoid_single_confront_collision(total_moves: int):
         def fn(moves):
             if len(moves) != total_moves: return
@@ -180,7 +245,7 @@ def decision_flow(g: GameTurn):
                 if snake.length <= g.me.length: continue
                 if distance_pq(snake.head, g.me.head) != 2: continue
                 if distance_vector_abs(snake.head, g.me.head) == (1,1): continue
-                if len([a for a in g.me.allowed_moves if a in snake.allowed_moves]) != 1: continue
+                if len([a for a in moves if a in snake.allowed_moves]) != 1: continue
                 moves_to_avoid += [a for a in moves if a in snake.allowed_moves]
 
             if len(moves_to_avoid) == 0: return
@@ -199,8 +264,8 @@ def decision_flow(g: GameTurn):
                 if snake.length <= g.me.length: continue
                 if distance_pq(snake.head, g.me.head) != 2: continue
                 if distance_vector_abs(snake.head, g.me.head) != (1,1): continue
-                if len([a for a in g.me.allowed_moves if a in snake.allowed_moves]) != 1: continue
                 if not is_adjacent(snake.head, g.me.neck): continue
+                if len([a for a in moves if a in snake.allowed_moves]) != 1: continue
                 moves_to_avoid += [a for a in moves if a in snake.allowed_moves]
 
             if len(moves_to_avoid) == 0: return
@@ -663,6 +728,7 @@ if __name__ == "__main__":
     log = {'id': '8788d775-29cc-4dc0-8a6b-87c2b57667e5', 'turn': 25, 'me': {'name': 'mark_snake_test RED', 'health': 77, 'length': 4, 'body': [(3, 2), (4, 2), (5, 2), (6, 2)]}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 83, 'length': 5, 'body': [(3, 4), (3, 5), (3, 6), (3, 7), (3, 8)]}, {'name': 'mark_snake_test GREEN', 'health': 85, 'length': 6, 'body': [(6, 7), (7, 7), (7, 8), (7, 9), (7, 10), (6, 10)]}, {'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 6, 'body': [(3, 0), (2, 0), (2, 1), (2, 2), (2, 3), (3, 3)]}], 'food': [(5, 10)], 'module': 'territory', 'decision_path': ['1vn', 'undecided [(3, 3), (3, 1)]'], 'allowed_moves': [(3, 3), (3, 1)], 'next_coord': (3, 3), 'next_move': 'up', 'time': '0.001s'}
     log = {'id': '314247f9-2413-46ee-b71f-5bff76f1c5cc', 'turn': 28, 'me': {'name': 'mark_snake_test RED', 'health': 97, 'length': 5, 'body': [(4, 4), (5, 4), (6, 4), (7, 4), (8, 4)]}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 88, 'length': 6, 'body': [(7, 1), (6, 1), (5, 1), (4, 1), (3, 1), (3, 0)]}, {'name': 'mark_snake_test GREEN', 'health': 96, 'length': 5, 'body': [(5, 9), (4, 9), (4, 8), (5, 8), (6, 8)]}, {'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 6, 'body': [(3, 5), (2, 5), (2, 4), (3, 4), (3, 3), (3, 2)]}], 'food': [(9, 7)], 'module': 'territory', 'decision_path': ['1vn', 'undecided [(4, 5), (4, 3)]'], 'allowed_moves': [(4, 5), (4, 3)], 'next_coord': (4, 5), 'next_move': 'up', 'time': '0.002s'}
     log = {'id': 'ea871feb-9018-436a-8707-e00a473e237c', 'turn': 128, 'me': {'name': 'mark_snake_test RED', 'health': 26, 'length': 6, 'body': [(8, 10), (9, 10), (10, 10), (10, 9), (9, 9), (9, 8)]}, 'others': [{'name': 'mark_snake_test YELLOW', 'health': 86, 'length': 18, 'body': [(8, 8), (8, 7), (7, 7), (6, 7), (6, 6), (6, 5), (6, 4), (5, 4), (5, 5), (4, 5), (3, 5), (2, 5), (1, 5), (1, 6), (1, 7), (0, 7), (0, 8), (1, 8)]}], 'food': [(4, 1), (3, 7), (0, 1), (10, 7)], 'module': 'territory', 'decision_path': ['1v1', 'avoid border suppressed (7, 10)'], 'allowed_moves': [(8, 9)], 'next_coord': (8, 9), 'next_move': 'down', 'time': '0.001s'}
+    log = {'id': 'c55baa36-5bbb-4419-af87-546c2b46e247', 'turn': 78, 'me': {'name': 'mark_snake_test RED', 'health': 95, 'length': 7, 'body': [(5, 7), (4, 7), (3, 7), (2, 7), (1, 7), (0, 7), (0, 6)]}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 82, 'length': 11, 'body': [(6, 8), (7, 8), (8, 8), (8, 9), (9, 9), (10, 9), (10, 8), (10, 7), (10, 6), (10, 5), (10, 4)]}, {'name': 'mark_snake_test GREEN', 'health': 70, 'length': 8, 'body': [(8, 4), (8, 5), (8, 6), (8, 7), (7, 7), (7, 6), (7, 5), (7, 4)]}, {'name': 'mark_snake_test YELLOW', 'health': 94, 'length': 10, 'body': [(4, 8), (3, 8), (2, 8), (1, 8), (0, 8), (0, 9), (0, 10), (1, 10), (2, 10), (3, 10)]}], 'food': [(2, 1), (8, 0)], 'module': 'territory', 'decision_path': ['1vn', 'avoid single suppress collision [(5, 8)]', 'avoid collision 21 from mark_snake_test YELLOW', 'choose collision +'], 'allowed_moves': [(6, 7), (5, 8), (5, 6)], 'next_coord': (5, 8), 'next_move': 'up', 'time': '0.001s'}
 
     game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
