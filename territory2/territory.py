@@ -74,7 +74,7 @@ def decision_flow(g: GameTurn):
 
             , avoid_collision_212
             , process_collision_223
-            , choose_collision_222
+            , choose_collision
 
             , avoid_single_confront_collision(2)
             , avoid_single_confront_collision(3)
@@ -175,7 +175,7 @@ def decision_flow(g: GameTurn):
     def calculate_flood_territory(moves):
         flood_territory(g)
 
-    def choose_collision_222(moves):
+    def choose_collision(moves):
         #(1,1) position no dodge
         if len(moves) != 2: return
         for snake in g.others:
