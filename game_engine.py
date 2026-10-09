@@ -4,6 +4,7 @@ from split.models import Snake
 import split.decision_flow as df_split
 import territory_gemini2.territory as territory_gemini
 import territory.territory as territory
+import territory2.territory as territory2
 
 class GameEngine:
     def __init__(self):
@@ -90,7 +91,10 @@ class GameEngine:
 
     def call_snake_model(self, snake, game_state):
         if snake.name in [ "mark_snake_test RED", ]:
-            territory_gemini.main(game_state, log=True) 
+            territory2.main(game_state, log=True) 
+            return {"move": game_state["next_move"]}
+        elif snake.name in [ "mark_snake_test YELLOW", ]:
+            territory_gemini.main(game_state, log=False) 
             return {"move": game_state["next_move"]}
         elif snake.name in [ "mark_snake_test GREEN", ]:
             territory.main(game_state, log=False) 

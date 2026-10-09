@@ -1,0 +1,671 @@
+import time
+from typing import TypeAlias
+
+Int2: TypeAlias = tuple[int, int]
+
+class Snake:
+    def __init__(self, name: str, body: list[Int2], health: int, id: str=None):
+        self.id = id
+        self.name = name
+        self.body = body
+        self.health = health
+        self.length = len(body)
+        self.head = body[0]
+        self.neck = body[1]
+        self.tail = body[-1]
+        self.allowed_moves: list[Int2] = []
+        self.decision_path: list[str] = []
+        self.territory_point_level: dict[Int2, int] = dict()
+        self.territory: set[Int2] = None
+        self.static_territory_point_level: dict[Int2, int] = dict()
+        self.static_territory: set[Int2] = None
+    def dict(self):
+        return {k: self.__dict__[k] for k in ["name", "health", "length", "body"
+                                            #   , "id"
+                                              , ]}
+
+class GameTurn:                                              
+    def __init__(self):
+        self.id = None
+        self.state = None
+        self.me: Snake = None
+        self.other: Snake = None
+        self.others: list[Snake] = None
+        self.snakes: list[Snake] = None
+        self.food = None
+        self.turn = None
+        self.territories = None
+        self.static_territories = None
+        self.head_snake = dict()
+        self.occupied: set[Int2] = None
+        self.log = {}
+
+    def set_me(self, me: Snake):
+        self.me = self.head_snake[me.head]
+        self.others = [snake for snake in self.snakes if snake.head != me.head]
+        if len(self.others) == 1:
+            self.other = self.others[0]
+        return self
+
+class Game:
+    def __init__(self):
+        self.width = 11
+        self.height = 11
+
+game = Game()
+
+def decision_flow(g: GameTurn):
+    def decision():
+        return seq([ id
+
+            , turn_0
+            , win
+            , avoid_death
+            , kill
+
+            # , calculate_flood_territory
+
+            # danger level high
+            , avoid_single_suppress_collision(2)
+            , avoid_single_suppress_collision(3)
+
+            , avoid_border_suppressed
+            , avoid_border_leading_suppressed
+
+            , avoid_single_confront_collision(2)
+            , avoid_single_confront_collision(3)
+
+            # danger level not so high
+            , avoid_nonborder_suppressed
+            , avoid_nonborder_leading_suppressed
+            , avoid_next_step_confined
+
+            , undecided
+        ])(g.me.allowed_moves)
+
+    def ________MOVE_FUNCTIONS________():
+        return
+
+    def avoid_nonborder_leading_suppressed(moves):
+        for a in moves:
+            if on_border(a): continue
+            for snake in g.others:
+                for b in snake.allowed_moves:
+                    if not distance_pq(a, b) == 2: continue
+                    if not distance_vector_abs(a, b) == (1,1): continue
+                    me2 = snake_next_step(g, g.me, a)
+                    snake2 = snake_next_step(g, snake, b)
+                    ng = default_next_game_turn(me2, [snake2])
+                    if has_direct_wayout(ng): continue
+                    moves.remove(a)
+                    g.me.decision_path.append(f"avoid nonborder leading suppressed {a}, {snake.name, b}")
+                    return moves
+
+    def avoid_nonborder_suppressed(moves):
+        for a in moves:
+            if on_border(a): continue
+            for snake in g.others:
+                if snake.length <= g.me.length: continue
+                for b in snake.allowed_moves:
+                    if not distance_pq(a, b) == 2: continue
+                    if distance_vector_abs(a, b) == (1,1): continue
+                    me2 = snake_next_step(g, g.me, a)
+                    snake2 = snake_next_step(g, snake, b)
+                    ng = default_next_game_turn(me2, [snake2])
+                    if has_direct_wayout(ng): continue
+                    moves.remove(a)
+                    g.me.decision_path.append(f"avoid nonborder suppressed {a}, {snake.name, b}")
+                    return moves
+
+    def avoid_border_leading_suppressed(moves):
+        if not on_border(g.me.head): return
+        for a in moves:
+            if not on_border(a): continue
+            for snake in g.others:
+                for b in snake.allowed_moves:
+                    if not distance_pq(a, b) == 2: continue
+                    if not distance_vector_abs(a, b) == (1,1): continue
+                    me2 = snake_next_step(g, g.me, a)
+                    snake2 = snake_next_step(g, snake, b)
+                    ng = default_next_game_turn(me2, [snake2])
+                    if has_direct_wayout(ng): continue
+                    moves.remove(a)
+                    g.me.decision_path.append(f"avoid border leading suppressed {a}, {snake.name, b}")
+                    return moves
+
+    def avoid_border_suppressed(moves):
+        if not on_border(g.me.head): return
+        for a in moves:
+            if not on_border(a): continue
+            for snake in g.others:
+                if snake.length <= g.me.length: continue
+                for b in snake.allowed_moves:
+                    if not distance_pq(a, b) == 2: continue
+                    if distance_vector_abs(a, b) == (1,1): continue
+                    if on_border(b): continue
+                    me2 = snake_next_step(g, g.me, a)
+                    snake2 = snake_next_step(g, snake, b)
+                    ng = default_next_game_turn(me2, [snake2])
+                    if has_direct_wayout(ng): continue
+                    moves.remove(a)
+                    g.me.decision_path.append(f"avoid border suppressed {a}, {snake.name, b}")
+                    return moves
+
+    def avoid_next_step_confined(moves):
+        moves_to_avoid = []
+        for a in moves:
+            me2 = snake_next_step(g, g.me, a)
+            ng = default_next_game_turn(me2, [])
+            if has_direct_wayout(a): continue
+            moves_to_avoid.append(a)
+        if len(moves_to_avoid) == 0: return
+
+        moves = [a for a in moves if a not in moves_to_avoid]
+        if len(moves) == 0:
+            g.me.decision_path.append(f"next step all confined {moves_to_avoid}")
+            return
+        if len(moves) != 0:
+            g.me.decision_path.append(f"avoid next step confined {moves_to_avoid}")
+            return moves
+
+    def calculate_flood_territory(moves):
+        flood_territory(g)
+
+    def avoid_single_confront_collision(total_moves: int):
+        def fn(moves):
+            if len(moves) != total_moves: return
+
+            moves_to_avoid = []
+            for snake in g.others:
+                if snake.length <= g.me.length: continue
+                if distance_pq(snake.head, g.me.head) != 2: continue
+                if distance_vector_abs(snake.head, g.me.head) == (1,1): continue
+                if len([a for a in g.me.allowed_moves if a in snake.allowed_moves]) != 1: continue
+                moves_to_avoid += [a for a in moves if a in snake.allowed_moves]
+
+            if len(moves_to_avoid) == 0: return
+            moves = [a for a in moves if a not in moves_to_avoid]
+            if len(moves) != 0:
+                g.me.decision_path.append(f"avoid single confront collision {moves_to_avoid}")
+                return moves
+        return fn
+
+    def avoid_single_suppress_collision(total_moves: int):
+        def fn(moves):
+            if len(moves) != total_moves: return
+
+            moves_to_avoid = []
+            for snake in g.others:
+                if snake.length <= g.me.length: continue
+                if distance_pq(snake.head, g.me.head) != 2: continue
+                if distance_vector_abs(snake.head, g.me.head) != (1,1): continue
+                if len([a for a in g.me.allowed_moves if a in snake.allowed_moves]) != 1: continue
+                if not is_adjacent(snake.head, g.me.neck): continue
+                moves_to_avoid += [a for a in moves if a in snake.allowed_moves]
+
+            if len(moves_to_avoid) == 0: return
+            moves = [a for a in moves if a not in moves_to_avoid]
+            if len(moves) != 0:
+                g.me.decision_path.append(f"avoid single suppress collision {moves_to_avoid}")
+                return moves
+        return fn
+
+    def kill(moves):
+        for snake in g.others:
+            if snake.length >= g.me.length: continue
+            if len(snake.allowed_moves) != 1: continue
+            kill_move = take_first(snake.allowed_moves)
+            if kill_move not in moves: continue
+            g.me.decision_path.append(f"kill {snake.name} at {kill_move}")
+            return [kill_move]
+
+    def avoid_death(moves):
+        snakes = [snake for snake in g.others if len(snake.allowed_moves) == 1 and snake.length >= g.me.length]
+        if len(snakes) == 0: return
+        moves_to_avoid = [a for snake in snakes for a in snake.allowed_moves if a in moves]
+        if len(moves_to_avoid) == 0: return
+        moves = [a for a in moves if a not in moves_to_avoid]
+        if len(moves) != 0:
+            g.me.decision_path.append("avoid death")
+            return moves
+
+    def win(moves):
+        if len(g.others) != 1: return
+        if len(g.other.allowed_moves) != 1: return
+        if g.me.length <= g.other.length: return
+        move = g.other.allowed_moves[0]
+        if move in moves:
+            g.me.decision_path.append("win")
+            return [move]
+
+    def turn_0(moves):
+        if g.turn != 0: return
+        border_move = [a for a in moves if on_border(a)]
+        if len(border_move) != 0:
+            return border_move
+        return moves
+
+    def undecided(moves):
+        g.me.decision_path.append(f"undecided {moves}")
+
+    def id(moves):
+        return moves
+
+    def nothing(moves):
+        return
+
+    def has_direct_wayout(ng: GameTurn):
+        flood_territory(ng)
+        static_flood_territory(ng)
+        territory_point_level(ng)
+        territory_set(ng)
+        return len(ng.me.territory) > len(ng.me.static_territory)
+
+    def default_next_game_turn(me: Snake, others: list[Snake]):
+        ng = next_game_turn(g, next_snakes(g, [me, *others]))
+        ng.set_me(me)
+        return ng
+
+    def ________DECISION_MAIN_FLOW________():
+        return
+
+    init_game_turn(g)
+
+    if len(g.me.allowed_moves) == 0:
+        #no allowed moves, die on myself
+        return [g.me.neck]
+
+    if len(g.others) == 0:
+        #win
+        return g.me.allowed_moves
+
+    return decision()
+
+def ________GAME_TURN_FUNCTIONS________():
+    return
+
+def territory_point_level(g: GameTurn):
+    for p, (owning_snakes, i) in g.territories.items():
+        if len(owning_snakes) != 1: continue
+        snake: Snake = g.head_snake[take_first(list(owning_snakes))]
+        snake.territory_point_level[p] = i
+    for p, (owning_snakes, i) in g.static_territories.items():
+        if len(owning_snakes) != 1: continue
+        snake: Snake = g.head_snake[take_first(list(owning_snakes))]
+        snake.static_territory_point_level[p] = i
+
+def territory_set(g: GameTurn):
+    for snake in g.snakes:
+        snake.territory = snake.territory_point_level.keys()
+    for snake in g.snakes:
+        snake.static_territory = snake.static_territory_point_level.keys()
+
+def snake_next_step(g: GameTurn, snake: Snake, move):
+    snake2 = Snake(snake.name, [move]+snake.body[:-1], snake.health-1)
+    if move in g.food:
+        snake2.body.append(snake2.tail)
+        snake2.health = 100
+    return snake2
+
+def next_snakes(g: GameTurn, provided_snakes: list[Snake]):
+    snakes = provided_snakes
+    old_heads = {s.neck for s in snakes}
+    new_heads = {s.head for s in snakes}
+    not_allowed_moves = []
+
+    for snake in sorted(g.snakes, key=lambda s: s.length, reverse=True):
+        if snake.head in old_heads: 
+            not_allowed_moves += snake.allowed_moves
+            continue
+        #first try not in longer snake's allowed moves
+        allowed_moves = [a for a in snake.allowed_moves if a not in not_allowed_moves]
+        if len(allowed_moves) == 0:
+            allowed_moves = [a for a in snake.allowed_moves if a not in new_heads]
+            if len(allowed_moves) == 0: continue
+        new_head = take_first(allowed_moves)
+        food_moves = [a for a in allowed_moves if a in g.food]
+        if len(food_moves) != 0:
+            new_head = take_first(food_moves)
+        new_heads.add(new_head)
+        snake2 = snake_next_step(g, snake, new_head)
+        snakes.append(snake2)
+
+    return snakes
+
+def next_game_turn(g: GameTurn, snakes: list[Snake]):
+    ng = GameTurn()
+    ng.snakes = snakes
+    init_game_turn(ng)
+    ng.food = [f for f in g.food if f not in ng.occupied]
+    return ng
+
+def init_game_turn(g: GameTurn):
+    g.head_snake = {snake.head: snake for snake in g.snakes}
+    g.occupied = {p for snake in g.snakes for p in snake.body[:-1]}
+    for snake in g.snakes:
+        snake.allowed_moves = [a for a in adj_cells(snake.head) if a not in g.occupied]
+
+def association_dict(set_of_pair):
+    d = dict()
+    for p,q in set_of_pair:
+        if p not in d:
+            d[p] = set()
+        d[p].add(q)
+    return d
+
+def flood_territory(g: GameTurn):
+    layers = []
+    taken = set()
+    layer = {snake.head: {snake.head} for snake in g.snakes}
+    while len(layer) != 0:
+        layers.append(layer)
+        taken.update(layer.keys())
+
+        occupied = {c for snake in g.snakes for c in snake.body[:-len(layers)]}
+
+        set_of_pair = {(q,p) for p in layer for q in adj_cells(p) if q not in occupied and q not in taken}
+        q_dict = association_dict(set_of_pair)
+
+        next_layer = dict()
+        for q in q_dict:
+            ps = q_dict[q]
+            max_length = max([g.head_snake[head].length for p in ps for head in layer[p]])
+            next_layer[q] = {head for p in ps for head in layer[p] if g.head_snake[head].length == max_length}
+
+        layer = next_layer
+
+    g.territories = {p: (layer[p], i) for i,layer in enumerate(layers) for p in layer}
+
+def static_flood_territory(g: GameTurn):
+    layers = []
+    taken = set()
+    layer = {snake.head: {snake.head} for snake in g.snakes}
+    occupied = {c for snake in g.snakes for c in snake.body[:-1]}
+    while len(layer) != 0:
+        layers.append(layer)
+        taken.update(layer.keys())
+
+        set_of_pair = {(q,p) for p in layer for q in adj_cells(p) if q not in occupied and q not in taken}
+        q_dict = association_dict(set_of_pair)
+
+        next_layer = dict()
+        for q in q_dict:
+            ps = q_dict[q]
+            max_length = max([g.head_snake[head].length for p in ps for head in layer[p]])
+            next_layer[q] = {head for p in ps for head in layer[p] if g.head_snake[head].length == max_length}
+
+        layer = next_layer
+
+    g.static_territories = {p: (layer[p], i) for i,layer in enumerate(layers) for p in layer}
+
+def ________UTILITY_FUNCTIONS________():
+    return
+
+def take_first(moves):
+    return moves[0]
+
+def get_adjacent_dir(p, q):
+    x,y = p
+    nx,ny = q
+    if nx > x: return "right"
+    if nx < x: return "left"
+    if ny > y: return "up"
+    if ny < y: return "down"
+
+def add_pos(p1, p2):
+    x1,y1 = p1
+    x2,y2 = p2
+    return (x1+x2, y1+y2)
+
+def neg_pos(p):
+    x,y = p
+    return (-x, -y)
+
+def sub_pos(p1, p2):
+    return add_pos(p1, neg_pos(p2))
+
+def abs_pos(p):
+    x,y = p
+    return (abs(x), abs(y))
+
+def sum_xy(p):
+    x,y = p
+    return x+y
+
+def distance_vector_abs(p, q):
+    return abs_pos(sub_pos(p, q))
+
+def distance_pq(p, q):
+    ax, ay = distance_vector_abs(p, q)
+    return ax + ay
+
+def is_adjacent(p, q):
+    return distance_pq(p, q) == 1
+
+def pos_on_board(pos):
+    x,y = pos
+    return 0 <= x < game.width and 0 <= y < game.height
+
+def on_border(p):
+    x,y = p
+    if x == 0 or x == game.width-1: return True
+    if y == 0 or y == game.height-1: return True
+    return False
+
+def off_border(p):
+    return min(distance_to_border(p)) == 1
+
+def distance_to_border(p):
+    x,y = p
+    dx = min([x, game.width-x-1])
+    dy = min([y, game.height-y-1])
+    return (dx, dy)
+
+def adj_cells(pos):
+    moves = [(1,0), (-1,0), (0,1), (0,-1)]
+    npos = [add_pos(pos, d) for d in moves]
+    npos = [p for p in npos if pos_on_board(p)]
+    return npos
+
+def message(msg):
+    def fn(moves):
+        print(f"{msg}: {moves}")
+    return fn
+
+def print_moves(f):
+    def fn(moves):
+        msg = (f"before: {moves}")
+        moves = f(moves)
+        msg += (f", after: {moves}")
+        print(msg)
+        return moves
+    return fn
+
+def get_coord(ds):
+    return [(d["x"], d["y"]) for d in ds]
+
+def seq(fs):
+    def fn(moves):
+        for f in fs:
+            if len(moves) == 1: return moves
+            moves = f(moves) or moves
+        return moves
+    return fn
+
+def seq(fs):
+    def fn(moves):
+        result_list = []
+        result = moves
+        for f in fs:
+            if len(result) == 1: return result
+            fmoves = f(result)
+            result = fmoves or result
+            result_list.append(fmoves is not None)
+        if any(result_list):
+            return result
+    return fn
+
+def par(fs):
+    def fn(moves):
+        for f in fs:
+            result = f(moves)
+            if result is not None:
+                return result
+    return fn
+
+def cond(*pred):
+    def fn(f):
+        def fc(moves):
+            if all(pred):
+                return f(moves)
+        return fc
+    return fn
+
+def ________MAIN________():
+    return
+
+def init_game(game_state):
+    g = GameTurn()
+    g.state = game_state
+    g.width = g.state["board"]["width"]
+    g.height = g.state["board"]["height"]
+    g.id = game_state["game"]["id"]
+    g.turn = game_state["turn"]
+
+    g.snakes = [
+        Snake(
+            name = snake["name"],
+            body = get_coord(snake["body"]),
+            health = snake["health"],
+            id = snake["id"]
+        )
+        for snake in game_state["board"]["snakes"]
+    ]
+    g.me = [snake for snake in g.snakes for c in [game_state["you"]["body"][0]] if snake.head == (c["x"], c["y"])][0]
+    g.others = [snake for snake in g.snakes if snake.head != g.me.head]
+
+    if len(g.others) == 0:
+        g.me.decision_path.append("only myself")
+    elif len(g.others) == 1:
+        g.me.decision_path.append("1v1")
+        g.other = g.others[0]
+    else:
+        g.me.decision_path.append("1vn")
+
+    g.food = get_coord(game_state["board"]["food"])
+
+    g.log["id"] = game_state["game"]["id"]
+    g.log["turn"] = game_state["turn"]
+    g.log["me"] = g.me.dict()
+    g.log["others"] = [snake.dict() for snake in g.others]
+    g.log["food"] = g.food
+    return g
+
+def main(game_state, log=True):
+
+    g = init_game(game_state)
+
+    g.start_time = time.time()
+
+    moves = decision_flow(g)
+
+    g.next_coord = take_first(moves)    
+    next_move = get_adjacent_dir(g.me.head, g.next_coord)
+
+    g.end_time = time.time()
+
+    g.log["module"] = "territory"
+    g.log["decision_path"] = g.me.decision_path
+    g.log["allowed_moves"] = g.me.allowed_moves
+    g.log["next_coord"] = g.next_coord
+    g.log["next_move"] = next_move
+    g.log["time"] = f"{g.end_time - g.start_time:.3f}s"
+
+
+    if log: 
+        #print(g.log)
+        print(str(g.log).encode('ascii', 'ignore').decode())
+    #print(g.log["time"])
+
+    game_state["next_move"] = next_move
+    return True
+
+def ________LOCAL_MAIN________():
+    return
+
+def reverse_coord(cs):
+    return [{"x":x, "y":y} for x,y in cs]
+
+def init_from_log(log):
+    others = [ {
+            "id": snake.get("id", None),
+            "name": snake["name"],
+            "health": snake["health"],
+            "body": reverse_coord(snake["body"]),
+        } for snake in log["others"] ]
+    me = [ {
+            "id": snake.get("id", None),
+            "name": snake["name"],
+            "health": snake["health"],
+            "body": reverse_coord(snake["body"]),
+        } for snake in [log["me"]] ][0]
+
+    game_state = {
+        "game": {
+                "id": log["id"]
+            },
+        "turn": log["turn"],
+        "you": me,
+        "board": {
+                "width": 11,
+                "height": 11,
+                "snakes": [me, *others],
+                "food": reverse_coord(log["food"]),
+            },
+    }
+    return game_state
+
+def init_from_game_engine_log(log, name):
+    snakes = [{
+            "name": snake["name"],
+            "health": snake["health"],
+            "body": reverse_coord(snake["body"]),
+            "id": snake["name"],
+        } for snake in log["snakes"] if snake["alive"] ]
+    me = [snake for snake in snakes if snake["name"] == name][0]
+    others = [snake for snake in snakes if snake["name"] != name]
+    game_state = {
+        "game": {
+                "id": log["id"]
+            },
+        "turn": log["turn"],
+        "you": me,
+        "board": {
+                "width": 11,
+                "height": 11,
+                "snakes": [me, *others],
+                "food": reverse_coord(log["food"]),
+            },
+    }
+    return game_state
+
+
+
+if __name__ == "__main__":
+    log = {'id': '412eb218-7d79-47dd-9fac-d7790746e84b', 'turn': 130, 'me': {'name': 'mark_snake', 'health': 76, 'length': 9, 'body': [(10, 4), (9, 4), (8, 4), (8, 3), (8, 2), (8, 1), (8, 0), (9, 0), (9, 1)], 'id': 'gs_wQHFKkBppPTcP9MRKYR6tG6R'}, 'others': [{'name': 'Aurora', 'health': 90, 'length': 11, 'body': [(3, 3), (3, 4), (3, 5), (3, 6), (3, 7), (3, 8), (3, 9), (4, 9), (4, 8), (4, 7), (4, 6)], 'id': 'gs_TdjmVSf63wJbYDMWtpjDwbmX'}, {'name': 'Shapeshifter', 'health': 88, 'length': 13, 'body': [(5, 5), (5, 4), (6, 4), (6, 3), (5, 3), (5, 2), (4, 2), (3, 2), (2, 2), (2, 1), (2, 0), (1, 0), (0, 0)], 'id': 'gs_8GFSFdpr96BvKKtXvrSt3R8d'}, {'name': 'Slytherin', 'health': 97, 'length': 11, 'body': [(7, 5), (8, 5), (8, 6), (8, 7), (8, 8), (8, 9), (7, 9), (7, 10), (6, 10), (6, 9), (6, 8)], 'id': 'gs_TwbwkG6d3BWHw3BwJykVwgyW'}], 'food': [(0, 9)], 'module': 'territory', 'decision_path': ['split take larger ([(10, 3)], 48)'], 'next_coord': (10, 3), 'next_move': 'down', 'time': '0.042s'}
+    log = {'id': '08e65bc6-f09f-4ac1-8052-02928ce7484c', 'turn': 319, 'me': {'name': 'mark_snake', 'health': 88, 'length': 24, 'body': [(10, 7), (10, 8), (10, 9), (10, 10), (9, 10), (8, 10), (7, 10), (7, 9), (8, 9), (9, 9), (9, 8), (8, 8), (7, 8), (6, 8), (5, 8), (4, 8), (3, 8), (3, 9), (4, 9), (4, 10), (3, 10), (2, 10), (2, 9), (2, 8)], 'id': 'gs_SRmTvgwDScBm3KYG7jCvbP7b'}, 'others': [{'name': 'Slytherin', 'health': 95, 'length': 21, 'body': [(8, 7), (7, 7), (7, 6), (7, 5), (6, 5), (5, 5), (5, 4), (5, 3), (4, 3), (4, 2), (3, 2), (3, 3), (2, 3), (1, 3), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8), (0, 9)], 'id': 'gs_dSrGdpkHGRppx4bdCmjbjk6K'}], 'food': [(10, 0), (8, 2), (5, 0), (9, 5)], 'module': 'territory', 'decision_path': ['all possible confined [(9, 7), (10, 6)]', 'border analysis move go (9, 7)'], 'next_coord': (9, 7), 'next_move': 'left', 'time': '0.019s'}
+    log = {'id': 'd8674782-571a-4d97-8e03-f4c5d96e416c', 'turn': 220, 'me': {'name': 'mark_snake', 'health': 88, 'length': 21, 'body': [(1, 9), (0, 9), (0, 8), (0, 7), (0, 6), (0, 5), (0, 4), (0, 3), (0, 2), (0, 1), (0, 0), (1, 0), (2, 0), (2, 1), (2, 2), (2, 3), (2, 4), (2, 5), (1, 5), (1, 6), (1, 7)], 'id': 'gs_7SyCCg3PRjCThvW6PVfyYBdP'}, 'others': [{'name': ' Kwisatz Haderach', 'health': 88, 'length': 10, 'body': [(3, 9), (3, 10), (4, 10), (4, 9), (4, 8), (4, 7), (4, 6), (4, 5), (5, 5), (5, 4)], 'id': 'gs_wbPdPQ86VvRQFmjbTrQwjt9f'}], 'food': [(8, 0), (10, 0), (9, 4), (2, 9), (6, 1), (6, 3)], 'module': 'territory', 'decision_path': ['general possible confine [(1, 10)]', 'border analysis move go (2, 9)'], 'next_coord': (2, 9), 'next_move': 'right', 'time': '0.045s'}
+    log = {'id': '2a9d131f-6005-4233-abda-1bdfeb48d0f6', 'turn': 11, 'me': {'name': 'mark_snake', 'health': 91, 'length': 4, 'body': [(10, 3), (9, 3), (9, 4), (8, 4)], 'id': 'gs_FXGMtqPTFkCPF6HcFtmJtqtT'}, 'others': [{'name': 'SmartyRat', 'health': 89, 'length': 3, 'body': [(6, 7), (6, 8), (5, 8)], 'id': 'gs_qQSYDfXXkwfbGxpD3XCYxkRR'}, {'name': 'Geriatric Jagwire', 'health': 99, 'length': 5, 'body': [(5, 4), (5, 5), (5, 6), (4, 6), (4, 5)], 'id': 'gs_hvRrVtpC4gwYkKfvh79MwmX4'}, {'name': 'Shapeshifter', 'health': 99, 'length': 5, 'body': [(8, 3), (8, 2), (7, 2), (7, 3), (6, 3)], 'id': 'gs_YJ3BhGGHmMcgxWRcDYqtqMwS'}], 'food': [(4, 10), (6, 4)], 'module': 'territory', 'decision_path': ['border analysis move go (10, 4)'], 'next_coord': (10, 4), 'next_move': 'up', 'time': '0.060s'}
+    log = {'id': '679f52c7-6cfe-4707-a30c-ae07d08b0b89', 'turn': 81, 'me': {'name': 'mark_snake', 'health': 95, 'length': 7, 'body': [(3, 0), (3, 1), (2, 1), (1, 1), (0, 1), (0, 0), (1, 0)], 'id': 'gs_rQRX9H3cMdfVPWmxH7bRgmJJ'}, 'others': [{'name': 'snakey_wakey', 'health': 96, 'length': 7, 'body': [(5, 2), (4, 2), (3, 2), (2, 2), (2, 3), (3, 3), (4, 3)], 'id': 'gs_d3xFC8yQW9RPS7YpFRqCyJwW'}, {'name': 'Aurora', 'health': 85, 'length': 8, 'body': [(2, 5), (3, 5), (4, 5), (4, 6), (4, 7), (4, 8), (3, 8), (2, 8)], 'id': 'gs_gTmkPhYYXbCpph7vwkvfQJ7T'}, {'name': 'HydraOxide', 'health': 97, 'length': 12, 'body': [(8, 3), (9, 3), (10, 3), (10, 4), (9, 4), (8, 4), (7, 4), (7, 5), (7, 6), (7, 7), (7, 8), (6, 8)], 'id': 'gs_Bk9MVdXbCdcfYY3JRhFPmtH6'}], 'food': [(5, 1), (10, 9)], 'module': 'territory', 'decision_path': ['all possible confined [(4, 0), (2, 0)]', 'split avoid enemy eating food confine [(2, 0)]'], 'next_coord': (4, 0), 'next_move': 'right', 'time': '0.034s'}
+    log = {'id': 'eb801b04-db38-44fb-999f-a07137ffdd1f', 'turn': 364, 'me': {'name': 'mark_snake', 'health': 87, 'length': 32, 'body': [(3, 5), (3, 6), (3, 7), (3, 8), (3, 9), (4, 9), (4, 10), (5, 10), (6, 10), (7, 10), (8, 10), (8, 9), (9, 9), (9, 10), (10, 10), (10, 9), (10, 8), (10, 7), (10, 6), (9, 6), (8, 6), (7, 6), (7, 7), (7, 8), (6, 8), (5, 8), (5, 7), (6, 7), (6, 6), (5, 6), (4, 6), (4, 5)], 'id': 'gs_X4tfb8t4CHT6vb9qM3KrxH78'}, 'others': [{'name': 'SnattleBake_v060s', 'health': 92, 'length': 19, 'body': [(4, 4), (3, 4), (3, 3), (4, 3), (5, 3), (5, 2), (4, 2), (4, 1), (5, 1), (6, 1), (7, 1), (8, 1), (8, 0), (9, 0), (10, 0), (10, 1), (9, 1), (9, 2), (9, 3)], 'id': 'gs_HvFtDp6mt3KtVQg6g6bXW9WF'}], 'food': [(2, 0), (0, 5)], 'module': 'territory', 'decision_path': ['border analysis move go (4, 5)'], 'next_coord': (4, 5), 'next_move': 'right', 'time': '0.026s'}
+    log = {'id': 'e3938bf1-83bd-4430-b38e-7581cb216080', 'turn': 48, 'me': {'name': 'mark_snake_test RED', 'health': 69, 'length': 4, 'body': [(0, 6), (0, 5), (1, 5), (2, 5)]}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 86, 'length': 7, 'body': [(1, 7), (1, 8), (1, 9), (1, 10), (2, 10), (3, 10), (4, 10)]}, {'name': 'mark_snake_test GREEN', 'health': 72, 'length': 5, 'body': [(6, 4), (5, 4), (5, 5), (5, 6), (6, 6)]}, {'name': 'mark_snake_test YELLOW', 'health': 96, 'length': 7, 'body': [(6, 2), (5, 2), (4, 2), (3, 2), (2, 2), (2, 1), (2, 0)]}], 'food': [(8, 2), (5, 7)]}
+    log = {'id': 'd89a640e-64cf-4e9a-aacc-4d877b79f275', 'turn': 370, 'me': {'name': 'mark_snake', 'health': 42, 'length': 28, 'body': [(1, 9), (1, 10), (0, 10), (0, 9), (0, 8), (0, 7), (0, 6), (0, 5), (1, 5), (1, 6), (1, 7), (2, 7), (2, 6), (2, 5), (2, 4), (1, 4), (1, 3), (1, 2), (1, 1), (2, 1), (2, 2), (2, 3), (3, 3), (3, 4), (3, 5), (3, 6), (4, 6), (5, 6)], 'id': 'gs_WPBHyPYfBmwSCJwcw67JRGyT'}, 'others': [{'name': ' Kwisatz Haderach', 'health': 90, 'length': 22, 'body': [(4, 8), (5, 8), (6, 8), (7, 8), (7, 7), (7, 6), (7, 5), (8, 5), (9, 5), (9, 6), (8, 6), (8, 7), (8, 8), (8, 9), (7, 9), (6, 9), (6, 10), (5, 10), (4, 10), (3, 10), (3, 9), (4, 9)], 'id': 'gs_BJbrDdm8TtGrHckpMDHYDphT'}], 'food': [(0, 0), (3, 7), (10, 5), (0, 1), (6, 5), (2, 0), (10, 10), (9, 1)], 'module': 'territory', 'decision_path': ['chasing other body meander to (7, 9) via (1, 8)'], 'next_coord': (1, 8), 'next_move': 'down', 'time': '0.031s'}
+    log = {'id': '8788d775-29cc-4dc0-8a6b-87c2b57667e5', 'turn': 25, 'me': {'name': 'mark_snake_test RED', 'health': 77, 'length': 4, 'body': [(3, 2), (4, 2), (5, 2), (6, 2)]}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 83, 'length': 5, 'body': [(3, 4), (3, 5), (3, 6), (3, 7), (3, 8)]}, {'name': 'mark_snake_test GREEN', 'health': 85, 'length': 6, 'body': [(6, 7), (7, 7), (7, 8), (7, 9), (7, 10), (6, 10)]}, {'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 6, 'body': [(3, 0), (2, 0), (2, 1), (2, 2), (2, 3), (3, 3)]}], 'food': [(5, 10)], 'module': 'territory', 'decision_path': ['1vn', 'undecided [(3, 3), (3, 1)]'], 'allowed_moves': [(3, 3), (3, 1)], 'next_coord': (3, 3), 'next_move': 'up', 'time': '0.001s'}
+    log = {'id': '314247f9-2413-46ee-b71f-5bff76f1c5cc', 'turn': 28, 'me': {'name': 'mark_snake_test RED', 'health': 97, 'length': 5, 'body': [(4, 4), (5, 4), (6, 4), (7, 4), (8, 4)]}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 88, 'length': 6, 'body': [(7, 1), (6, 1), (5, 1), (4, 1), (3, 1), (3, 0)]}, {'name': 'mark_snake_test GREEN', 'health': 96, 'length': 5, 'body': [(5, 9), (4, 9), (4, 8), (5, 8), (6, 8)]}, {'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 6, 'body': [(3, 5), (2, 5), (2, 4), (3, 4), (3, 3), (3, 2)]}], 'food': [(9, 7)], 'module': 'territory', 'decision_path': ['1vn', 'undecided [(4, 5), (4, 3)]'], 'allowed_moves': [(4, 5), (4, 3)], 'next_coord': (4, 5), 'next_move': 'up', 'time': '0.002s'}
+    log = {'id': 'ea871feb-9018-436a-8707-e00a473e237c', 'turn': 128, 'me': {'name': 'mark_snake_test RED', 'health': 26, 'length': 6, 'body': [(8, 10), (9, 10), (10, 10), (10, 9), (9, 9), (9, 8)]}, 'others': [{'name': 'mark_snake_test YELLOW', 'health': 86, 'length': 18, 'body': [(8, 8), (8, 7), (7, 7), (6, 7), (6, 6), (6, 5), (6, 4), (5, 4), (5, 5), (4, 5), (3, 5), (2, 5), (1, 5), (1, 6), (1, 7), (0, 7), (0, 8), (1, 8)]}], 'food': [(4, 1), (3, 7), (0, 1), (10, 7)], 'module': 'territory', 'decision_path': ['1v1', 'avoid border suppressed (7, 10)'], 'allowed_moves': [(8, 9)], 'next_coord': (8, 9), 'next_move': 'down', 'time': '0.001s'}
+
+    game_state = init_from_log(log)
+    self_name = "mark_snake_test RED"
+    #game_state = init_from_db_log(id, turn, self_name)
+    # game_state = init_from_game_engine_log(log, self_name)
+    main(game_state, log=True)
