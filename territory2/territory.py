@@ -96,6 +96,9 @@ def decision_flow(g: GameTurn):
             # distance 4
             , avoid_next_step_11
 
+            # low priority
+            , avoid_low_space_moves(factor=2)
+
             , undecided
         ])(g.me.allowed_moves)
 
@@ -236,6 +239,26 @@ def decision_flow(g: GameTurn):
             if len(moves) != 0:
                 g.me.decision_path.append(f"avoid definte confine {moves_to_avoid}")
                 return moves
+        return fn
+
+    def avoid_low_space_moves(factor):
+        def fn(moves):
+            moves_space = []
+            for a in moves:
+                me2 = snake_next_step(g, g.me, a)
+                ng = default_next_game_turn(me2, [])
+                flood_territory(ng)
+                territory_point_level(ng)
+                territory_set(ng)
+                moves_space.append((a, len(ng.me.territory)))
+            min_space = min([nspace for a,nspace in moves_space])
+            cutoff_space = int(min_space * factor)
+            low_space_moves = [a for a,nspace in moves_space if nspace < cutoff_space]
+            moves = [a for a in moves if a not in low_space_moves]
+            if len(moves) != 0:
+                g.me.decision_path.append(f"avoid low space moves {low_space_moves}")
+                return moves
+
         return fn
 
     def avoid_next_step_confined(moves):
@@ -871,6 +894,7 @@ if __name__ == "__main__":
     log = {'id': 'e1d6a2e7-a17f-4ccb-baaf-30cfbc1e7b33', 'turn': 52, 'me': {'name': 'mark_snake_test RED', 'health': 97, 'length': 5, 'body': [(10, 4), (9, 4), (8, 4), (7, 4), (7, 3)]}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 100, 'length': 9, 'body': [(7, 5), (6, 5), (6, 4), (5, 4), (4, 4), (3, 4), (3, 5), (3, 6), (3, 6)]}, {'name': 'mark_snake_test GREEN', 'health': 94, 'length': 9, 'body': [(2, 6), (2, 5), (2, 4), (1, 4), (1, 3), (1, 2), (1, 1), (2, 1), (3, 1)]}, {'name': 'mark_snake_test YELLOW', 'health': 92, 'length': 9, 'body': [(4, 8), (4, 7), (4, 6), (5, 6), (5, 7), (5, 8), (5, 9), (5, 10), (4, 10)]}], 'food': [(9, 10)], 'module': 'territory', 'decision_path': ['1vn', 'undecided [(10, 5), (10, 3)]'], 'allowed_moves': [(10, 5), (10, 3)], 'next_coord': (10, 5), 'next_move': 'up', 'time': '0.002s'}
     log = {'id': '1771397f-d723-4f86-8492-5238c12f6cfb', 'turn': 16, 'me': {'name': 'mark_snake_test RED', 'health': 94, 'length': 5, 'body': [(9, 1), (8, 1), (7, 1), (6, 1), (5, 1)]}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 98, 'length': 6, 'body': [(7, 3), (6, 3), (5, 3), (4, 3), (4, 4), (4, 5)]}, {'name': 'mark_snake_test GREEN', 'health': 86, 'length': 4, 'body': [(7, 7), (6, 7), (6, 6), (7, 6)]}, {'name': 'mark_snake_test YELLOW', 'health': 86, 'length': 4, 'body': [(2, 2), (2, 3), (2, 4), (2, 5)]}], 'food': [(8, 10)], 'module': 'territory', 'decision_path': ['1vn', "avoid next step 11 collision {'mark_snake_test BLUE'}", 'undecided [(10, 1), (9, 0)]'], 'allowed_moves': [(10, 1), (9, 2), (9, 0)], 'next_coord': (10, 1), 'next_move': 'right', 'time': '0.003s'}
     log = {'id': 'b0519261-7aae-426d-8ac7-a46d53ef6797', 'turn': 49, 'me': {'name': 'mark_snake', 'health': 66, 'length': 6, 'body': [(9, 10), (9, 9), (10, 9), (10, 8), (9, 8), (8, 8)]}, 'others': [{'name': 'Kaisel', 'health': 97, 'length': 6, 'body': [(7, 0), (8, 0), (9, 0), (9, 1), (8, 1), (8, 2)]}, {'name': 'aegis', 'health': 80, 'length': 5, 'body': [(8, 3), (8, 4), (9, 4), (9, 5), (9, 6)]}, {'name': 'Kaizen', 'health': 90, 'length': 9, 'body': [(7, 8), (7, 7), (7, 6), (6, 6), (5, 6), (5, 5), (4, 5), (4, 4), (4, 3)]}], 'food': [(2, 3)], 'module': 'territory', 'decision_path': ['1vn', "avoid border suppressed (8, 10), ('Kaizen', (8, 8))"], 'allowed_moves': [(10, 10)], 'next_coord': (10, 10), 'next_move': 'right', 'time': '0.003s'}
+    log = {'id': '1b6c4234-ae07-407b-9d5c-4e18f77db0c0', 'turn': 33, 'me': {'name': 'mark_snake', 'health': 69, 'length': 4, 'body': [(6, 9), (5, 9), (5, 10), (4, 10)]}, 'others': [{'name': 'Sandworm', 'health': 87, 'length': 5, 'body': [(8, 9), (7, 9), (7, 8), (7, 7), (8, 7)]}, {'name': 'theOldSnake', 'health': 91, 'length': 5, 'body': [(6, 3), (7, 3), (8, 3), (8, 4), (7, 4)]}, {'name': 'SnattleBake_v060s', 'health': 87, 'length': 6, 'body': [(4, 9), (4, 8), (4, 7), (4, 6), (3, 6), (2, 6)]}], 'food': [(1, 4), (2, 0)], 'module': 'territory new', 'decision_path': ['1vn', 'undecided [(6, 10), (6, 8)]'], 'allowed_moves': [(6, 10), (6, 8)], 'next_coord': (6, 10), 'next_move': 'up', 'time': '0.008s'}
 
     game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
