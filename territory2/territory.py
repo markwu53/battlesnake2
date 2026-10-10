@@ -167,7 +167,17 @@ def decision_flow(g: GameTurn):
                     me2 = snake_next_step(g, g.me, a)
                     snake2 = snake_next_step(g, snake, b)
                     ng = default_next_game_turn(me2, [snake2])
+
                     if has_direct_wayout(ng): continue
+
+                    # this code checks if it's a fake leading suppressed situation
+                    if len(me2.allowed_moves) == 2:
+                        other = [p for p in me2.allowed_moves if not is_adjacent(p, snake2.head)]
+                        if len(other) == 1:
+                            other = take_first(other)
+                            if other in ng.me.territory:
+                                continue
+
                     moves.remove(a)
                     g.me.decision_path.append(f"avoid nonborder leading suppressed {a}, {snake.name, b}")
                     return moves
@@ -529,10 +539,13 @@ def default_next_snakes(g: GameTurn, provided_snakes: list[Snake]):
             if len(allowed_moves) == 0: continue
 
         new_head = take_first(allowed_moves)
-        squeeze_moves = [a for a in allowed_moves if distance_pq(a, me_head) in [3, 5]]
+        squeeze_moves_4 = [a for a in allowed_moves if distance_pq(a, me_head) == 3]
+        squeeze_moves_6 = [a for a in allowed_moves if distance_pq(a, me_head) == 5]
         food_moves = [a for a in allowed_moves if a in g.food]
-        if len(squeeze_moves) != 0:
-            new_head = take_first(squeeze_moves)
+        if len(squeeze_moves_4) != 0:
+            new_head = take_first(squeeze_moves_4)
+        elif len(squeeze_moves_6) != 0:
+            new_head = take_first(squeeze_moves_6)
         elif len(food_moves) != 0:
             new_head = take_first(food_moves)
         new_heads.add(new_head)
@@ -910,6 +923,7 @@ if __name__ == "__main__":
     log = {'id': 'dba7ee8b-611d-4e8a-810d-621ff571e214', 'turn': 117, 'me': {'name': 'mark_snake', 'health': 76, 'length': 11, 'body': [(4, 1), (3, 1), (2, 1), (1, 1), (0, 1), (0, 2), (1, 2), (2, 2), (3, 2), (4, 2), (5, 2)]}, 'others': [{'name': 'Python Python', 'health': 97, 'length': 7, 'body': [(2, 9), (1, 9), (0, 9), (0, 8), (0, 7), (1, 7), (2, 7)]}, {'name': 'Kaizen', 'health': 84, 'length': 14, 'body': [(7, 2), (7, 3), (6, 3), (6, 4), (5, 4), (5, 5), (4, 5), (4, 6), (5, 6), (6, 6), (7, 6), (7, 7), (7, 8), (8, 8)]}], 'food': [(8, 0)], 'module': 'territory new', 'decision_path': ['1vn', "avoid next step 11 collision {'Kaizen'}"], 'allowed_moves': [(5, 1), (4, 0)], 'next_coord': (4, 0), 'next_move': 'down', 'time': '0.007s'}
     log = {'id': '15bf61a5-7276-46aa-b17f-4e6a3badeedf', 'turn': 42, 'me': {'name': 'mark_snake', 'health': 88, 'length': 5, 'body': [(0, 8), (1, 8), (2, 8), (2, 9), (2, 10)]}, 'others': [{'name': 'nom10', 'health': 92, 'length': 5, 'body': [(7, 1), (6, 1), (5, 1), (4, 1), (3, 1)]}, {'name': 'Hovering Hobbs', 'health': 98, 'length': 7, 'body': [(6, 4), (5, 4), (5, 5), (6, 5), (7, 5), (7, 6), (7, 7)]}, {'name': 'Game Over', 'health': 84, 'length': 6, 'body': [(5, 9), (5, 8), (5, 7), (4, 7), (4, 8), (3, 8)]}], 'food': [(9, 1)], 'module': 'territory new', 'decision_path': ['1vn', 'undecided [(0, 9), (0, 7)]'], 'allowed_moves': [(0, 9), (0, 7)], 'next_coord': (0, 9), 'next_move': 'up', 'time': '0.010s'}
     log = {'id': '0b1deb87-efd1-400c-bc76-73da7018e4db', 'turn': 28, 'me': {'name': 'mark_snake_test RED', 'health': 88, 'length': 5, 'body': [(10, 2), (10, 1), (9, 1), (8, 1), (7, 1)]}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 97, 'length': 8, 'body': [(7, 3), (6, 3), (5, 3), (4, 3), (3, 3), (3, 2), (3, 1), (2, 1)]}, {'name': 'mark_snake_test GREEN', 'health': 96, 'length': 7, 'body': [(5, 9), (6, 9), (7, 9), (8, 9), (9, 9), (9, 8), (9, 7)]}, {'name': 'mark_snake_test YELLOW', 'health': 74, 'length': 4, 'body': [(4, 8), (5, 8), (6, 8), (7, 8)]}], 'food': [(10, 3), (4, 9)], 'module': 'territory new', 'decision_path': ['1vn', 'avoid definte confine [(9, 2)]'], 'allowed_moves': [(9, 2), (10, 3)], 'next_coord': (10, 3), 'next_move': 'up', 'time': '0.001s'}
+    log = {'id': 'b6f01cbe-dccc-436f-8563-d49220981d99', 'turn': 104, 'me': {'name': 'mark_snake_test RED', 'health': 78, 'length': 11, 'body': [(3, 7), (4, 7), (5, 7), (6, 7), (7, 7), (8, 7), (9, 7), (10, 7), (10, 6), (9, 6), (8, 6)]}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 98, 'length': 14, 'body': [(1, 9), (0, 9), (0, 8), (1, 8), (1, 7), (1, 6), (1, 5), (2, 5), (3, 5), (3, 4), (2, 4), (1, 4), (0, 4), (0, 3)]}, {'name': 'mark_snake_test GREEN', 'health': 72, 'length': 10, 'body': [(3, 9), (4, 9), (5, 9), (6, 9), (7, 9), (8, 9), (9, 9), (10, 9), (10, 8), (9, 8)]}, {'name': 'mark_snake_test YELLOW', 'health': 92, 'length': 16, 'body': [(5, 5), (5, 4), (6, 4), (7, 4), (8, 4), (8, 3), (8, 2), (7, 2), (7, 1), (7, 0), (6, 0), (5, 0), (4, 0), (4, 1), (5, 1), (6, 1)]}], 'food': [(0, 7)], 'module': 'territory new', 'decision_path': ['1vn', "avoid nonborder suppressed (2, 7), ('mark_snake_test BLUE', (2, 9))", "avoid nonborder leading suppressed (3, 8), ('mark_snake_test GREEN', (2, 9))"], 'allowed_moves': [(3, 6)], 'next_coord': (3, 6), 'next_move': 'down', 'time': '0.004s'}
 
     game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
