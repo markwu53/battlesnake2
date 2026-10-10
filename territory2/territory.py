@@ -90,6 +90,8 @@ def decision_flow(g: GameTurn):
             , calculate_flood_territory
             , get_food(4)
 
+            # , check_status
+
             # distance 4
             , avoid_next_step_11
 
@@ -98,6 +100,10 @@ def decision_flow(g: GameTurn):
 
     def ________MOVE_FUNCTIONS________():
         return
+
+    def check_status(moves):
+        print(len(g.me.territory))
+        print(sorted(list(g.me.territory)))
 
     def avoid_next_step_11(moves):
         moves_to_avoid = set()
@@ -190,7 +196,7 @@ def decision_flow(g: GameTurn):
                     me2 = snake_next_step(g, g.me, a)
                     snake2 = snake_next_step(g, snake, b)
                     ng = default_next_game_turn(me2, [snake2])
-                    if has_direct_wayout(ng): continue
+                    if has_direct_wayout_border(ng): continue
                     moves.remove(a)
                     g.me.decision_path.append(f"avoid border leading suppressed {a}, {snake.name, b}")
                     return moves
@@ -208,7 +214,7 @@ def decision_flow(g: GameTurn):
                     me2 = snake_next_step(g, g.me, a)
                     snake2 = snake_next_step(g, snake, b)
                     ng = default_next_game_turn(me2, [snake2])
-                    if has_direct_wayout(ng): continue
+                    if has_direct_wayout_border(ng): continue
                     moves.remove(a)
                     g.me.decision_path.append(f"avoid border suppressed {a}, {snake.name, b}")
                     return moves
@@ -381,6 +387,17 @@ def decision_flow(g: GameTurn):
 
     def nothing(moves):
         return
+
+    def has_direct_wayout_border(ng: GameTurn):
+        flood_territory(ng)
+        territory_point_level(ng)
+        territory_set(ng)
+        static_flood_territory(ng)
+        static_territory_point_level(ng)
+        static_territory_set(ng)
+        lens = len(ng.me.static_territory)
+        lent = len(ng.me.territory)
+        return lens != lent
 
     def has_direct_wayout(ng: GameTurn):
         flood_territory(ng)
@@ -832,6 +849,8 @@ if __name__ == "__main__":
     log = {'id': 'ab82a8ec-ec98-42df-b19f-0b62839c37d6', 'turn': 73, 'me': {'name': 'mark_snake_test RED', 'health': 56, 'length': 8, 'body': [(7, 8), (8, 8), (9, 8), (10, 8), (10, 9), (10, 10), (9, 10), (9, 9)]}, 'others': [{'name': 'mark_snake_test GREEN', 'health': 91, 'length': 11, 'body': [(7, 10), (6, 10), (5, 10), (4, 10), (4, 9), (4, 8), (5, 8), (5, 7), (6, 7), (6, 6), (6, 5)]}, {'name': 'mark_snake_test YELLOW', 'health': 95, 'length': 9, 'body': [(2, 1), (2, 2), (1, 2), (1, 3), (0, 3), (0, 4), (1, 4), (2, 4), (2, 3)]}], 'food': [(2, 0), (9, 0), (8, 10), (4, 1)], 'module': 'territory', 'decision_path': ['1vn', 'avoid single confront collision [(7, 9)]', "avoid nonborder suppressed (7, 7), ('mark_snake_test GREEN', (7, 9))"], 'allowed_moves': [(6, 8), (7, 9), (7, 7)], 'next_coord': (6, 8), 'next_move': 'left', 'time': '0.001s'}
     log = {'id': '3860d4e4-2397-471b-8056-89e38a3007cd', 'turn': 129, 'me': {'name': 'mark_snake_test RED', 'health': 100, 'length': 10, 'body': [(9, 6), (9, 7), (10, 7), (10, 8), (10, 9), (9, 9), (9, 8), (8, 8), (7, 8), (7, 8)]}, 'others': [{'name': 'mark_snake_test GREEN', 'health': 68, 'length': 11, 'body': [(7, 6), (6, 6), (6, 5), (6, 4), (6, 3), (5, 3), (4, 3), (3, 3), (2, 3), (2, 4), (3, 4)]}, {'name': 'mark_snake_test YELLOW', 'health': 74, 'length': 15, 'body': [(6, 7), (5, 7), (4, 7), (4, 8), (3, 8), (2, 8), (2, 7), (2, 6), (2, 5), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (2, 9)]}], 'food': [(10, 0), (8, 6)], 'module': 'territory', 'decision_path': ['1vn', 'avoid single confront collision [(8, 6)]', "avoid nonborder suppressed (9, 5), ('mark_snake_test GREEN', (7, 5))"], 'allowed_moves': [(10, 6), (8, 6), (9, 5)], 'next_coord': (10, 6), 'next_move': 'right', 'time': '0.001s'}
     log = {'id': '3d34e11a-5bc8-4b82-8efd-f19931ab85d8', 'turn': 88, 'me': {'name': 'mark_snake_test RED', 'health': 94, 'length': 7, 'body': [(9, 1), (9, 0), (10, 0), (10, 1), (10, 2), (10, 3), (9, 3)]}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 83, 'length': 10, 'body': [(7, 7), (7, 8), (6, 8), (5, 8), (4, 8), (3, 8), (3, 9), (2, 9), (1, 9), (1, 8)]}, {'name': 'mark_snake_test GREEN', 'health': 95, 'length': 14, 'body': [(8, 2), (8, 3), (8, 4), (9, 4), (10, 4), (10, 5), (9, 5), (8, 5), (7, 5), (6, 5), (6, 6), (6, 7), (5, 7), (5, 6)]}, {'name': 'mark_snake_test YELLOW', 'health': 88, 'length': 7, 'body': [(6, 10), (7, 10), (7, 9), (8, 9), (8, 8), (9, 8), (9, 7)]}], 'food': [(0, 10)], 'module': 'territory', 'decision_path': ['1vn', 'choose collision -'], 'allowed_moves': [(8, 1), (9, 2)], 'next_coord': (8, 1), 'next_move': 'left', 'time': '0.001s'}
+    log = {'id': 'e1d6a2e7-a17f-4ccb-baaf-30cfbc1e7b33', 'turn': 52, 'me': {'name': 'mark_snake_test RED', 'health': 97, 'length': 5, 'body': [(10, 4), (9, 4), (8, 4), (7, 4), (7, 3)]}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 100, 'length': 9, 'body': [(7, 5), (6, 5), (6, 4), (5, 4), (4, 4), (3, 4), (3, 5), (3, 6), (3, 6)]}, {'name': 'mark_snake_test GREEN', 'health': 94, 'length': 9, 'body': [(2, 6), (2, 5), (2, 4), (1, 4), (1, 3), (1, 2), (1, 1), (2, 1), (3, 1)]}, {'name': 'mark_snake_test YELLOW', 'health': 92, 'length': 9, 'body': [(4, 8), (4, 7), (4, 6), (5, 6), (5, 7), (5, 8), (5, 9), (5, 10), (4, 10)]}], 'food': [(9, 10)], 'module': 'territory', 'decision_path': ['1vn', 'undecided [(10, 5), (10, 3)]'], 'allowed_moves': [(10, 5), (10, 3)], 'next_coord': (10, 5), 'next_move': 'up', 'time': '0.002s'}
+    log = {'id': '1771397f-d723-4f86-8492-5238c12f6cfb', 'turn': 16, 'me': {'name': 'mark_snake_test RED', 'health': 94, 'length': 5, 'body': [(9, 1), (8, 1), (7, 1), (6, 1), (5, 1)]}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 98, 'length': 6, 'body': [(7, 3), (6, 3), (5, 3), (4, 3), (4, 4), (4, 5)]}, {'name': 'mark_snake_test GREEN', 'health': 86, 'length': 4, 'body': [(7, 7), (6, 7), (6, 6), (7, 6)]}, {'name': 'mark_snake_test YELLOW', 'health': 86, 'length': 4, 'body': [(2, 2), (2, 3), (2, 4), (2, 5)]}], 'food': [(8, 10)], 'module': 'territory', 'decision_path': ['1vn', "avoid next step 11 collision {'mark_snake_test BLUE'}", 'undecided [(10, 1), (9, 0)]'], 'allowed_moves': [(10, 1), (9, 2), (9, 0)], 'next_coord': (10, 1), 'next_move': 'right', 'time': '0.003s'}
 
     game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
