@@ -89,6 +89,7 @@ def decision_flow(g: GameTurn):
             , avoid_nonborder_leading_suppressed
 
             , calculate_flood_territory
+            # , single_distance_4
             , get_food(4)
 
             # , check_status
@@ -108,6 +109,29 @@ def decision_flow(g: GameTurn):
     def check_status(moves):
         print(len(g.me.territory))
         print(sorted(list(g.me.territory)))
+
+    def single_distance_4(moves):
+        for snake in g.others:
+            if snake.length <= g.me.length: continue
+            if distance_pq(snake.head, g.me.head) == 2: return
+        snakes = [snake for snake in g.others if snake.length > g.me.length and distance_pq(snake.head, g.me.head) == 4]
+        if len(snakes) != 1: return
+        snake = take_first(snakes)
+
+        # check two steps
+        moves_to_avoid = []
+        for a in moves:
+            for b in snake.allowed_moves:
+                me2 = snake_next_step(g, g.me, a)
+                snake2 = snake_next_step(g, snake, b)
+                ng = default_next_game_turn(me2, [snake2])
+                for a2 in me2.allowed_moves:
+                    for b2 in snake2.allowed_moves:
+                        me3 = snake_next_step(ng, me2, a2)
+                        snake3 = snake_next_step(ng, snake2, b2)
+                        ng2 = default_next_game_turn(me3, [snake3])
+                        # check border suppressed
+                        if has_direct_wayout_border_suppress(ng2): continue
 
     def avoid_next_step_11(moves):
         moves_to_avoid = set()
@@ -468,6 +492,17 @@ def decision_flow(g: GameTurn):
 def ________GAME_TURN_FUNCTIONS________():
     return
 
+def has_direct_wayout_border_suppress(ng: GameTurn):
+    flood_territory(ng)
+    territory_point_level(ng)
+    territory_set(ng)
+    static_flood_territory(ng)
+    static_territory_point_level(ng)
+    static_territory_set(ng)
+    lens = len(ng.me.static_territory)
+    lent = len(ng.me.territory)
+    return lens != lent
+
 def border_confined(ng: GameTurn):
     outer_border = set()
     for a in ng.me.territory:
@@ -501,17 +536,6 @@ def border_confined(ng: GameTurn):
             if s2 - s1 != 1: return False
             if distance_pq(b1, b2) != 1: return False
     return True
-
-def has_direct_wayout_border_suppress(ng: GameTurn):
-    flood_territory(ng)
-    territory_point_level(ng)
-    territory_set(ng)
-    static_flood_territory(ng)
-    static_territory_point_level(ng)
-    static_territory_set(ng)
-    lens = len(ng.me.static_territory)
-    lent = len(ng.me.territory)
-    return lens != lent
 
 def has_direct_wayout(ng: GameTurn):
     flood_territory(ng)
@@ -951,6 +975,7 @@ if __name__ == "__main__":
     log = {'id': 'b6f01cbe-dccc-436f-8563-d49220981d99', 'turn': 104, 'me': {'name': 'mark_snake_test RED', 'health': 78, 'length': 11, 'body': [(3, 7), (4, 7), (5, 7), (6, 7), (7, 7), (8, 7), (9, 7), (10, 7), (10, 6), (9, 6), (8, 6)]}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 98, 'length': 14, 'body': [(1, 9), (0, 9), (0, 8), (1, 8), (1, 7), (1, 6), (1, 5), (2, 5), (3, 5), (3, 4), (2, 4), (1, 4), (0, 4), (0, 3)]}, {'name': 'mark_snake_test GREEN', 'health': 72, 'length': 10, 'body': [(3, 9), (4, 9), (5, 9), (6, 9), (7, 9), (8, 9), (9, 9), (10, 9), (10, 8), (9, 8)]}, {'name': 'mark_snake_test YELLOW', 'health': 92, 'length': 16, 'body': [(5, 5), (5, 4), (6, 4), (7, 4), (8, 4), (8, 3), (8, 2), (7, 2), (7, 1), (7, 0), (6, 0), (5, 0), (4, 0), (4, 1), (5, 1), (6, 1)]}], 'food': [(0, 7)], 'module': 'territory new', 'decision_path': ['1vn', "avoid nonborder suppressed (2, 7), ('mark_snake_test BLUE', (2, 9))", "avoid nonborder leading suppressed (3, 8), ('mark_snake_test GREEN', (2, 9))"], 'allowed_moves': [(3, 6)], 'next_coord': (3, 6), 'next_move': 'down', 'time': '0.004s'}
     log = {'id': 'a2c6122a-02e1-464b-9b53-c5794aae8bf9', 'turn': 149, 'me': {'name': 'mark_snake', 'health': 24, 'length': 8, 'body': [(9, 8), (10, 8), (10, 7), (9, 7), (8, 7), (7, 7), (6, 7), (5, 7)]}, 'others': [{'name': 'Geriatric Jagwire', 'health': 89, 'length': 13, 'body': [(5, 8), (4, 8), (4, 7), (4, 6), (3, 6), (3, 7), (3, 8), (2, 8), (1, 8), (1, 9), (2, 9), (2, 10), (3, 10)]}, {'name': 'SnattleBake_v060s', 'health': 51, 'length': 7, 'body': [(7, 2), (8, 2), (9, 2), (10, 2), (10, 3), (10, 4), (9, 4)]}, {'name': 'Slytherin', 'health': 92, 'length': 14, 'body': [(5, 4), (5, 5), (4, 5), (3, 5), (2, 5), (1, 5), (0, 5), (0, 4), (1, 4), (1, 3), (2, 3), (2, 4), (3, 4), (4, 4)]}], 'food': [(0, 2), (0, 7), (1, 0), (7, 1)], 'module': 'territory new', 'decision_path': ['1vn', 'next step all confined [(8, 8), (9, 9)]', "avoid nonborder suppressed (8, 8), ('Geriatric Jagwire', (6, 8))"], 'allowed_moves': [(9, 9)], 'next_coord': (9, 9), 'next_move': 'up', 'time': '0.004s'}
     log = {'id': 'b44ff423-49b1-4d46-8a7d-67b332beea12', 'turn': 94, 'me': {'name': 'mark_snake', 'health': 83, 'length': 9, 'body': [(9, 3), (9, 4), (9, 5), (10, 5), (10, 6), (9, 6), (8, 6), (7, 6), (7, 7)]}, 'others': [{'name': 'aegis', 'health': 97, 'length': 8, 'body': [(1, 5), (1, 4), (2, 4), (2, 5), (3, 5), (3, 4), (4, 4), (4, 3)]}, {'name': 'Hovering Hobbs', 'health': 63, 'length': 11, 'body': [(6, 4), (5, 4), (5, 5), (4, 5), (4, 6), (4, 7), (5, 7), (5, 8), (5, 9), (4, 9), (4, 10)]}, {'name': 'tail-v1', 'health': 93, 'length': 8, 'body': [(8, 2), (7, 2), (6, 2), (5, 2), (4, 2), (3, 2), (2, 2), (1, 2)]}], 'food': [(8, 1)], 'module': 'territory new', 'decision_path': ['1vn', 'next step all confined [(10, 3), (8, 3), (9, 2)]', "avoid nonborder leading suppressed (8, 3), ('tail-v1', (9, 2))", 'undecided [(10, 3), (9, 2)]'], 'allowed_moves': [(10, 3), (9, 2)], 'next_coord': (10, 3), 'next_move': 'right', 'time': '0.009s'}
+    log = {'id': 'ea1e2a94-272e-4d7d-a9ae-fc369398d89c', 'turn': 256, 'me': {'name': 'mark_snake', 'health': 93, 'length': 12, 'body': [(9, 9), (9, 8), (10, 8), (10, 7), (10, 6), (10, 5), (10, 4), (9, 4), (9, 5), (9, 6), (9, 7), (8, 7)]}, 'others': [{'name': 'chikorita', 'health': 47, 'length': 10, 'body': [(10, 2), (9, 2), (9, 3), (8, 3), (8, 2), (7, 2), (7, 1), (7, 0), (6, 0), (6, 1)]}, {'name': 'Game Over', 'health': 84, 'length': 17, 'body': [(7, 7), (6, 7), (6, 6), (6, 5), (5, 5), (4, 5), (4, 4), (4, 3), (4, 2), (4, 1), (3, 1), (2, 1), (1, 1), (0, 1), (0, 2), (0, 3), (0, 4)]}], 'food': [(9, 0), (5, 10), (6, 4), (0, 0)], 'module': 'territory new', 'decision_path': ['1vn', 'avoid next step confined [(10, 9)]', "avoid next step 11 collision {'Game Over'}"], 'allowed_moves': [(10, 9), (8, 9), (9, 10)], 'next_coord': (9, 10), 'next_move': 'up', 'time': '0.011s'}
 
     game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
