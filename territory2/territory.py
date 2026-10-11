@@ -70,7 +70,7 @@ def decision_flow(g: GameTurn):
             , avoid_single_suppress_collision(2)
             , avoid_single_suppress_collision(3)
 
-            , avoid_definite_confine(2)
+            , avoid_definite_confine
             , avoid_border_suppressed
             , avoid_border_leading_suppressed
 
@@ -231,10 +231,13 @@ def decision_flow(g: GameTurn):
                     if distance_pq(a, b) != 2: continue
                     if distance_vector_abs(a, b) != (1,1): continue
                     if not is_adjacent(a, snake.head): continue
+                    if sub_pos(a, g.me.head) != sub_pos(b, snake.head): continue
                     me2 = snake_next_step(g, g.me, a)
                     snake2 = snake_next_step(g, snake, b)
                     ng = default_next_game_turn(me2, [snake2])
-                    if has_direct_wayout_border_suppress(ng): continue
+                    lens = len(ng.me.static_territory)
+                    lent = len(ng.me.territory)
+                    if lens != lent: continue
                     moves.remove(a)
                     g.me.decision_path.append(f"avoid border leading suppressed {a}, {snake.name, b}")
                     return moves
@@ -252,33 +255,26 @@ def decision_flow(g: GameTurn):
                     me2 = snake_next_step(g, g.me, a)
                     snake2 = snake_next_step(g, snake, b)
                     ng = default_next_game_turn(me2, [snake2])
-                    if has_direct_wayout_border_suppress(ng): continue
+                    lens = len(ng.me.static_territory)
+                    lent = len(ng.me.territory)
+                    if lens != lent: continue
                     moves.remove(a)
                     g.me.decision_path.append(f"avoid border suppressed {a}, {snake.name, b}")
                     return moves
 
-    def avoid_definite_confine(nspace):
-        def fn(moves):
-            moves_to_avoid = []
-            for a in moves:
-                me2 = snake_next_step(g, g.me, a)
-                ng = default_next_game_turn(me2, [])
-                flood_territory(ng)
-                territory_point_level(ng)
-                territory_set(ng)
-
-                if len(ng.me.territory) > nspace: continue
-                border = {a for a in ng.me.territory for b in adj_cells(a) if b in ng.territories and ng.me.head not in ng.territories[b][0]}
-                if len(border) != 0: continue
-
+    def avoid_definite_confine(moves):
+        moves_to_avoid = []
+        for a in moves:
+            me2 = snake_next_step(g, g.me, a)
+            ng = default_next_game_turn(me2, [])
+            if definite_confine(ng):
                 moves_to_avoid.append(a)
 
-            if len(moves_to_avoid) == 0: return
-            moves = [a for a in moves if a not in moves_to_avoid]
-            if len(moves) != 0:
-                g.me.decision_path.append(f"avoid definte confine {moves_to_avoid}")
-                return moves
-        return fn
+        if len(moves_to_avoid) == 0: return
+        moves = [a for a in moves if a not in moves_to_avoid]
+        if len(moves) != 0:
+            g.me.decision_path.append(f"avoid definte confine {moves_to_avoid}")
+            return moves
 
     def avoid_low_space_moves(factor):
         def fn(moves):
@@ -286,9 +282,6 @@ def decision_flow(g: GameTurn):
             for a in moves:
                 me2 = snake_next_step(g, g.me, a)
                 ng = default_next_game_turn(me2, [])
-                flood_territory(ng)
-                territory_point_level(ng)
-                territory_set(ng)
                 moves_space.append((a, len(ng.me.territory)))
             min_space = min([nspace for a,nspace in moves_space])
             cutoff_space = int(min_space * factor)
@@ -472,6 +465,12 @@ def decision_flow(g: GameTurn):
     def default_next_game_turn(me: Snake, others: list[Snake]):
         ng = next_game_turn(g, default_next_snakes(g, [me, *others]))
         ng.set_me(me)
+        flood_territory(ng)
+        territory_point_level(ng)
+        territory_set(ng)
+        static_flood_territory(ng)
+        static_territory_point_level(ng)
+        static_territory_set(ng)
         return ng
 
     def ________DECISION_MAIN_FLOW________():
@@ -492,13 +491,14 @@ def decision_flow(g: GameTurn):
 def ________GAME_TURN_FUNCTIONS________():
     return
 
+def definite_confine(ng: GameTurn):
+    lens = len(ng.me.territory)
+    if lens >= ng.me.length: return False
+    border = {a for a in ng.me.territory for b in adj_cells(a) if b in ng.territories and ng.me.head not in ng.territories[b][0]}
+    if len(border) > 0: return False
+    return True
+
 def has_direct_wayout_border_suppress(ng: GameTurn):
-    flood_territory(ng)
-    territory_point_level(ng)
-    territory_set(ng)
-    static_flood_territory(ng)
-    static_territory_point_level(ng)
-    static_territory_set(ng)
     lens = len(ng.me.static_territory)
     lent = len(ng.me.territory)
     return lens != lent
@@ -538,12 +538,6 @@ def border_confined(ng: GameTurn):
     return True
 
 def has_direct_wayout(ng: GameTurn):
-    flood_territory(ng)
-    territory_point_level(ng)
-    territory_set(ng)
-    static_flood_territory(ng)
-    static_territory_point_level(ng)
-    static_territory_set(ng)
     lens = len(ng.me.static_territory)
     lent = len(ng.me.territory)
     if lens >= ng.me.length: return True
