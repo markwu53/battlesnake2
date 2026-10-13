@@ -1,6 +1,3 @@
-alist = [(1,2), (3,4)]
-print(alist)
-alist.remove((1,2))
-print(alist)
-alist.remove((1,2))
-print(alist)
+ll = set([1,2,3,4])
+lmax = max(ll)
+print(lmax)
