@@ -699,8 +699,6 @@ def territory_exposure_confined(ng: GameTurn):
                 border_dict[head] = []
             border_dict[head].append((b, i))
 
-    print([(snake.name, snake.head) for snake in ng.snakes])
-    print(border_dict)
     for head, border in border_dict.items():
         # if there are repeated steps, then the border is not confined
         # if the border steps are not continuous, then the border is not confined
