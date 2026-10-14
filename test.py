@@ -1,3 +1,2 @@
-ll = set([1,2,3,4])
-lmax = max(ll)
-print(lmax)
+alist = [4]
+print(alist[-1:])
