@@ -821,6 +821,12 @@ def default_next_snake(ng: GameTurn, snake: Snake, snake_moves: list[Int2]):
         new_head = take_first(squeeze_moves)
         return new_head
 
+    if border_point == snake.head:
+        possible_moves = [a for a in snake_moves if a in snake_border]
+        if len(possible_moves) != 0:
+            new_head = take_first(possible_moves)
+            return new_head
+
     return new_head
 
 def default_next_snakes(ng: GameTurn, provided_snakes: list[Snake]):
