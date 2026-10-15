@@ -113,6 +113,12 @@ def decision_flow(g: GameTurn):
 
             , get_food(8)
 
+            # distance 4
+            , avoid_next_step_11
+
+            # low priority
+            , avoid_low_space_moves(factor=2)
+
             , prefer_center
             , undecided
         ])(g.me.allowed_moves)
@@ -123,6 +129,43 @@ def decision_flow(g: GameTurn):
     def check_status(moves):
         print(len(g.me.territory))
         print(sorted(list(g.me.territory)))
+
+    def avoid_next_step_11(moves):
+        moves_to_avoid = set()
+        occupied = {p for snake in g.snakes for p in snake.body[:-2]}
+        snakes = set()
+        for snake in g.others:
+            if snake.length <= g.me.length: continue
+            if distance_pq(snake.head, g.me.head) != 4: continue
+            for a in moves:
+                for b in snake.allowed_moves:
+                    if distance_vector_abs(a, b) != (1,1): continue
+                    collisions = [p for p in adj_cells(a) if p in adj_cells(b)]
+                    if not any([c in occupied for c in collisions]):
+                        moves_to_avoid.add(a)
+                        snakes.add(snake.name)
+        if len(moves_to_avoid) == 0: return
+        moves = [a for a in moves if a not in moves_to_avoid]
+        if len(moves) != 0:
+            g.me.decision_path.append(f"avoid next step 11 collision {snakes}")
+            return moves
+
+    def avoid_low_space_moves(factor):
+        def fn(moves):
+            moves_space = []
+            for a in moves:
+                me2 = snake_next_step(g, g.me, a)
+                ng = default_next_game_turn(me2, [])
+                moves_space.append((a, len(ng.me.territory)))
+            min_space = min([nspace for a,nspace in moves_space])
+            cutoff_space = int(min_space * factor)
+            low_space_moves = [a for a,nspace in moves_space if nspace < cutoff_space]
+            moves = [a for a in moves if a not in low_space_moves]
+            if len(moves) != 0:
+                g.me.decision_path.append(f"avoid low space moves {low_space_moves}")
+                return moves
+
+        return fn
 
     def get_food(distance_factor):
         def fn(moves):
