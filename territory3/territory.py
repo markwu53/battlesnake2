@@ -97,8 +97,36 @@ game = Game()
 def decision_flow(g: GameTurn):
     def decision():
 
-        result2 = par([
-            nothing
+        # there are two types of decision units:
+        # avoid - it can drop moves to zero []
+        # prefer - if it returns 0 moves it just means it doesn't apply and we go back to the original moves
+        
+        # we are going to group and arrange these two types of decision units uing seq and par
+        # if a group of prefers is arranged after a group of avoids
+        # it means the group of prefers depends on the group of avoids
+        # if the group of avoids doesn't go through - drop to zero moves
+        # then we don't run the group of prefers
+        
+        # but we also need to restore the moves to the previous nonzero moves
+        # because we want to carry out these avoids as much as possible
+        # let's call it success or fail for a group of avoids if it go through or not (drop to zero moves)
+        # depends on success or fail status, we may run different groups of prefers
+
+        # there is another set of decision units, like various kills, 
+        # they are like prefers - they won't fail
+        # they can have higher priorities, so they may run before avoids
+
+        # so we can have the following arrange:
+
+        # absolute danger units
+        # kills
+        # other danger units
+        # prefers - e.g. get food
+
+
+
+        result2 = seq_strict([
+            id
             , seq_strict ([
                 id
                 , turn_0
