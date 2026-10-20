@@ -1,2 +1,3 @@
-alist = [4]
-print(alist[-1:])
+result = []
+if not any(result):
+    print("not any")
