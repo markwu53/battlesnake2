@@ -237,6 +237,83 @@ def decision_flow(g: GameTurn):
                 g.me.decision_path.append(f"kill snake {snake.name} at {target}")
                 return kill_moves
 
+    def avoid_low_space_moves(factor):
+        def fn(moves):
+            moves_space = []
+            for a in moves:
+                me2 = snake_next_step(g, g.me, a)
+                ng = default_next_game_turn(g, me2, [])
+                moves_space.append((a, len(ng.me.territory)))
+            min_space = min([nspace for a,nspace in moves_space])
+            cutoff_space = int(min_space * factor)
+            low_space_moves = [a for a,nspace in moves_space if nspace < cutoff_space]
+            moves = [a for a in moves if a not in low_space_moves]
+            if len(moves) != 0:
+                g.me.decision_path.append(f"avoid low space moves {low_space_moves}")
+                return moves
+
+        return fn
+
+    def next_step_possible_no_exposure_meander(moves):
+        meander = []
+        for a in moves:
+            ng = g.me.moves_ng[a]
+            if len(ng.me.inner_border) == 0:
+                if meander_wayout_possible(ng):
+                    meander.append(a)
+        if len(meander) != 0:
+            g.me.decision_path.append(f"go possible meander {meander}")
+            return meander
+
+    def go_largest_territory(moves):
+        moves_territory = [(a, len(g.me.moves_ng[a].me.territory)) for a in moves]
+        max_territory = max([nt for a, nt in moves_territory])
+        largest_territory_moves = [a for a, nt in moves_territory if nt == max_territory]
+        if len(largest_territory_moves) != len(moves):
+            g.me.decision_path.append(f"go largest territory {largest_territory_moves}")
+            return largest_territory_moves
+
+    def next_step_go_exposure(moves):
+        exposure_out = []
+        for a in moves:
+            ng = g.me.moves_ng[a]
+            if len(ng.me.inner_border) == 0: continue
+
+            if unhealthy_territory(ng):
+                g.me.decision_path.append(f"unhealthy territory {a}")
+                continue
+            if not exposure_confined(ng):
+                exposure_out.append(a)
+
+        if len(exposure_out) != 0:
+            g.me.decision_path.append(f"go exposure out {exposure_out}")
+            return exposure_out
+
+    def prefer_not_on_border(moves):
+        moves_to_avoid = [a for a in moves if on_border(a)]
+        moves = [a for a in moves if a not in moves_to_avoid]
+        if len(moves) != 0:
+            g.me.decision_path.append(f"prefer not on border {moves}")
+            return moves
+
+    def prefer_straight(moves):
+        straight = [a for a in moves if sub_pos(a, g.me.head) == sub_pos(g.me.head, g.me.neck)]
+        if len(straight) != 0:
+            g.me.decision_path.append(f"prefer straight {straight}")
+            return straight
+
+    def prefer_center(moves):
+        center = (5,5)
+        min_distance_to_center = min([distance_pq(a, center) for a in moves])
+        moves = [a for a in moves if distance_pq(a, center) == min_distance_to_center]
+        min_max_dimension = min([max(distance_vector_abs(a, center)) for a in moves])
+        moves = [a for a in moves if max(distance_vector_abs(a, center)) == min_max_dimension]
+        g.me.decision_path.append(f"prefer center {moves}")
+        return moves
+
+    def undecided(moves):
+        g.me.decision_path.append(f"undecided {moves}")
+
     def hold_territory_border(moves):
         snake_distance = []
         for snake in g.others:
@@ -318,23 +395,6 @@ def decision_flow(g: GameTurn):
         if len(moves) != 0:
             g.me.decision_path.append(f"avoid next step 11 collision {snakes}")
             return moves
-
-    def avoid_low_space_moves(factor):
-        def fn(moves):
-            moves_space = []
-            for a in moves:
-                me2 = snake_next_step(g, g.me, a)
-                ng = default_next_game_turn(g, me2, [])
-                moves_space.append((a, len(ng.me.territory)))
-            min_space = min([nspace for a,nspace in moves_space])
-            cutoff_space = int(min_space * factor)
-            low_space_moves = [a for a,nspace in moves_space if nspace < cutoff_space]
-            moves = [a for a in moves if a not in low_space_moves]
-            if len(moves) != 0:
-                g.me.decision_path.append(f"avoid low space moves {low_space_moves}")
-                return moves
-
-        return fn
 
     def get_food(distance_factor):
         def fn(moves):
@@ -536,41 +596,6 @@ def decision_flow(g: GameTurn):
         # g.me.decision_path.append(f"meander wayout to {wayout_point} via {no_choice_moves}")
         # return no_choice_moves
 
-    def next_step_possible_no_exposure_meander(moves):
-        meander = []
-        for a in moves:
-            ng = g.me.moves_ng[a]
-            if len(ng.me.inner_border) == 0:
-                if meander_wayout_possible(ng):
-                    meander.append(a)
-        if len(meander) != 0:
-            g.me.decision_path.append(f"go possible meander {meander}")
-            return meander
-
-    def go_largest_territory(moves):
-        moves_territory = [(a, len(g.me.moves_ng[a].me.territory)) for a in moves]
-        max_territory = max([nt for a, nt in moves_territory])
-        largest_territory_moves = [a for a, nt in moves_territory if nt == max_territory]
-        if len(largest_territory_moves) != len(moves):
-            g.me.decision_path.append(f"go largest territory {largest_territory_moves}")
-            return largest_territory_moves
-
-    def next_step_go_exposure(moves):
-        exposure_out = []
-        for a in moves:
-            ng = g.me.moves_ng[a]
-            if len(ng.me.inner_border) == 0: continue
-
-            if unhealthy_territory(ng):
-                g.me.decision_path.append(f"unhealthy territory {a}")
-                continue
-            if not exposure_confined(ng):
-                exposure_out.append(a)
-
-        if len(exposure_out) != 0:
-            g.me.decision_path.append(f"go exposure out {exposure_out}")
-            return exposure_out
-
     def choose_collision(moves):
         #(1,1) position no dodge
         if len(moves) != 2: return
@@ -731,31 +756,6 @@ def decision_flow(g: GameTurn):
         if len(moves) != 0:
             g.me.decision_path.append(f"remove split result: {moves}")
             return moves
-
-    def prefer_not_on_border(moves):
-        moves_to_avoid = [a for a in moves if on_border(a)]
-        moves = [a for a in moves if a not in moves_to_avoid]
-        if len(moves) != 0:
-            g.me.decision_path.append(f"prefer not on border {moves}")
-            return moves
-
-    def prefer_straight(moves):
-        straight = [a for a in moves if sub_pos(a, g.me.head) == sub_pos(g.me.head, g.me.neck)]
-        if len(straight) != 0:
-            g.me.decision_path.append(f"prefer straight {straight}")
-            return straight
-
-    def prefer_center(moves):
-        center = (5,5)
-        min_distance_to_center = min([distance_pq(a, center) for a in moves])
-        moves = [a for a in moves if distance_pq(a, center) == min_distance_to_center]
-        min_max_dimension = min([max(distance_vector_abs(a, center)) for a in moves])
-        moves = [a for a in moves if max(distance_vector_abs(a, center)) == min_max_dimension]
-        g.me.decision_path.append(f"prefer center {moves}")
-        return moves
-
-    def undecided(moves):
-        g.me.decision_path.append(f"undecided {moves}")
 
     def single_diagonal_collision(a: Int2):
         if a not in g.me.allowed_moves: return False
