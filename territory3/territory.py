@@ -1024,7 +1024,9 @@ def decision_flow(g: GameTurn):
             # ma = g.me.moves_attr[a]
             # if ma.is_collision_point: continue
             me2 = snake_next_step(g, g.me, a)
-            ng = default_next_game_turn(g, me2, [])
+            # ng = default_next_game_turn(g, me2, [])
+            others = default_other_snakes(g)
+            ng = next_game_turn(g, [me2]+others)
             g.me.moves_ng[a] = ng
 
     def equal_collision_point(a: Int2):
@@ -1236,9 +1238,32 @@ def default_next_game_turn(ng: GameTurn, me: Snake, others: list[Snake]):
     flood_game_turn(ng)
     return ng
 
+def resolve_snakes(snakes: list[Snake]):
+    resolved_snakes = []
+
+    head_snakes: dict[Int2, list[Snake]] = dict()
+    for snake in snakes:
+        if snake.head not in head_snakes:
+            head_snakes[snake.head] = []
+        head_snakes[snake.head].append(snake)
+
+    for head in head_snakes:
+        cohead_snakes = head_snakes[head]
+        if len(cohead_snakes) == 1:
+            snake = take_first(cohead_snakes)
+            resolved_snakes.append(snake)
+            continue
+        max_length = max([snake.length for snake in cohead_snakes])
+        max_snakes = [snake for snake in cohead_snakes if snake.length == max_length]
+        if len(max_snakes) == 1:
+            snake = take_first(max_snakes)
+            resolved_snakes.append(snake)
+
+    return resolved_snakes
+
 def next_game_turn(g: GameTurn, snakes: list[Snake]):
     ng = GameTurn()
-    ng.snakes = snakes
+    ng.snakes = resolve_snakes(snakes)
     init_game_turn(ng)
     ng.food = [f for f in g.food if f not in ng.occupied]
     return ng
@@ -1382,7 +1407,7 @@ def snake_next_step(g: GameTurn, snake: Snake, move):
         snake2.length += 1
     return snake2
 
-def default_next_snake(ng: GameTurn, snake: Snake, snake_moves: list[Int2]):
+def default_next_snake_head(ng: GameTurn, snake: Snake, snake_moves: list[Int2]):
     # ng is old game turn
     # snake is old snake
 
@@ -1451,12 +1476,54 @@ def default_next_snake(ng: GameTurn, snake: Snake, snake_moves: list[Int2]):
     new_head = take_first(choices)
     return new_head
 
+def default_other_snakes(ng: GameTurn):
+    # other snakes will try to squeeze me
+    # they only look at my current posision
+    # ng is the current game turn
+
+    # this holds other snakes next step
+    snakes = []
+
+    for snake in ng.others:
+        if len(snake.allowed_moves) == 0: continue
+        if len(snake.allowed_moves) == 1:
+            snake_move = take_first(snake.allowed_moves)
+            snake2 = snake_next_step(ng, snake, snake_move)
+            snakes.append(snake2)
+            continue
+        unsafe_moves = []
+        for other in ng.snakes:
+            if other.head == snake.head: continue
+            if other.length < snake.length: continue
+            for a in snake.allowed_moves:
+                if a in other.allowed_moves:
+                    unsafe_moves.append(a)
+        safe_moves = [a for a in snake.allowed_moves if a not in unsafe_moves]
+        if len(safe_moves) == 0:
+            snake_move = take_first(unsafe_moves)
+            snake2 = snake_next_step(ng, snake, snake_move)
+            snakes.append(snake2)
+            continue
+        if len(safe_moves) == 1:
+            snake_move = take_first(safe_moves)
+            snake2 = snake_next_step(ng, snake, snake_move)
+            snakes.append(snake2)
+            continue
+
+        # when snake have more than 1 safe_moves
+        # it will try to squeeze me or get food
+        snake_move = default_next_snake_head(ng, snake, safe_moves)
+        snake2 = snake_next_step(ng, snake, snake_move)
+        snakes.append(snake2)
+
+    return snakes
+
 def default_next_snakes(ng: GameTurn, provided_snakes: list[Snake]):
     # ng is the current game turn
     # provided_snakes are next snakes
     # this function try to generate the next steps of snakes that are not provided
 
-    snakes = provided_snakes
+    snakes = [snake for snake in provided_snakes]
     old_heads = {s.neck for s in snakes}
     new_heads = {s.head for s in snakes}
     not_allowed_moves = []
@@ -1480,7 +1547,7 @@ def default_next_snakes(ng: GameTurn, provided_snakes: list[Snake]):
         if len(collision_moves) != 0:
             new_head = take_first(collision_moves)
         else:
-            new_head = default_next_snake(ng, snake, snake_moves)
+            new_head = default_next_snake_head(ng, snake, snake_moves)
 
         new_heads.add(new_head)
         snake2 = snake_next_step(ng, snake, new_head)
