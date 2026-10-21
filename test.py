@@ -1,3 +1,2 @@
-result = []
-if not any(result):
-    print("not any")
+result = None or [1]
+print(result)
