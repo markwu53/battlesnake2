@@ -47,6 +47,7 @@ class MoveAttr:
         self.border_suppressed: bool = None
         self.equal_collision_point: bool = None
         self.is_collision_point: bool = None
+        self.die_on_default_others: bool = None
 
 class GameTurn:                                              
     def __init__(self):
@@ -858,6 +859,8 @@ def decision_flow(g: GameTurn):
         # territory not good
         danger = []
         for a in moves:
+            ma = g.me.moves_attr[a]
+            if ma.die_on_default_others: continue
             if g.diagonal_collision:
                 if a in g.diagonal_collision_points:
                     continue
@@ -889,6 +892,8 @@ def decision_flow(g: GameTurn):
         # territory not good
         danger = []
         for a in moves:
+            ma = g.me.moves_attr[a]
+            if ma.die_on_default_others: continue
             if g.diagonal_collision:
                 if a in g.diagonal_collision_points:
                     continue
@@ -916,6 +921,8 @@ def decision_flow(g: GameTurn):
         # inner border is 1 - may encounter a (1,1) collision with killer
         danger = []
         for a in moves:
+            ma = g.me.moves_attr[a]
+            if ma.die_on_default_others: continue
             if g.diagonal_collision:
                 if a in g.diagonal_collision_points:
                     continue
@@ -939,6 +946,8 @@ def decision_flow(g: GameTurn):
         # inner border is 1 - may encounter a (1,1) collision with killer
         danger = []
         for a in moves:
+            ma = g.me.moves_attr[a]
+            if ma.die_on_default_others: continue
             if g.diagonal_collision:
                 if a in g.diagonal_collision_points:
                     continue
@@ -963,6 +972,8 @@ def decision_flow(g: GameTurn):
         # not wayout spacious
         danger = []
         for a in moves:
+            ma = g.me.moves_attr[a]
+            if ma.die_on_default_others: continue
             if g.diagonal_collision:
                 if a in g.diagonal_collision_points:
                     continue
@@ -984,6 +995,8 @@ def decision_flow(g: GameTurn):
     def remove_absolute_danger(moves):
         danger = []
         for a in moves:
+            ma = g.me.moves_attr[a]
+            if ma.die_on_default_others: continue
             if g.diagonal_collision:
                 if a in g.diagonal_collision_points:
                     continue
@@ -1020,13 +1033,16 @@ def decision_flow(g: GameTurn):
             return moves
 
     def next_step_calculation(moves):
+        others = default_other_snakes(g)
         for a in moves:
-            # ma = g.me.moves_attr[a]
-            # if ma.is_collision_point: continue
+            if any([g.me.length <= snake.length for snake in others if a == snake.head]):
+                ma = g.me.moves_attr[a]
+                ma.die_on_default_others = True
+                continue
             me2 = snake_next_step(g, g.me, a)
             # ng = default_next_game_turn(g, me2, [])
-            others = default_other_snakes(g)
             ng = next_game_turn(g, [me2]+others)
+            ng.set_me(me2)
             g.me.moves_ng[a] = ng
 
     def equal_collision_point(a: Int2):
