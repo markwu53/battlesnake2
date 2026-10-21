@@ -1824,6 +1824,12 @@ def par(fs):
         return []
     return fn
 
+def to_unit_function(f):
+    def fn(moves):
+        success, result = f(moves)
+        return result
+    return fn
+
 def cond(*pred):
     def fn(f):
         def fc(moves):
