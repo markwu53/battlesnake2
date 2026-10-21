@@ -125,6 +125,7 @@ def decision_flow(g: GameTurn):
                 , remove_danger_15
                 , remove_danger_21
                 , remove_danger_2
+                , remove_danger_25
 
 
                 , get_food(8)
@@ -840,6 +841,35 @@ def decision_flow(g: GameTurn):
             ma.equal_collision_point = equal_collision_point(a)
             g.me.moves_attr[a] = ma
     
+    def remove_danger_25(moves):
+        # danger description
+        # territory not good
+        danger = []
+        for a in moves:
+            if g.diagonal_collision:
+                if a in g.diagonal_collision_points:
+                    continue
+            ng = g.me.moves_ng[a]
+            if (
+                True
+                # and not ng.exposure_confined
+                # and all([len(ng.me.inner_contacting_border[snake.head]) <= 1 for snake in ng.others])
+                and (
+                    False
+                    or ng.all_on_border_territory
+                    or ng.stringline_territory
+                    or ng.nearly_all_on_border
+                    or ng.unhealthy_territory
+                    or ng.almost_stringline_territory
+                )
+            ):
+                danger.append(a)
+
+        if len(danger) != 0:
+            moves = [a for a in moves if a not in danger]
+            g.me.decision_path.append(f"remove danger 15 result {moves}")
+            return moves
+
     def remove_danger_15(moves):
         # danger description
         # may have exposure but not confined
@@ -901,10 +931,6 @@ def decision_flow(g: GameTurn):
                 if a in g.diagonal_collision_points:
                     continue
             ng = g.me.moves_ng[a]
-            print(a)
-            print(ng.exposure_confined, ng.wayout_spacious, ng.me.inner_border)
-            print([(snake.name, sorted(list(ng.me.inner_contacting_border[snake.head]))) for snake in ng.others])
-            print(sorted(list(ng.me.territory)))
             if (
                 True
                 and not ng.exposure_confined
