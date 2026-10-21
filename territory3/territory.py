@@ -113,7 +113,6 @@ def decision_flow(g: GameTurn):
                 , avoid_single_suppress_collision
                 , avoid_single_confront_collision
                 , avoid_single_diagonal_collision
-                , process_collision_dodge
                 , choose_collision
 
                 , avoid_definite_confine_number(2)
@@ -124,6 +123,7 @@ def decision_flow(g: GameTurn):
 
                 , meander_wayout
                 , split_wayout
+                , process_collision_dodge
                 
                 , remove_danger_1
                 , remove_danger_15
