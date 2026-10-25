@@ -5,7 +5,7 @@ import split.decision_flow as df_split
 import territory_gemini2.territory as territory_gemini
 import territory.territory as territory
 import territory2.territory as territory2
-import territory3.territory as territory3
+import territory3_full.territory as territory3
 
 class GameEngine:
     def __init__(self):
