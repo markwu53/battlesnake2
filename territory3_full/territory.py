@@ -372,7 +372,6 @@ def decision_flow(g: GameTurn):
 
         factor = 0.6
 
-        print(moves)
         result = []
         for a in moves:
             ngs = g.me.moves_ngs[a]
