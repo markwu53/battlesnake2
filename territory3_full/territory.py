@@ -81,6 +81,7 @@ class GameTurn:
         self.diagonal_collision: bool = None
         self.diagonal_collision_snake: Snake = None
         self.diagonal_collision_points: list[Int2] = None
+        self.n_bordering_snakes: int = None
 
         self.wayout_snake: Snake = None
 
@@ -119,13 +120,15 @@ def decision_flow(g: GameTurn):
                 , avoid_border_suppressed
                 , avoid_border_leading_suppressed
                 # , check_status
+                , meander_wayout
+                , remove_danger(future_leading_suppress_danger)
                 , remove_danger(absolute_danger)
 
                 # , border_suppress_kill
 
                 , avoid_confront_40
-                , meander_wayout
 
+                , remove_danger(unhealthy_territory_danger_corner)
                 , remove_second_step_danger
                 , split_wayout
 
@@ -135,7 +138,6 @@ def decision_flow(g: GameTurn):
 
                 , remove_danger(unhealthy_territory_danger)
                 , remove_danger(unhealthy_territory_danger_no_interior)
-                , remove_danger(unhealthy_territory_danger_corner)
                 , remove_danger(wayout_tight_danger)
 
                 , par([
@@ -144,41 +146,17 @@ def decision_flow(g: GameTurn):
                     , choose_collision_more
                 ])
                 , process_collision_dodge
-
-
-                , cond(len(g.others) == 1)(
-                    seq([
-                        cond(len(g.others) == 1 and g.me.length > g.other.length)(
-                            seq([
-                                id
-                                , go_towards_exposure_point
-                                , get_food(4)
-                        ]))
-                        , cond(len(g.others) == 1 and g.me.length <= g.other.length)(
-                            seq([
-                                id
-                                , get_food(6)
-                                , go_towards_exposure_point
-                        ]))
-                        , split_choose_larger
-                        , prefer_follow_my_tail
-                        , prefer_no_split
-                        , dont_follow_tail_too_closely
-                    ]))
-                , cond(len(g.others) > 1)(
-                    seq([
-                        id
-                        , get_food(8)
-                        , go_towards_exposure_point
-                        , prefer_not_11_collision
-                        , remove_equal_collision
-                        , split_choose_larger
-                        , go_towards_exposure_point
-                        , prefer_follow_my_tail
-                        , prefer_no_split
-                        # , prefer_less_allowed_moves
-                        , dont_follow_tail_too_closely
-                    ]))
+                , avoid_collision
+                , avoid_equal_collision
+                , prefer_not_11_collision
+                , split_choose_larger
+                , split_choose_larger2
+                , prefer_no_split
+                , dont_follow_tail_too_closely
+                , get_food
+                , just_choose_larger
+                # , go_towards_exposure_point
+                # , prefer_follow_my_tail
             ])
             , seq2([
                 id
@@ -234,9 +212,17 @@ def decision_flow(g: GameTurn):
                 return moves
         return fn
 
+    def future_leading_suppress_danger(ng: GameTurn):
+        return (
+            True
+            and ng.all_on_border_territory
+            and ng.stringline_territory
+        )
+
     def absolute_danger(ng: GameTurn):
         return (
             True
+            and ng.me.length > 6
             and ng.exposure_confined
             and (
                 False
@@ -261,6 +247,7 @@ def decision_flow(g: GameTurn):
         )
 
     def wayout_tight_danger(ng: GameTurn):
+        if ng.me.length <= 6: False
         factor = 1.2
         if not ng.wayout_spacious: return False
         if not ng.exposure_confined: return False
@@ -283,6 +270,8 @@ def decision_flow(g: GameTurn):
     def unhealthy_territory_danger_no_interior(ng: GameTurn):
         return (
                     True
+                    and ng.me.length > 6
+                    and ng.n_bordering_snakes <= 1
                     and len(ng.me.territory) <= ng.me.length
                     and (
                         False
@@ -295,6 +284,7 @@ def decision_flow(g: GameTurn):
                     True
                     # and not ng.exposure_confined
                     # and all([len(ng.me.inner_contacting_border[snake.head]) <= 1 for snake in ng.others])
+                    and ng.me.length > 6
                     and (
                         False
                         or ng.all_on_border_territory
@@ -310,6 +300,7 @@ def decision_flow(g: GameTurn):
                     True
                     and not ng.exposure_confined
                     and all([len(ng.me.inner_contacting_border[snake.head]) <= 1 for snake in ng.others])
+                    and ng.n_bordering_snakes <= 1
                     and (
                         False
                         or ng.all_on_border_territory
@@ -324,6 +315,7 @@ def decision_flow(g: GameTurn):
                 and not ng.wayout_spacious
                 and not ng.spacious_territory
                 and all([len(ng.me.inner_contacting_border[snake.head]) <= 1 for snake in ng.others])
+                and ng.n_bordering_snakes <= 1
             )
 
     def exposure_danger_2(ng: GameTurn):
@@ -332,7 +324,20 @@ def decision_flow(g: GameTurn):
                 and not ng.exposure_confined
                 and not ng.wayout_spacious
                 and not ng.spacious_territory
+                and ng.n_bordering_snakes <= 1
             )
+
+    def just_choose_larger(moves):
+        for a in moves:
+            ma = g.me.moves_attr[a]
+            if ma.is_collision_point: return
+
+        a_area = [(a, sum([len(ng.me.territory) for ng in ngs])/len(ngs)) 
+                  for a in moves for ngs in [g.me.moves_ngs[a]]]
+        max_n = max([n for a,n in a_area ])
+        max_a = [a for a,n in a_area if n == max_n]
+        g.me.decision_path.append(f"just choose larger: {max_a}")
+        return max_a
 
     def split_choose_larger2(moves):
         if len(moves) != 2: return
@@ -407,6 +412,8 @@ def decision_flow(g: GameTurn):
                 print(f"absolute: {absolute_danger(ng)}")
 
     def remove_second_step_danger(moves):
+        if g.me.length <= 6: return
+
         distribution = []
         for a in moves:
             ma = g.me.moves_attr[a]
@@ -524,22 +531,7 @@ def decision_flow(g: GameTurn):
             moves = [a for a in moves if a not in moves_to_avoid]
             g.me.decision_path.append(f"don't follow tail too closely result {moves}")
             return moves
-
-    def remove_equal_collision(moves):
-        remove = []
-        for a in moves:
-            ma = g.me.moves_attr[a]
-            if not ma.is_collision_point: continue
-            for snake in g.others:
-                if snake.length != g.me.length: continue
-                if a not in snake.allowed_moves: continue
-                remove.append(a)
-        if len(remove) == 0: return
-        moves = [a for a in moves if a not in remove]
-        if len(moves) != 0:
-            g.me.decision_path.append(f"removed equal collision {remove}")
-            return moves
-
+    
     def prefer_not_11_collision(moves):
         moves_to_avoid = set()
         occupied = {p for snake in g.snakes for p in snake.body[:-2]}
@@ -560,31 +552,36 @@ def decision_flow(g: GameTurn):
             g.me.decision_path.append(f"prefer not next step 11 collision {snakes}")
             return moves
 
-    def get_food(distance_factor):
-        def fn(moves):
-            good_food = [f for f in g.food if f in g.me.territory and g.me.territory_point_level[f] <= distance_factor]
-            if len(good_food) == 0: return
-            best_food = sorted([(f, g.me.territory_point_level[f]) for f in good_food], key=lambda a: a[1])
-            food_target = take_first(best_food)[0]
+    def get_food(moves):
+        moves = [a for a in moves if a in g.food]
+        if len(moves) != 0:
+            g.me.decision_path.append(f"get food at {moves}")
+            return moves
 
-            food_moves = [a for a in moves if tree_distance(g.me, a, food_target) >= 0]
-            if len(food_moves) == 0: return
-            if len(food_moves) == 1:
-                g.me.decision_path.append(f"get food {food_target} via {food_moves}")
-                return food_moves
+    def get_food(moves):
+        distance_factor = 2
+        good_food = [f for f in g.food if f in g.me.territory and g.me.territory_point_level[f] <= distance_factor]
+        if len(good_food) == 0: return
+        best_food = sorted([(f, g.me.territory_point_level[f]) for f in good_food], key=lambda a: a[1])
+        food_target = take_first(best_food)[0]
 
-            n_narrow = min([min(distance_vector_abs(a, food_target)) for a in food_moves])
-            food_moves = [a for a in food_moves if min(distance_vector_abs(a, food_target)) == n_narrow]
+        food_moves = [a for a in moves if tree_distance(g.me, a, food_target) >= 0]
+        if len(food_moves) == 0: return
+        if len(food_moves) == 1:
             g.me.decision_path.append(f"get food {food_target} via {food_moves}")
             return food_moves
-        return fn
+
+        n_narrow = min([min(distance_vector_abs(a, food_target)) for a in food_moves])
+        food_moves = [a for a in food_moves if min(distance_vector_abs(a, food_target)) == n_narrow]
+        g.me.decision_path.append(f"get food {food_target} via {food_moves}")
+        return food_moves
 
     def avoid_border_leading_suppressed(moves):
         if not on_border(g.me.head): return
         for a in moves:
             if not on_border(a): continue
             ma = g.me.moves_attr[a]
-            if ma.is_collision_point: continue
+            if ma.is_collision_point and not ma.equal_collision_point: continue
             for snake in g.others:
                 if len(snake.next_snake_choices) == 0: continue
                 for snake2 in snake.next_snake_choices:
@@ -593,7 +590,12 @@ def decision_flow(g: GameTurn):
                     if distance_vector_abs(a, b) != (1,1): continue
                     if not is_adjacent(a, snake.head): continue
                     if sub_pos(a, g.me.head) != sub_pos(b, snake.head): continue
-                    ngs = g.me.moves_ngs[a]
+                    if ma.equal_collision_point:
+                        me2 = snake_next_step(g, g.me, a)
+                        ng = next_game_turn(g, [me2, snake2])
+                        ngs = [ng]
+                    else:
+                        ngs = g.me.moves_ngs[a]
                     for ng in ngs:
                         for other in ng.others:
                             if other.head == b and other.neck == snake.head:
@@ -822,12 +824,34 @@ def decision_flow(g: GameTurn):
         opponent_spacious = []
         for a in collisions:
             ng = collision_ng[a]
-            if ng.wayout_spacious:
+            if ng.wayout_spacious or ng.spacious_territory:
                 opponent_spacious.append(a)
 
         moves = [a for a in moves if a not in opponent_spacious]
         g.me.decision_path.append(f"collision opponent choose spacious result: {moves}")
         return moves
+
+    def avoid_collision(moves):
+        danger = []
+        for a in moves:
+            ma = g.me.moves_attr[a]
+            if ma.is_collision_point and not ma.equal_collision_point:
+                danger.append(a)
+        if len(danger) != 0:
+            moves = [a for a in moves if a not in danger]
+            g.me.decision_path.append(f"avoid collision result: {moves}")
+            return moves
+
+    def avoid_equal_collision(moves):
+        danger = []
+        for a in moves:
+            ma = g.me.moves_attr[a]
+            if ma.equal_collision_point:
+                danger.append(a)
+        if len(danger) != 0:
+            moves = [a for a in moves if a not in danger]
+            g.me.decision_path.append(f"avoid equal collision result: {moves}")
+            return moves
 
     def process_collision_dodge(moves):
         if not g.diagonal_collision: return
@@ -1196,18 +1220,16 @@ def choose_wayout_snake(ng: GameTurn):
         for i,b in enumerate(snake.body):
             for t in adj_cells(b):
                 # b in my territory means it will be gone
-                if b in ng.me.territory: continue
                 if t not in ng.me.territory: continue
+                if b in ng.me.territory: continue
                 # b is reached by others first
+                # if b in ng.territories: continue
                 if b in ng.territories:
                     heads, nstep = ng.territories[b]
                     if ng.me.head not in heads:
                         wlength = snake.length - i - 1
-                        # if emeny is too far from my wayout point
-                        # they may not go there
-                        if nstep <= 5:
-                            if nstep <= wlength+1: continue
-                            if nstep <= ng.me.territory_point_level[t]+1: continue
+                        if nstep <= wlength+1: continue
+                        if nstep <= ng.me.territory_point_level[t]+1: continue
                 adjacent_index.add(i)
                 break
 
@@ -1399,6 +1421,9 @@ def flood_game_turn(ng: GameTurn):
     ng.nearly_all_on_border = nearly_all_on_border(ng)
     ng.is_split_territory = is_split_territory(ng)
     ng.diagonal_collision = diagonal_collision(ng)
+
+    ng.n_bordering_snakes = sum([1 for snake in ng.others if len(ng.me.inner_contacting_border[snake.head]) != 0])
+
 
 def territory_contacting_border(ng: GameTurn):
     for me in ng.snakes:
@@ -1892,14 +1917,11 @@ def init_from_game_engine_log(log, name):
 
 
 if __name__ == "__main__":
-    log = {'id': 'c25e284f-4162-42f2-9834-108d44c359e7', 'turn': 140, 'me': {'name': 'mark_snake_test RED', 'health': 94, 'length': 15, 'body': [(3, 3), (2, 3), (2, 4), (2, 5), (2, 6), (2, 7), (2, 8), (2, 9), (2, 10), (3, 10), (4, 10), (4, 9), (5, 9), (6, 9), (7, 9)]}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 98, 'length': 16, 'body': [(4, 2), (4, 1), (4, 0), (5, 0), (6, 0), (6, 1), (6, 2), (6, 3), (6, 4), (6, 5), (6, 6), (6, 7), (5, 7), (5, 6), (5, 5), (5, 4)]}, {'name': 'mark_snake_test YELLOW', 'health': 89, 'length': 14, 'body': [(1, 7), (1, 6), (1, 5), (1, 4), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8), (0, 9), (0, 10), (1, 10), (1, 9), (1, 8)]}], 'food': [(10, 1)], 'module': 'territory new', 'decision_path': ['1vn', 'allowed moves: [(4, 3), (3, 4), (3, 2)]', 'remove unhealthy_territory_danger result [(4, 3), (3, 2)]', 'collision opponent choose spacious result: []'], 'next_coord': (4, 3), 'next_move': 'right', 'time': '0.045s'}
-    log = {'id': 'a29aba99-2067-474e-88c7-b6e76a6e1079', 'turn': 143, 'me': {'name': 'mark_snake_test RED', 'health': 95, 'length': 14, 'body': [(7, 10), (6, 10), (5, 10), (5, 9), (5, 8), (6, 8), (7, 8), (8, 8), (9, 8), (10, 8), (10, 7), (9, 7), (8, 7), (7, 7)]}, 'others': [{'name': 'mark_snake_test GREEN', 'health': 91, 'length': 21, 'body': [(7, 0), (8, 0), (9, 0), (10, 0), (10, 1), (10, 2), (10, 3), (10, 4), (10, 5), (10, 6), (9, 6), (8, 6), (7, 6), (6, 6), (5, 6), (4, 6), (4, 5), (4, 4), (5, 4), (6, 4), (7, 4)]}, {'name': 'mark_snake_test YELLOW', 'health': 91, 'length': 11, 'body': [(3, 4), (3, 5), (3, 6), (3, 7), (3, 8), (2, 8), (1, 8), (1, 9), (0, 9), (0, 8), (0, 7)]}], 'food': [(1, 0), (5, 0), (10, 9), (8, 10)], 'module': 'territory new', 'decision_path': ['1vn', 'allowed moves: [(8, 10), (7, 9)]', 'get food (8, 10) via [(8, 10)]'], 'next_coord': (8, 10), 'next_move': 'right', 'time': '0.021s'}
-    log = {'id': 'a29aba99-2067-474e-88c7-b6e76a6e1079', 'turn': 142, 'me': {'name': 'mark_snake_test RED', 'health': 96, 'length': 14, 'body': [(6, 10), (5, 10), (5, 9), (5, 8), (6, 8), (7, 8), (8, 8), (9, 8), (10, 8), (10, 7), (9, 7), (8, 7), (7, 7), (6, 7)]}, 'others': [{'name': 'mark_snake_test GREEN', 'health': 92, 'length': 21, 'body': [(8, 0), (9, 0), (10, 0), (10, 1), (10, 2), (10, 3), (10, 4), (10, 5), (10, 6), (9, 6), (8, 6), (7, 6), (6, 6), (5, 6), (4, 6), (4, 5), (4, 4), (5, 4), (6, 4), (7, 4), (7, 3)]}, {'name': 'mark_snake_test YELLOW', 'health': 92, 'length': 11, 'body': [(3, 5), (3, 6), (3, 7), (3, 8), (2, 8), (1, 8), (1, 9), (0, 9), (0, 8), (0, 7), (0, 6)]}], 'food': [(1, 0), (5, 0), (10, 9), (8, 10)], 'module': 'territory new', 'decision_path': ['1vn', 'allowed moves: [(7, 10), (6, 9)]', 'get food (8, 10) via [(7, 10)]'], 'next_coord': (7, 10), 'next_move': 'right', 'time': '0.020s'}
-    log = {'id': 'a29aba99-2067-474e-88c7-b6e76a6e1079', 'turn': 144, 'me': {'name': 'mark_snake_test RED', 'health': 100, 'length': 15, 'body': [(8, 10), (7, 10), (6, 10), (5, 10), (5, 9), (5, 8), (6, 8), (7, 8), (8, 8), (9, 8), (10, 8), (10, 7), (9, 7), (8, 7), (8, 7)]}, 'others': [{'name': 'mark_snake_test GREEN', 'health': 90, 'length': 21, 'body': [(6, 0), (7, 0), (8, 0), (9, 0), (10, 0), (10, 1), (10, 2), (10, 3), (10, 4), (10, 5), (10, 6), (9, 6), (8, 6), (7, 6), (6, 6), (5, 6), (4, 6), (4, 5), (4, 4), (5, 4), (6, 4)]}, {'name': 'mark_snake_test YELLOW', 'health': 90, 'length': 11, 'body': [(3, 3), (3, 4), (3, 5), (3, 6), (3, 7), (3, 8), (2, 8), (1, 8), (1, 9), (0, 9), (0, 8)]}], 'food': [(1, 0), (5, 0), (10, 9)], 'module': 'territory new', 'decision_path': ['1vn', 'allowed moves: [(9, 10), (8, 9)]', 'remove second step danger result: []', 'remove split result: [(9, 10)]'], 'next_coord': (9, 10), 'next_move': 'right', 'time': '0.034s'}
-    log = {'id': '270676ff-bff8-4c62-b2e4-690ec279ea3e', 'turn': 165, 'me': {'name': 'mark_snake_test RED', 'health': 84, 'length': 12, 'body': [(9, 4), (9, 5), (8, 5), (7, 5), (6, 5), (5, 5), (4, 5), (3, 5), (2, 5), (2, 4), (2, 3), (1, 3)]}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 89, 'length': 14, 'body': [(9, 6), (8, 6), (7, 6), (6, 6), (5, 6), (4, 6), (3, 6), (2, 6), (2, 7), (2, 8), (3, 8), (3, 7), (4, 7), (5, 7)]}, {'name': 'mark_snake_test GREEN', 'health': 100, 'length': 22, 'body': [(8, 3), (7, 3), (6, 3), (5, 3), (5, 2), (4, 2), (4, 1), (3, 1), (2, 1), (1, 1), (0, 1), (0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0), (7, 0), (8, 0), (8, 1), (8, 1)]}], 'food': [(0, 6)], 'module': 'territory new', 'decision_path': ['1vn', 'allowed moves: [(10, 4), (8, 4), (9, 3)]', 'remove absolute_danger result [(8, 4), (9, 3)]', 'collision opponent choose spacious result: []', 'collision choose opposite of dodge'], 'next_coord': (10, 4), 'next_move': 'right', 'time': '0.029s'}
-    log = {'id': '7e338c38-4a85-404b-9b89-c3da073993a9', 'turn': 210, 'me': {'name': 'mark_snake_test RED', 'health': 98, 'length': 14, 'body': [(6, 4), (7, 4), (8, 4), (8, 3), (8, 2), (7, 2), (6, 2), (5, 2), (4, 2), (3, 2), (2, 2), (1, 2), (1, 3), (2, 3)]}, 'others': [{'name': 'mark_snake_test GREEN', 'health': 62, 'length': 23, 'body': [(1, 5), (0, 5), (0, 6), (0, 7), (0, 8), (1, 8), (2, 8), (3, 8), (3, 9), (4, 9), (5, 9), (5, 8), (4, 8), (4, 7), (5, 7), (5, 6), (5, 5), (4, 5), (4, 6), (3, 6), (3, 7), (2, 7), (1, 7)]}], 'food': [(9, 9), (5, 10), (6, 7), (9, 8), (5, 0)], 'module': 'territory new', 'decision_path': ['1v1', 'allowed moves: [(5, 4), (6, 5), (6, 3)]', 'remove second step danger result: [(5, 4), (6, 5)]', 'go to territory border point (4, 4)'], 'next_coord': (5, 4), 'next_move': 'left', 'time': '0.177s'}
-    log = {'id': 'dfeb4d37-6879-4b1b-8a72-167ed7a6d1e5', 'turn': 70, 'me': {'name': 'mark_snake_test RED', 'health': 86, 'length': 9, 'body': [(6, 2), (6, 3), (7, 3), (7, 4), (8, 4), (8, 5), (8, 6), (7, 6), (7, 7)]}, 'others': [{'name': 'mark_snake_test GREEN', 'health': 96, 'length': 11, 'body': [(2, 4), (1, 4), (0, 4), (0, 3), (0, 2), (1, 2), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)]}, {'name': 'mark_snake_test YELLOW', 'health': 96, 'length': 9, 'body': [(7, 1), (8, 1), (8, 2), (9, 2), (9, 3), (9, 4), (9, 5), (9, 6), (9, 7)]}], 'food': [(3, 9)], 'module': 'territory new', 'decision_path': ['1vn', 'allowed moves: [(7, 2), (5, 2), (6, 1)]', 'remove exposure_danger_2 result [(7, 2), (6, 1)]'], 'next_coord': (7, 2), 'next_move': 'right', 'time': '0.049s'}
-    log = {'id': '085a47da-ff71-4f1d-850c-9712800dc435', 'turn': 330, 'me': {'name': 'mark_snake_test RED', 'health': 95, 'length': 29, 'body': [(6, 6), (5, 6), (5, 5), (5, 4), (5, 3), (4, 3), (4, 4), (4, 5), (4, 6), (3, 6), (2, 6), (1, 6), (0, 6), (0, 5), (0, 4), (0, 3), (0, 2), (0, 1), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (6, 1), (7, 1), (7, 2), (7, 3), (7, 4), (8, 4)]}, 'others': [{'name': 'mark_snake_test GREEN', 'health': 89, 'length': 34, 'body': [(4, 10), (5, 10), (6, 10), (7, 10), (8, 10), (9, 10), (10, 10), (10, 9), (10, 8), (10, 7), (10, 6), (9, 6), (8, 6), (7, 6), (7, 7), (8, 7), (9, 7), (9, 8), (8, 8), (8, 9), (7, 9), (6, 9), (5, 9), (4, 9), (3, 9), (2, 9), (1, 9), (1, 8), (1, 7), (2, 7), (2, 8), (3, 8), (4, 8), (5, 8)]}], 'food': [(0, 7), (1, 10), (2, 4)], 'module': 'territory new', 'decision_path': ['1v1', 'allowed moves: [(6, 7), (6, 5)]'], 'next_coord': (6, 7), 'next_move': 'up', 'time': '0.021s'}
+    log = {'id': '95060eaa-d0b5-4c50-a5e7-58ed9f8e0184', 'turn': 129, 'me': {'name': 'mark_snake_test RED', 'health': 100, 'length': 11, 'body': [(0, 7), (1, 7), (2, 7), (3, 7), (4, 7), (5, 7), (5, 6), (6, 6), (6, 7), (6, 8), (6, 8)]}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 87, 'length': 11, 'body': [(1, 6), (2, 6), (3, 6), (4, 6), (4, 5), (5, 5), (6, 5), (6, 4), (6, 3), (6, 2), (5, 2)]}, {'name': 'mark_snake_test GREEN', 'health': 94, 'length': 14, 'body': [(10, 1), (9, 1), (9, 2), (9, 3), (9, 4), (9, 5), (8, 5), (8, 4), (8, 3), (8, 2), (8, 1), (7, 1), (6, 1), (6, 0)]}, {'name': 'mark_snake_test YELLOW', 'health': 63, 'length': 10, 'body': [(5, 10), (6, 10), (7, 10), (7, 9), (7, 8), (7, 7), (8, 7), (9, 7), (9, 6), (10, 6)]}], 'food': [(5, 0)], 'module': 'territory new', 'decision_path': ['1vn', 'allowed moves: [(0, 8), (0, 6)]', 'remove exposure_danger_2 result [(0, 6)]'], 'next_coord': (0, 6), 'next_move': 'down', 'time': '0.036s'}
+    log = {'id': '3da30615-2106-40e0-a83e-282c512edd2a', 'turn': 268, 'me': {'name': 'mark_snake_test RED', 'health': 96, 'length': 25, 'body': [(9, 9), (8, 9), (7, 9), (6, 9), (5, 9), (4, 9), (4, 8), (5, 8), (5, 7), (5, 6), (6, 6), (7, 6), (8, 6), (9, 6), (10, 6), (10, 5), (10, 4), (10, 3), (10, 2), (10, 1), (9, 1), (8, 1), (7, 1), (6, 1), (6, 2)]}, 'others': [{'name': 'mark_snake_test GREEN', 'health': 76, 'length': 25, 'body': [(2, 10), (3, 10), (3, 9), (3, 8), (3, 7), (4, 7), (4, 6), (4, 5), (3, 5), (2, 5), (1, 5), (1, 4), (1, 3), (1, 2), (1, 1), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (0, 8), (0, 9), (0, 10)]}], 'food': [(7, 0), (10, 0), (5, 1)], 'module': 'territory new', 'decision_path': ['1v1', 'allowed moves: [(10, 9), (9, 10), (9, 8)]', 'remove absolute_danger result []', 'remove split result: [(9, 8)]'], 'next_coord': (9, 8), 'next_move': 'down', 'time': '0.016s'}
+    log = {'id': '051f18a1-ad60-491f-ba5f-1e1a232c41b6', 'turn': 152, 'me': {'name': 'mark_snake_test RED', 'health': 87, 'length': 13, 'body': [(2, 8), (2, 9), (3, 9), (3, 10), (4, 10), (5, 10), (6, 10), (7, 10), (7, 9), (7, 8), (7, 7), (6, 7), (6, 8)]}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 99, 'length': 23, 'body': [(8, 10), (9, 10), (9, 9), (9, 8), (10, 8), (10, 7), (10, 6), (10, 5), (10, 4), (10, 3), (10, 2), (10, 1), (10, 0), (9, 0), (8, 0), (8, 1), (9, 1), (9, 2), (9, 3), (8, 3), (7, 3), (7, 4), (7, 5)]}, {'name': 'mark_snake_test GREEN', 'health': 97, 'length': 15, 'body': [(4, 6), (4, 5), (4, 4), (4, 3), (3, 3), (3, 2), (4, 2), (4, 1), (3, 1), (3, 0), (4, 0), (5, 0), (5, 1), (6, 1), (6, 0)]}], 'food': [(1, 9), (2, 2)], 'module': 'territory new', 'decision_path': ['1vn', 'allowed moves: [(3, 8), (1, 8), (2, 7)]', 'remove second step danger result: [(1, 8)]'], 'next_coord': (1, 8), 'next_move': 'left', 'time': '0.070s'}
+    log = {'id': '3f432323-c04a-4d43-9fe0-612fac59f0d7', 'turn': 202, 'me': {'name': 'mark_snake_test RED', 'health': 95, 'length': 22, 'body': [(0, 8), (1, 8), (1, 7), (1, 6), (1, 5), (1, 4), (2, 4), (2, 5), (2, 6), (3, 6), (3, 7), (3, 8), (3, 9), (4, 9), (5, 9), (5, 8), (5, 7), (5, 6), (6, 6), (6, 7), (6, 8), (7, 8)]}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 99, 'length': 18, 'body': [(4, 2), (4, 1), (5, 1), (5, 0), (6, 0), (7, 0), (8, 0), (8, 1), (9, 1), (9, 2), (8, 2), (7, 2), (7, 1), (6, 1), (6, 2), (5, 2), (5, 3), (5, 4)]}, {'name': 'mark_snake_test GREEN', 'health': 98, 'length': 17, 'body': [(9, 9), (10, 9), (10, 8), (10, 7), (9, 7), (9, 6), (8, 6), (7, 6), (7, 5), (6, 5), (6, 4), (7, 4), (8, 4), (8, 3), (9, 3), (9, 4), (10, 4)]}], 'food': [(8, 9)], 'module': 'territory new', 'decision_path': ['1vn', 'allowed moves: [(0, 9), (0, 7)]', 'remove absolute_danger result [(0, 7)]'], 'next_coord': (0, 7), 'next_move': 'down', 'time': '0.028s'}
+    log = {'id': '50eeea2a-405f-4ab4-b1ae-2ad42eb862a5', 'turn': 32, 'me': {'name': 'mark_snake_test RED', 'health': 70, 'length': 4, 'body': [(5, 1), (5, 0), (4, 0), (4, 1)]}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 93, 'length': 5, 'body': [(3, 3), (3, 4), (2, 4), (2, 3), (2, 2)]}, {'name': 'mark_snake_test GREEN', 'health': 90, 'length': 9, 'body': [(6, 2), (6, 3), (6, 4), (6, 5), (6, 6), (6, 7), (7, 7), (7, 8), (8, 8)]}, {'name': 'mark_snake_test YELLOW', 'health': 97, 'length': 8, 'body': [(3, 7), (2, 7), (1, 7), (1, 8), (2, 8), (3, 8), (3, 9), (3, 10)]}], 'food': [(8, 0), (10, 1)], 'module': 'territory new', 'decision_path': ['1vn', 'allowed moves: [(6, 1), (4, 1), (5, 2)]', 'remove second step danger result: [(6, 1), (5, 2)]', 'collision opponent choose spacious result: []', 'collision choose opposite of dodge [(6, 1)]'], 'next_coord': (6, 1), 'next_move': 'right', 'time': '0.123s'}
 
 
     game_state = init_from_log(log)

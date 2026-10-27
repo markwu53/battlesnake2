@@ -1,2 +1,2 @@
-result = None or [1]
-print(result)
+result = [1,1]
+print(sum(result))
