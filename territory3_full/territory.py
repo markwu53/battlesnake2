@@ -112,6 +112,10 @@ def decision_flow(g: GameTurn):
 
                 , next_step_calculation
 
+                , par([
+                    id
+                    # skip all
+
                 , avoid_single_suppress_collision
                 , avoid_single_confront_collision
                 , avoid_single_diagonal_collision
@@ -153,6 +157,15 @@ def decision_flow(g: GameTurn):
                 , split_choose_larger2
                 , prefer_no_split
                 , dont_follow_tail_too_closely
+
+                ])
+
+
+                , remove_danger(unhealthy_territory_danger_corner)
+                , remove_danger(unhealthy_territory_danger)
+                , remove_danger(unhealthy_territory_danger_no_interior)
+                , meander_wayout
+                , remove_not_in_territory
                 , get_food
                 , just_choose_larger
                 # , go_towards_exposure_point
@@ -552,14 +565,18 @@ def decision_flow(g: GameTurn):
             g.me.decision_path.append(f"prefer not next step 11 collision {snakes}")
             return moves
 
-    def get_food(moves):
-        moves = [a for a in moves if a in g.food]
-        if len(moves) != 0:
-            g.me.decision_path.append(f"get food at {moves}")
-            return moves
+    def remove_not_in_territory(moves):
+        moves = [a for a in moves if a in g.me.territory]
+        return moves
 
     def get_food(moves):
         distance_factor = 2
+        # snakes = [snake for snake in g.others 
+        #                    if snake.length > g.me.length
+        #                    and len(g.me.inner_contacting_border[snake.head]) != 0
+        #                    ]
+        # if len(snakes) == 0 or min([g.me.to_snake_path_distance[snake.head] for snake in snakes]) > 8:
+        #     distance_factor = 6
         good_food = [f for f in g.food if f in g.me.territory and g.me.territory_point_level[f] <= distance_factor]
         if len(good_food) == 0: return
         best_food = sorted([(f, g.me.territory_point_level[f]) for f in good_food], key=lambda a: a[1])
