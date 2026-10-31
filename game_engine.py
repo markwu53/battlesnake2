@@ -6,6 +6,7 @@ import territory_gemini2.territory as territory_gemini
 import territory.territory as territory
 import territory2.territory as territory2
 import territory3_full.territory as territory3
+import meander_territory.territory as meander_territory
 
 class GameEngine:
     def __init__(self):
@@ -92,7 +93,7 @@ class GameEngine:
 
     def call_snake_model(self, snake, game_state):
         if snake.name in [ "mark_snake_test RED", ]:
-            territory3.main(game_state, log=True) 
+            meander_territory.main(game_state, log=True) 
             return {"move": game_state["next_move"]}
         elif snake.name in [ "mark_snake_test YELLOW", ]:
             # territory.main(game_state, log=False) 
