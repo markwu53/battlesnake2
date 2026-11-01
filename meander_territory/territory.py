@@ -1,5 +1,5 @@
 # BS v2 - minimal Battlesnake bot (fresh start)
-# Decision units: turn_0, win, avoid_death, kill, avoid_collision, avoid_trap, avoid_starvation, just_choose_larger (with tie-break)
+# Decision units: turn_0, win, avoid_death, kill, avoid_collision, avoid_trap, avoid_starvation, just_choose_larger (skips collision-point moves, scores the rest; with tie-break: dynamic gap, average over all opponent replies)
 # Source: BS Orig. Code of kept functions is copied unchanged.
 
 import time
@@ -91,8 +91,10 @@ game = Game()
 # avoid_starvation acts when health <= steps to the nearest food + this margin
 STARVATION_MARGIN = 10
 
-# tie-break: when the best moves of just_choose_larger are within this many cells, look one more step ahead
+# tie-break: when the best moves of just_choose_larger are within a dynamic gap, look closer at those moves.
+# gap = the larger of TIEBREAK_GAP cells and TIEBREAK_GAP_PCT of the best score
 TIEBREAK_GAP = 2
+TIEBREAK_GAP_PCT = 0.10
 # tie-break is abandoned (today's answer is kept) when the turn has used this many seconds
 TIEBREAK_TIME_LIMIT = 0.25
 
@@ -224,9 +226,9 @@ def decision_flow(g: GameTurn):
         return keep
 
     def just_choose_larger(moves):
-        for a in moves:
-            ma = g.me.moves_attr[a]
-            if ma.is_collision_point: return
+        # collision-point moves are skipped (they have no moves_ngs entry); the other moves are still scored
+        moves = [a for a in moves if not g.me.moves_attr[a].is_collision_point]
+        if len(moves) == 0: return
 
         meander = [(a, [ng.me.achievable_meander_space for ng in ngs]) for a in moves for ngs in [g.me.moves_ngs[a]]]
         if any([sum(ns) > 0 for a,ns in meander]):
@@ -238,7 +240,8 @@ def decision_flow(g: GameTurn):
         max_a = [a for a,n in a_area if n == max_n]
         g.me.decision_path.append(f"just choose larger: {max_a}")
 
-        close = [a for a,n in a_area if n >= max_n - TIEBREAK_GAP]
+        gap = max(TIEBREAK_GAP, TIEBREAK_GAP_PCT * max_n)
+        close = [a for a,n in a_area if n >= max_n - gap]
         if len(close) > 1:
             max_a = tie_break(g, close, max_a, turn_start + TIEBREAK_TIME_LIMIT)
         return max_a
@@ -280,9 +283,9 @@ def second_step_value(ng: GameTurn, deadline: float):
         best = max(best, total/len(others_choices))
     return best
 
-def tie_break(g: GameTurn, close: list, default: list, deadline: float):
-    # close: moves whose one-step territory is within TIEBREAK_GAP of the best.
-    # Looks one more step ahead for these moves only. Keeps `default` if time runs out or anything fails.
+def second_step_tie_break(g: GameTurn, close: list, default: list, deadline: float):
+    # close: moves with equal scores after the all-replies tie-break. Looks one more step ahead for these moves only.
+    # Keeps `default` if time runs out or anything fails.
     try:
         values = {}
         for a in close:
@@ -295,6 +298,45 @@ def tie_break(g: GameTurn, close: list, default: list, deadline: float):
         best = max(values.values())
         result = [a for a in close if values[a] == best]
         g.me.decision_path.append(f"tie-break 2nd step: { {a: round(v, 2) for a, v in values.items()} } -> {result}")
+        return result
+    except Exception as e:
+        g.me.decision_path.append(f"tie-break failed: {e!r}")
+        return default
+
+def all_replies_value(g: GameTurn, a: Int2, deadline: float):
+    # Score of move a averaged over EVERY legal move of every opponent (not only the one predicted move each).
+    # Score = my territory + achievable meander space, the same measure just_choose_larger uses.
+    # Returns None if the deadline passes before the answer is complete.
+    me2 = snake_next_step(g, g.me, a)
+    movers = [other for other in g.others if len(other.allowed_moves) != 0]
+    total = 0
+    count = 0
+    for replies in itertools.product(*[other.allowed_moves for other in movers]):
+        if time.time() > deadline: return None
+        others = [snake_next_step(g, other, move) for other, move in zip(movers, replies)]
+        ng = next_game_turn(g, [snake_copy(me2)] + others)
+        total += len(ng.me.territory) + ng.me.achievable_meander_space
+        count += 1
+    return total / count
+
+def tie_break(g: GameTurn, close: list, default: list, deadline: float):
+    # close: moves whose one-step score is within the dynamic gap of the best.
+    # just_choose_larger scores only ONE predicted reply per opponent, which can mislead (for example an opponent
+    # predicted to eat food and get trapped). Here every legal reply of every opponent is scored and the average decides.
+    # Moves with equal averages go to the 2nd step tie-break. Keeps `default` if time runs out or anything fails.
+    try:
+        values = {}
+        for a in close:
+            v = all_replies_value(g, a, deadline)
+            if v is None:
+                g.me.decision_path.append("tie-break skipped: out of time")
+                return default
+            values[a] = v
+        best = max(values.values())
+        result = [a for a in close if round(values[a] - best, 6) == 0]
+        g.me.decision_path.append(f"tie-break all replies: { {a: round(v, 2) for a, v in values.items()} } -> {result}")
+        if len(result) > 1:
+            result = second_step_tie_break(g, result, result, deadline)
         return result
     except Exception as e:
         g.me.decision_path.append(f"tie-break failed: {e!r}")
