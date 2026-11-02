@@ -1,5 +1,5 @@
 # BS v2 - minimal Battlesnake bot (fresh start)
-# Decision units: turn_0, win, avoid_death, kill, avoid_collision, avoid_trap, avoid_starvation, just_choose_larger (skips collision-point moves, scores the rest; with tie-break: dynamic gap, average over all opponent replies)
+# Decision units: turn_0, win, avoid_death, kill, avoid_collision, avoid_trap, avoid_starvation, just_choose_larger (skips collision-point moves, scores the rest; with tie-break: dynamic gap, all opponent replies, then a second step for every move within the gap of the best all-replies score). The tie-break is skipped in the opening (3+ opponents alive and every snake shorter than 8). Reply scoring: 1v1 = WORST reply (minimum), 3-4 snakes = average
 # Source: BS Orig. Code of kept functions is copied unchanged.
 
 import time
@@ -98,6 +98,20 @@ TIEBREAK_GAP_PCT = 0.10
 # tie-break is abandoned (today's answer is kept) when the turn has used this many seconds
 TIEBREAK_TIME_LIMIT = 0.25
 
+# tie-break is skipped in the opening: while at least this many opponents are alive and every snake (me included) is shorter than the length below
+TIEBREAK_SKIP_MIN_OPPONENTS = 3
+TIEBREAK_SKIP_MAX_LENGTH = 8
+
+# avoid_trap: only opponents closer than this path distance vary their replies
+TRAP_DISTANCE = 6
+
+def reply_score(values: list, n_opponents: int):
+    # Combines the scores of one move over the opponents' replies.
+    # 1v1: the WORST reply (minimum), because the single opponent can really pick the reply that hurts me most.
+    # 3 or 4 snakes: the average, because the opponents cannot all coordinate against me.
+    if n_opponents == 1: return min(values)
+    return sum(values) / len(values)
+
 def decision_flow(g: GameTurn):
     turn_start = time.time()
 
@@ -184,15 +198,26 @@ def decision_flow(g: GameTurn):
             return moves
 
     def avoid_trap(moves):
-        # A move is a trap when, whatever the opponents answer, every move I have next turn
-        # is a collision point (or I have none). Skip it if it is the only kind of move left.
+        # A move is trapped under one set of opponent replies when every move I have next turn is a collision point (or I have none).
+        # Only opponents closer than TRAP_DISTANCE (path distance) vary their replies; farther ones keep their first predicted move.
+        # Share = trapped replies / considered replies. Moves trapped more often than the best move are dropped.
+        # Does nothing when all moves are trapped equally often.
         def trapped(ng):
             return all(ng.me.moves_attr[b].is_collision_point for b in ng.me.allowed_moves)
-        traps = [a for a in moves if a in g.me.moves_ngs and all(trapped(ng) for ng in g.me.moves_ngs[a])]
-        if len(traps) == 0: return
-        keep = [a for a in moves if a not in traps]
-        if len(keep) == 0: return
-        g.me.decision_path.append(f"avoid trap: {traps} -> {keep}")
+        movers = [o for o in g.others if len(o.next_snake_choices) != 0]
+        near = [g.me.to_snake_path_distance.get(o.head, 99) < TRAP_DISTANCE for o in movers]
+        combos = itertools.product(*[range(len(o.next_snake_choices)) for o in movers])
+        relevant = [i for i, c in enumerate(combos) if all(k == 0 or n for k, n in zip(c, near))]
+        share = {}
+        for a in moves:
+            ngs = g.me.moves_ngs.get(a)
+            if not ngs: continue
+            share[a] = sum(1 for i in relevant if trapped(ngs[i])) / len(relevant)
+        if len(share) == 0: return
+        best = min(share.values())
+        keep = [a for a in moves if a not in share or share[a] == best]
+        if len(keep) == len(moves): return
+        g.me.decision_path.append(f"avoid trap: trapped share { {a: round(s, 2) for a, s in share.items()} } -> {keep}")
         return keep
 
     def avoid_starvation(moves):
@@ -230,11 +255,7 @@ def decision_flow(g: GameTurn):
         moves = [a for a in moves if not g.me.moves_attr[a].is_collision_point]
         if len(moves) == 0: return
 
-        meander = [(a, [ng.me.achievable_meander_space for ng in ngs]) for a in moves for ngs in [g.me.moves_ngs[a]]]
-        if any([sum(ns) > 0 for a,ns in meander]):
-            print(f"meander matters {meander}")
-
-        a_area = [(a, sum([len(ng.me.territory)+ng.me.achievable_meander_space for ng in ngs])/len(ngs)) 
+        a_area = [(a, reply_score([len(ng.me.territory)+ng.me.achievable_meander_space for ng in ngs], len(g.others))) 
                   for a in moves for ngs in [g.me.moves_ngs[a]]]
         max_n = max([n for a,n in a_area ])
         max_a = [a for a,n in a_area if n == max_n]
@@ -242,7 +263,9 @@ def decision_flow(g: GameTurn):
 
         gap = max(TIEBREAK_GAP, TIEBREAK_GAP_PCT * max_n)
         close = [a for a,n in a_area if n >= max_n - gap]
-        if len(close) > 1:
+        early_short = len(g.others) >= TIEBREAK_SKIP_MIN_OPPONENTS and all(sn.length < TIEBREAK_SKIP_MAX_LENGTH for sn in [g.me] + g.others)
+        if len(close) > 1 and early_short: g.me.decision_path.append("tie-break skipped: early game, short snakes")
+        elif len(close) > 1:
             max_a = tie_break(g, close, max_a, turn_start + TIEBREAK_TIME_LIMIT)
         return max_a
 
@@ -265,7 +288,7 @@ def decision_flow(g: GameTurn):
     return decision()
 
 def second_step_value(ng: GameTurn, deadline: float):
-    # Best territory I can get one step after ng, averaged over the opponents' choices.
+    # Best territory I can get one step after ng. Over the opponents' choices: 1v1 = worst reply, 3-4 snakes = average (reply_score).
     # Returns None if the deadline passes before the answer is complete.
     if len(ng.me.allowed_moves) == 0: return 0
     others_choices = [other.next_snake_choices for other in ng.others]
@@ -275,12 +298,12 @@ def second_step_value(ng: GameTurn, deadline: float):
     for b in ng.me.allowed_moves:
         if ng.me.moves_attr[b].is_collision_point: continue
         me2 = snake_next_step(ng, ng.me, b)
-        total = 0
+        scores = []
         for others in others_choices:
             if time.time() > deadline: return None
             ng2 = next_game_turn(ng, [snake_copy(me2)]+[snake_copy(other) for other in others])
-            total += len(ng2.me.territory)+ng2.me.achievable_meander_space
-        best = max(best, total/len(others_choices))
+            scores.append(len(ng2.me.territory)+ng2.me.achievable_meander_space)
+        best = max(best, reply_score(scores, len(ng.others)))
     return best
 
 def second_step_tie_break(g: GameTurn, close: list, default: list, deadline: float):
@@ -294,7 +317,7 @@ def second_step_tie_break(g: GameTurn, close: list, default: list, deadline: flo
             if any(v is None for v in vs):
                 g.me.decision_path.append("tie-break skipped: out of time")
                 return default
-            values[a] = sum(vs)/len(vs)
+            values[a] = reply_score(vs, len(g.others))
         best = max(values.values())
         result = [a for a in close if values[a] == best]
         g.me.decision_path.append(f"tie-break 2nd step: { {a: round(v, 2) for a, v in values.items()} } -> {result}")
@@ -304,26 +327,25 @@ def second_step_tie_break(g: GameTurn, close: list, default: list, deadline: flo
         return default
 
 def all_replies_value(g: GameTurn, a: Int2, deadline: float):
-    # Score of move a averaged over EVERY legal move of every opponent (not only the one predicted move each).
+    # Score of move a over EVERY legal move of every opponent (not only the one predicted move each): 1v1 = worst reply, 3-4 snakes = average.
     # Score = my territory + achievable meander space, the same measure just_choose_larger uses.
     # Returns None if the deadline passes before the answer is complete.
     me2 = snake_next_step(g, g.me, a)
     movers = [other for other in g.others if len(other.allowed_moves) != 0]
-    total = 0
-    count = 0
+    scores = []
+
     for replies in itertools.product(*[other.allowed_moves for other in movers]):
         if time.time() > deadline: return None
         others = [snake_next_step(g, other, move) for other, move in zip(movers, replies)]
         ng = next_game_turn(g, [snake_copy(me2)] + others)
-        total += len(ng.me.territory) + ng.me.achievable_meander_space
-        count += 1
-    return total / count
+        scores.append(len(ng.me.territory) + ng.me.achievable_meander_space)
+    return reply_score(scores, len(g.others))
 
 def tie_break(g: GameTurn, close: list, default: list, deadline: float):
     # close: moves whose one-step score is within the dynamic gap of the best.
     # just_choose_larger scores only ONE predicted reply per opponent, which can mislead (for example an opponent
-    # predicted to eat food and get trapped). Here every legal reply of every opponent is scored and the average decides.
-    # Moves with equal averages go to the 2nd step tie-break. Keeps `default` if time runs out or anything fails.
+    # predicted to eat food and get trapped). Here every legal reply of every opponent is scored and the reply_score (1v1 min, else average) decides.
+    # Moves within the dynamic gap (max of TIEBREAK_GAP and TIEBREAK_GAP_PCT of the best all-replies score) go to the 2nd step; `default` (the exact best moves) is kept if time runs out or anything fails.
     try:
         values = {}
         for a in close:
@@ -333,10 +355,12 @@ def tie_break(g: GameTurn, close: list, default: list, deadline: float):
                 return default
             values[a] = v
         best = max(values.values())
-        result = [a for a in close if round(values[a] - best, 6) == 0]
+        exact = [a for a in close if round(values[a] - best, 6) == 0]
+        gap = max(TIEBREAK_GAP, TIEBREAK_GAP_PCT * best)
+        result = [a for a in close if values[a] >= best - gap]
         g.me.decision_path.append(f"tie-break all replies: { {a: round(v, 2) for a, v in values.items()} } -> {result}")
         if len(result) > 1:
-            result = second_step_tie_break(g, result, result, deadline)
+            result = second_step_tie_break(g, result, exact, deadline)
         return result
     except Exception as e:
         g.me.decision_path.append(f"tie-break failed: {e!r}")
@@ -426,6 +450,11 @@ def next_snake_choices(ng: GameTurn, snake: Snake):
         snake_move = take_first(safe_moves)
         snake2 = snake_next_step(ng, snake, snake_move)
         return [snake2]
+
+    # 1v1: the single opponent can play any of its safe moves, so consider all of them, however far away it is.
+    # (3-4 snakes keep the single predicted move below.)
+    if len(ng.others) == 1:
+        return [snake_next_step(ng, snake, a) for a in safe_moves]
 
     if distance_pq(ng.me.head, snake.head) == 2:
         if len(ng.me.inner_contacting_border[snake.head]) != 0:
@@ -1048,3 +1077,5 @@ if __name__ == "__main__":
     #game_state = init_from_db_log(id, turn, self_name)
     # game_state = init_from_game_engine_log(log, self_name)
     main(game_state, log=True)
+
+
