@@ -1,5 +1,5 @@
 # BS v2 - minimal Battlesnake bot (fresh start)
-# Decision units: turn_0, win, avoid_death, kill, avoid_collision, avoid_trap, avoid_starvation, just_choose_larger (skips collision-point moves, scores the rest; with tie-break: dynamic gap, all opponent replies, then a second step for every move within the gap of the best all-replies score). The tie-break is skipped in the opening (3+ opponents alive and every snake shorter than 8). Reply scoring: 1v1 = WORST reply (minimum), 3-4 snakes = average
+# Decision units: turn_0, win, avoid_death, kill, avoid_collision, avoid_trap, avoid_starvation, just_choose_larger (skips collision-point moves, scores the rest; with tie-break: dynamic gap, all opponent replies, then a second step for every move within the gap of the best all-replies score, then a food step: when I am shorter than the longest opponent, moves within FOOD_TIEBREAK_PCT of the best second-step value are ordered by distance to food I reach first). The tie-break is skipped in the opening (3+ opponents alive and every snake shorter than 8). Reply scoring: 1v1 = WORST reply (minimum), 3-4 snakes = average
 # Source: BS Orig. Code of kept functions is copied unchanged.
 
 import time
@@ -97,6 +97,8 @@ TIEBREAK_GAP = 2
 TIEBREAK_GAP_PCT = 0.10
 # tie-break is abandoned (today's answer is kept) when the turn has used this many seconds
 TIEBREAK_TIME_LIMIT = 0.25
+# last step of the tie-break: moves whose 2nd-step value is within this share of the best may be decided by food (only when I am shorter than the longest opponent)
+FOOD_TIEBREAK_PCT = 0.03
 
 # tie-break is skipped in the opening: while at least this many opponents are alive and every snake (me included) is shorter than the length below
 TIEBREAK_SKIP_MIN_OPPONENTS = 3
@@ -259,7 +261,7 @@ def decision_flow(g: GameTurn):
                   for a in moves for ngs in [g.me.moves_ngs[a]]]
         max_n = max([n for a,n in a_area ])
         max_a = [a for a,n in a_area if n == max_n]
-        g.me.decision_path.append(f"just choose larger: {max_a}")
+        g.me.decision_path.append(f"just choose larger: {max_a} of { {a: round(n, 2) for a, n in a_area} }")
 
         gap = max(TIEBREAK_GAP, TIEBREAK_GAP_PCT * max_n)
         close = [a for a,n in a_area if n >= max_n - gap]
@@ -306,6 +308,28 @@ def second_step_value(ng: GameTurn, deadline: float):
         best = max(best, reply_score(scores, len(ng.others)))
     return best
 
+def food_tie_break(g: GameTurn, near: list, default: list):
+    # Last step of the tie-break. near: moves whose 2nd-step value is within FOOD_TIEBREAK_PCT of the best; default: the exact best moves.
+    # Only when I am shorter than the longest opponent (I must grow to survive a head-to-head): prefer the move closest to food that I reach strictly before every opponent
+    # (an opponent of equal or greater length that arrives at the same time wins the food). It never overrides the territory scores beyond the FOOD_TIEBREAK_PCT band.
+    # `near` has no collision-point moves (just_choose_larger removed them). Keeps `default` when I am the longest, no food qualifies, or the food does not separate the moves.
+    if g.me.length >= max(o.length for o in g.others): return default
+    my_steps = {a: food_steps(g, a, 1) for a in near}
+    other_steps = [(o, food_steps(g, o.head, 0)) for o in g.others]
+    move_dist = {a: 99999 for a in near}
+    for f in g.food:
+        mine = min([my_steps[a][f] for a in near if f in my_steps[a]], default=None)
+        if mine is None: continue
+        if any(osteps.get(f, 99999) < mine or (osteps.get(f, 99999) == mine and o.length >= g.me.length) for o, osteps in other_steps): continue
+        for a in near:
+            if f in my_steps[a]: move_dist[a] = min(move_dist[a], my_steps[a][f])
+    if all(d == 99999 for d in move_dist.values()): return default
+    closest = min(move_dist.values())
+    result = [a for a in near if move_dist[a] == closest]
+    if len(result) == len(near): return default
+    g.me.decision_path.append(f"food tie-break: steps to my food { {a: d for a, d in move_dist.items()} } -> {result}")
+    return result
+
 def second_step_tie_break(g: GameTurn, close: list, default: list, deadline: float):
     # close: moves with equal scores after the all-replies tie-break. Looks one more step ahead for these moves only.
     # Keeps `default` if time runs out or anything fails.
@@ -321,6 +345,8 @@ def second_step_tie_break(g: GameTurn, close: list, default: list, deadline: flo
         best = max(values.values())
         result = [a for a in close if values[a] == best]
         g.me.decision_path.append(f"tie-break 2nd step: { {a: round(v, 2) for a, v in values.items()} } -> {result}")
+        near = [a for a in close if values[a] >= best - FOOD_TIEBREAK_PCT * best]
+        if len(near) > 1: result = food_tie_break(g, near, result)
         return result
     except Exception as e:
         g.me.decision_path.append(f"tie-break failed: {e!r}")
@@ -1077,5 +1103,3 @@ if __name__ == "__main__":
     #game_state = init_from_db_log(id, turn, self_name)
     # game_state = init_from_game_engine_log(log, self_name)
     main(game_state, log=True)
-
-
