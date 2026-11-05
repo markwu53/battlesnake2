@@ -1,5 +1,5 @@
 # BS v2 - minimal Battlesnake bot (fresh start)
-# territory_score corrects true splits. Multi-snake predicted replies use one shared probability distribution: top reply before turn 100, full weighted replies afterward; 1v1 remains worst-case.
+# Shared opponent probabilities use TOP1 before turn 100 and weighted replies afterward; probable zero-exit stringlines and poor-topology opening-growth routes are filtered before territory selection.
 # Source: BS Orig. Code of kept functions is copied unchanged.
 
 import time
@@ -122,7 +122,7 @@ TIEBREAK_SKIP_MAX_LENGTH = 8
 
 # avoid_trap: only opponents closer than this path distance vary their replies
 TRAP_DISTANCE = 6
-
+STRINGLINE_RISK_MIN, STRINGLINE_RISK_GAP = 0.20, 0.10
 # Future kill pressure logging: inspect shorter nearby targets and rational replies; no move changes.
 KILL_PRESSURE_DISTANCE = 5
 KILL_PRESSURE_MIN_REPLIES = 2
@@ -190,6 +190,7 @@ def decision_flow(g: GameTurn):
                 , stringline_log
                 , avoid_collision
                 , avoid_trap
+                , avoid_probable_stringline
                 , border_suppress_kill
                 , food_capture
                 , avoid_starvation
@@ -535,6 +536,26 @@ def decision_flow(g: GameTurn):
         if len(keep) == len(moves): return
         g.me.decision_path.append(f"avoid trap: trapped share { {a: round(s, 2) for a, s in share.items()} } -> {keep}")
         return keep
+
+    def avoid_probable_stringline(moves):
+        # Probabilistic early danger: prefer moves with materially less zero-exit corridor risk.
+        risk = {}
+        for a in moves:
+            ngs = g.me.moves_ngs.get(a)
+            if not ngs: continue
+            total = sum(ng.reply_probability for ng in ngs)
+            dangerous = sum(ng.reply_probability for ng in ngs
+                            if any(c['exits'] == 0 for c in corridor_scan(ng)))
+            risk[a] = dangerous / total if total else 0
+        if len(risk) < 2: return
+        safest = min(risk.values())
+        danger = [a for a, r in risk.items()
+                  if r >= STRINGLINE_RISK_MIN and r - safest >= STRINGLINE_RISK_GAP]
+        keep = [a for a in moves if a not in danger]
+        if len(danger) == 0 or len(keep) == 0: return
+        g.me.decision_path.append(f"avoid probable stringline: risk { {a: round(r, 3) for a, r in risk.items()} } -> {keep}")
+        return keep
+
 
     def avoid_border_suppress(moves):
         # I move along the border; after the predicted replies a strictly longer opponent can take
@@ -901,6 +922,21 @@ def decision_flow(g: GameTurn):
         dist = {a: min([food_steps(g, a, 1).get(f, 99999) for f in targets], default=99999) for a in moves}
         toward = [a for a in moves if a in scores and dist[a] == nearest]
         room_ok = [a for a in toward if scores[a] >= OPENING_GROWTH_ROOM_FACTOR * (g.me.length + (1 if a in g.food else 0))]
+        def topology_risk(a):
+            ngs = g.me.moves_ngs.get(a, [])
+            total = sum(ng.reply_probability for ng in ngs)
+            bad = sum(ng.reply_probability for ng in ngs
+                      if any(c['exits'] <= 1 and c['share'] >= 0.5 for c in corridor_scan(ng)))
+            return bad / total if total else 0
+        topology = {a: topology_risk(a) for a in set(room_ok + chosen)}
+        base_risk = min([topology[a] for a in chosen if a in topology], default=0)
+        blocked = [a for a in room_ok if topology[a] >= STRINGLINE_RISK_MIN
+                   and topology[a] - base_risk >= STRINGLINE_RISK_GAP]
+        room_ok = [a for a in room_ok if a not in blocked]
+        if len(room_ok) == 0 and len(blocked) != 0:
+            g.me.decision_path.append(f"opening growth skipped: food {targets} {nearest} steps, topology risk { {a: round(r, 3) for a, r in topology.items()} }")
+            return chosen
+
         if len(room_ok) == 0:
             if len(toward) != 0: g.me.decision_path.append(f"opening growth skipped: food {targets} {nearest} steps, no route keeps {OPENING_GROWTH_ROOM_FACTOR:.1f}x room")
             return chosen
@@ -1114,10 +1150,14 @@ def corridor_scan(ng: GameTurn):
     # Each wall side is classified: 'edge' = board edge; 'body' = a snake body cell that is still there when I arrive (release time > my arrival level);
     # 'soft' = anything else (opponent territory, contested cell, a body that is gone by then).
     # tier: HARD when at least CORRIDOR_HARD_FRAC of all wall sides are edge/body, MIXED when at least CORRIDOR_MIXED_FRAC, else SOFT.
-    # exits = number of my territory cells outside the corridor that touch it (0 = the corridor is all my room, 1 = dead end with one way in/out).
+    # exits = adjacent territory cells outside the corridor that are junctions or belong to a complete 2x2 turning space.
     # share = corridor cells / all my territory cells.
     me = ng.me
     T = me.territory
+    def turning_space(p):
+        if sum(q in T for q in adj_cells(p)) >= 3: return True
+        x, y = p
+        return any(all((x+dx+i, y+dy+j) in T for i in (0,1) for j in (0,1)) for dx in (-1,0) for dy in (-1,0))
     level = me.territory_point_level
     release = {}
     for snake in ng.snakes:
@@ -1153,7 +1193,7 @@ def corridor_scan(ng: GameTurn):
         hard_frac = sum(1 for k in sides if k != 'soft') / len(sides)
         tier = 'HARD' if hard_frac >= CORRIDOR_HARD_FRAC else 'MIXED' if hard_frac >= CORRIDOR_MIXED_FRAC else 'SOFT'
         compset = set(comp)
-        exits = {q for p in comp for q in adj_cells(p) if q in T and q not in compset}
+        exits = {q for p in comp for q in adj_cells(p) if q in T and q not in compset and turning_space(q)}
         corridors.append({'tier': tier, 'length': len(comp), 'hard_frac': hard_frac,
                           'walls': f"e{sides.count('edge')} b{sides.count('body')} s{sides.count('soft')}",
                           'exits': len(exits), 'share': len(comp) / max(len(T), 1)})
