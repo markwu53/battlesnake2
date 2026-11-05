@@ -1,5 +1,5 @@
 # BS v2 - minimal Battlesnake bot (fresh start)
-# territory_score corrects true splits. Multi-snake predicted replies use one shared live territory/food probability distribution per turn; 1v1 remains worst-case. Equal-collision preference requires viable survival room.
+# territory_score corrects true splits. Multi-snake predicted replies use one shared probability distribution: top reply before turn 100, full weighted replies afterward; 1v1 remains worst-case.
 # Source: BS Orig. Code of kept functions is copied unchanged.
 
 import time
@@ -108,7 +108,7 @@ BURST_FAR_DISTANCE = 8
 BURST_CONFINED_ROOM_FACTOR = 2
 # get_food room check: a food move needs at least this many times my length in territory (territory + meander, as scored by just_choose_larger) after the move
 FOOD_ROOM_FACTOR = 2
-
+OPP_PROB_FULL_FROM_TURN = 100
 # tie-break: when the best moves of just_choose_larger are within a dynamic gap, look closer at those moves.
 # gap = the larger of TIEBREAK_GAP cells and TIEBREAK_GAP_PCT of the best score
 TIEBREAK_GAP = 2
@@ -135,7 +135,7 @@ CORRIDOR_HARD_FRAC = 0.9
 CORRIDOR_MIXED_FRAC = 0.5
 CORRIDOR_RETREAT_MIN_LENGTH = 12
 CORRIDOR_RETREAT_COST_PCT = 0.10
-# Opponent probability model: one shared current-turn distribution using viable territory + health-adjusted food, converted by softmax. Set OPP_PROB_LIVE=False for legacy rollback.
+# Opponent probability model: shared current-turn territory/food probabilities. Top reply before OPP_PROB_FULL_FROM_TURN; full weighted replies afterward.
 OPP_PROB_TERRITORY_WEIGHT = 1.0
 OPP_PROB_MIN_ROOM_FACTOR = 0.5
 OPP_PROB_FOOD_WEIGHT = 0.5
@@ -261,7 +261,7 @@ def decision_flow(g: GameTurn):
         for other in g.others:
             if OPP_PROB_LIVE:
                 choices, msg = opponent_probability_choices(other)
-                if msg is not None: lines.append(msg)
+                if msg is not None: lines.append(msg); choices = [max(choices, key=lambda snake: snake.choice_probability)] if g.turn < OPP_PROB_FULL_FROM_TURN else choices
             else: choices = other.next_snake_choices
             if len(choices) != 0: choice_sets.append(choices)
         probability_logs['shared'] = lines
@@ -316,7 +316,7 @@ def decision_flow(g: GameTurn):
         for row in viable:
             row['snake'].choice_probability = row['weight'] / total
             choices.append(row['snake'])
-        msg = f"opponent probability {target.name}: {result}; cutoff {cutoff:g}; LIVE SHARED"
+        msg = f"opponent probability {target.name}: {result}; cutoff {cutoff:g}; LIVE SHARED {'TOP1' if g.turn < OPP_PROB_FULL_FROM_TURN else 'WEIGHTED'}"
         return choices, msg
     def opponent_probability_log(red_moves):
         if len(red_moves) == 0: return
