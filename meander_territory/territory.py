@@ -1,5 +1,5 @@
 # BS v2 - minimal Battlesnake bot (fresh start)
-# territory_score corrects true splits. Multi-snake predicted replies use live territory/food probabilities with a length cutoff; 1v1 remains worst-case. Equal-collision preference requires viable survival room.
+# territory_score corrects true splits. Multi-snake predicted replies use one shared live territory/food probability distribution per turn; 1v1 remains worst-case. Equal-collision preference requires viable survival room.
 # Source: BS Orig. Code of kept functions is copied unchanged.
 
 import time
@@ -135,7 +135,7 @@ CORRIDOR_HARD_FRAC = 0.9
 CORRIDOR_MIXED_FRAC = 0.5
 CORRIDOR_RETREAT_MIN_LENGTH = 12
 CORRIDOR_RETREAT_COST_PCT = 0.10
-# Opponent probability model: viable territory + health-adjusted food, converted by softmax. Set OPP_PROB_LIVE=False for exact legacy rollback.
+# Opponent probability model: one shared current-turn distribution using viable territory + health-adjusted food, converted by softmax. Set OPP_PROB_LIVE=False for legacy rollback.
 OPP_PROB_TERRITORY_WEIGHT = 1.0
 OPP_PROB_MIN_ROOM_FACTOR = 0.5
 OPP_PROB_FOOD_WEIGHT = 0.5
@@ -256,26 +256,28 @@ def decision_flow(g: GameTurn):
             return [kill_move]
 
     def next_step_calculation(moves):
+        # Prepare one opponent distribution from the current turn and reuse it for every RED move.
+        choice_sets, lines = [], []
+        for other in g.others:
+            if OPP_PROB_LIVE:
+                choices, msg = opponent_probability_choices(other)
+                if msg is not None: lines.append(msg)
+            else: choices = other.next_snake_choices
+            if len(choices) != 0: choice_sets.append(choices)
+        probability_logs['shared'] = lines
+        others_choices = list(itertools.product(*choice_sets))
         for a in moves:
             ma = g.me.moves_attr[a]
             if ma.is_collision_point: continue
             me2 = snake_next_step(g, g.me, a)
-            choice_sets = []
-            for other in g.others:
-                if OPP_PROB_LIVE:
-                    choices, msg = opponent_probability_choices(other, a)
-                    if msg is not None: probability_logs.setdefault(a, []).append(msg)
-                else: choices = other.next_snake_choices
-                if len(choices) != 0: choice_sets.append(choices)
-            others_choices = list(itertools.product(*choice_sets))
             ngs = []
             for others in others_choices:
                 ng = next_game_turn(g, [snake_copy(me2)]+[snake_copy(other) for other in others])
                 ng.reply_probability = product([other.choice_probability for other in others])
                 ngs.append(ng)
             g.me.moves_ngs[a] = ngs
-
-    def opponent_probability_choices(target, red_move):
+    def opponent_probability_choices(target):
+        # Opponent probabilities depend only on the current turn, not on a candidate RED move.
         unsafe = []
         for other in g.snakes:
             if other.head == target.head: continue
@@ -291,7 +293,7 @@ def decision_flow(g: GameTurn):
             snakes = [target2]
             for snake in g.snakes:
                 if snake.head == target.head: continue
-                if snake.head == g.me.head: snakes.append(snake_next_step(g, snake, red_move))
+                if snake.head == g.me.head: snakes.append(snake_copy(snake))
                 elif len(snake.next_snake_choices) != 0: snakes.append(snake_copy(take_first(snake.next_snake_choices)))
                 elif len(snake.allowed_moves) != 0: snakes.append(snake_next_step(g, snake, take_first(snake.allowed_moves)))
                 else: snakes.append(snake_copy(snake))
@@ -314,17 +316,15 @@ def decision_flow(g: GameTurn):
         for row in viable:
             row['snake'].choice_probability = row['weight'] / total
             choices.append(row['snake'])
-        msg = f"opponent probability {target.name}: {result}; cutoff {cutoff:g}; LIVE"
+        msg = f"opponent probability {target.name}: {result}; cutoff {cutoff:g}; LIVE SHARED"
         return choices, msg
-
     def opponent_probability_log(red_moves):
         if len(red_moves) == 0: return
-        red_move = take_first(red_moves)
-        lines = probability_logs.get(red_move)
-        if lines is None:
+        lines = probability_logs.get('shared')
+        if lines is None or not OPP_PROB_LIVE:
             lines = []
             for target in g.others:
-                _, msg = opponent_probability_choices(target, red_move)
+                _, msg = opponent_probability_choices(target)
                 if msg is not None: lines.append(msg)
         for line in lines: g.me.decision_path.append(line)
         return None
