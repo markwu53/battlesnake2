@@ -124,6 +124,7 @@ TIEBREAK_SKIP_MAX_LENGTH = 8
 # avoid_trap: only opponents closer than this path distance vary their replies
 TRAP_DISTANCE = 6
 STRINGLINE_RISK_MIN, STRINGLINE_RISK_GAP = 0.20, 0.10
+FOOD_ESCAPE_PROB_MIN = 0.60
 # Future kill pressure logging: inspect shorter nearby targets and rational replies; no move changes.
 KILL_PRESSURE_DISTANCE = 5
 KILL_PRESSURE_MIN_REPLIES = 2
@@ -869,14 +870,46 @@ def decision_flow(g: GameTurn):
         return None
 
     def prefer_equal_collision(moves):
-        # Equal-length collision (a 50-50 gamble) versus the moves that are not collision points.
-        # just_choose_larger skips every collision point, so it would take a "safe" move even when that move leaves me
-        # with less room than my own length (a longer snake is squeezing me there, so it is a sure death) while the
-        # equal-collision move is only a gamble. When the best safe move scores below my length, take the equal-collision move
-        # that still has room when the opponent does not step on the clash cell (best such score first).
+        # Equal-collision handling has two narrow branches:
+        # 1) probable-food escape: use an equal-collision cell when that opponent is likely to eat elsewhere,
+        #    all ordinary moves become zero-exit corridors under that same reply, and this move preserves an exit;
+        # 2) existing fallback: gamble only when every ordinary move keeps less room than my length.
         eq = [a for a in moves if g.me.moves_attr[a].is_collision_point and g.me.moves_attr[a].equal_collision_point]
         safe = [a for a in moves if not g.me.moves_attr[a].is_collision_point]
         if len(eq) == 0 or len(safe) == 0: return
+
+        def zero_exit(ng):
+            return any(c['exits'] == 0 for c in corridor_scan(ng))
+
+        # Reuse the already-built opponent probabilities. No additional opponent ply is searched.
+        food_escape = {}
+        for a in eq:
+            for target in g.others:
+                if target.length != g.me.length or a not in target.allowed_moves: continue
+                food_replies = [o for o in target.next_snake_choices
+                                if o.head in g.food and o.choice_probability >= FOOD_ESCAPE_PROB_MIN]
+                for food_reply in food_replies:
+                    replies = []
+                    for other in g.others:
+                        if other.head == target.head:
+                            replies.append(food_reply)
+                        elif len(other.next_snake_choices) != 0:
+                            replies.append(max(other.next_snake_choices, key=lambda o: o.choice_probability))
+                        elif len(other.allowed_moves) != 0:
+                            replies.append(snake_next_step(g, other, take_first(other.allowed_moves)))
+                        else:
+                            replies.append(snake_copy(other))
+                    eq_ng = next_game_turn(g, [snake_next_step(g, g.me, a)] + [snake_copy(o) for o in replies])
+                    safe_ngs = [next_game_turn(g, [snake_next_step(g, g.me, b)] + [snake_copy(o) for o in replies])
+                                for b in safe]
+                    if not zero_exit(eq_ng) and all(zero_exit(ng) for ng in safe_ngs):
+                        food_escape[a] = max(food_escape.get(a, 0), food_reply.choice_probability)
+        if len(food_escape) != 0:
+            best_p = max(food_escape.values())
+            pick = [a for a, p in food_escape.items() if p == best_p]
+            g.me.decision_path.append(f"prefer equal collision food escape: {pick}; opponent food probability {best_p:.1%}; ordinary moves become zero-exit")
+            return pick
+
         def score(ngs): return reply_score_ng(ngs, len(g.others))
         safe_best = max(score(g.me.moves_ngs[a]) for a in safe)
         if safe_best >= g.me.length: return
@@ -896,6 +929,7 @@ def decision_flow(g: GameTurn):
         pick = [a for a, n in eq_score.items() if n == best]
         g.me.decision_path.append(f"prefer equal collision: safe moves score at most {round(safe_best, 2)} (< my length {g.me.length}); equal collision {pick} keeps {round(best, 2)} cells if the opponent does not clash")
         return pick
+
 
     def get_food(moves):
         # Only with 3 or 4 snakes alive, and only when I am shorter than the longest opponent (I need to grow).
