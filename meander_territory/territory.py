@@ -1800,7 +1800,7 @@ def main(game_state, log=True):
 
     g.end_time = time.time()
 
-    g.log["module"] = "territory new"
+    g.log["module"] = "meander territory"
     g.log["decision_path"] = g.me.decision_path
     # g.log["allowed_moves"] = g.me.allowed_moves
     g.log["next_coord"] = g.next_coord
