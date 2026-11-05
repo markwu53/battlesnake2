@@ -1,5 +1,5 @@
 # BS v2 - minimal Battlesnake bot (fresh start)
-# Shared opponent probabilities use TOP1 before turn 100 and weighted replies afterward; probable zero-exit stringlines and poor-topology opening-growth routes are filtered before territory selection.
+# Shared opponent probabilities use TOP1 before turn 100 and weighted replies afterward; probable zero-exit stringlines, guarded 1v1 burst eating, and poor-topology opening-growth routes are filtered before territory selection.
 # Source: BS Orig. Code of kept functions is copied unchanged.
 
 import time
@@ -106,6 +106,7 @@ OPENING_GROWTH_ROOM_FACTOR = 1.5
 BURST_FOOD_COUNT = 8
 BURST_FAR_DISTANCE = 8
 BURST_CONFINED_ROOM_FACTOR = 2
+BURST_COST_PCT, BURST_ROOM_FACTOR = 0.10, 1.5
 # get_food room check: a food move needs at least this many times my length in territory (territory + meander, as scored by just_choose_larger) after the move
 FOOD_ROOM_FACTOR = 2
 OPP_PROB_FULL_FROM_TURN = 100
@@ -194,7 +195,7 @@ def decision_flow(g: GameTurn):
                 , border_suppress_kill
                 , food_capture
                 , avoid_starvation
-                , burst_eating_log
+                , burst_eating
                 , corridor_retreat
                 , corridor_log
                 , prefer_equal_collision
@@ -764,8 +765,8 @@ def decision_flow(g: GameTurn):
         g.me.decision_path.append(f"avoid starvation: health {g.me.health}, food {nearest} steps away, result {keep}")
         return keep
 
-    def burst_eating_log(moves):
-        # LOG ONLY. Detect a rare 1v1 window for a future multi-food burst strategy.
+    def burst_eating(moves):
+        # Active 1v1 growth: exploit a large stock of owned food while the opponent is far away or confined.
         if len(g.others) != 1: return
         foods = [f for f in g.food if f in g.me.territory]
         if len(foods) < BURST_FOOD_COUNT: return
@@ -775,13 +776,32 @@ def decision_flow(g: GameTurn):
         confined = room <= BURST_CONFINED_ROOM_FACTOR * other.length
         far = distance >= BURST_FAR_DISTANCE
         if not (far or confined): return
+
+        candidates = [a for a in moves if not g.me.moves_attr[a].is_collision_point and g.me.moves_ngs.get(a)]
+        if len(candidates) == 0: return
+        steps = {a: food_steps(g, a, 1) for a in candidates}
+        move_dist = {a: min([steps[a][f] for f in foods if f in steps[a]], default=99999) for a in candidates}
+        nearest = min(move_dist.values())
+        toward = [a for a in candidates if move_dist[a] == nearest]
+        if len(toward) == 0 or nearest == 99999: return
+
+        scores = {a: reply_score_ng(g.me.moves_ngs[a], len(g.others)) for a in candidates}
+        best = max(scores.values())
+        affordable = [a for a in toward
+                      if scores[a] >= BURST_ROOM_FACTOR * (g.me.length + (1 if a in g.food else 0))
+                      and (best == 0 or (best - scores[a]) / best <= BURST_COST_PCT)]
         reasons = []
         if far: reasons.append(f"far {distance}")
         if confined: reasons.append(f"confined {room}/{other.length}")
-        level = food_steps(g, g.me.head, 0)
-        reachable = [f for f in foods if f in level]
-        nearest = min([level[f] for f in reachable], default=None)
-        g.me.decision_path.append(f"burst eating detected: {len(foods)} owned foods, {' + '.join(reasons)}, reachable {len(reachable)}, nearest {nearest}; LOG ONLY")
+        if len(affordable) == 0:
+            g.me.decision_path.append(f"burst eating skipped: {len(foods)} owned foods, {' + '.join(reasons)}, nearest {nearest}, scores { {a: round(scores[a], 2) for a in toward} }")
+            return
+        food_best = max(scores[a] for a in affordable)
+        pick = [a for a in affordable if scores[a] == food_best]
+        cost = best - food_best
+        g.me.decision_path.append(f"burst eating: {len(foods)} owned foods, {' + '.join(reasons)}, nearest {nearest} -> {pick}, cost {cost:.2f} ({(cost / best if best else 0):.1%})")
+        return pick
+
         return None
 
     def corridor_retreat(moves):
@@ -1800,7 +1820,7 @@ def main(game_state, log=True):
 
     g.end_time = time.time()
 
-    g.log["module"] = "meander territory"
+    g.log["module"] = "territory new"
     g.log["decision_path"] = g.me.decision_path
     # g.log["allowed_moves"] = g.me.allowed_moves
     g.log["next_coord"] = g.next_coord
