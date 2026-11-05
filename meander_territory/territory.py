@@ -1,5 +1,5 @@
 # BS v2 - minimal Battlesnake bot (fresh start)
-# territory_score corrects true splits. Multi-snake predicted replies use squeeze-weighted probabilities; opponent softmax log uses territory 1.0, squeeze 0.1, food 0.5, temperature 1.2. Equal-collision preference requires viable survival room.
+# territory_score corrects true splits. Multi-snake predicted replies use live territory/food probabilities with a length cutoff; 1v1 remains worst-case. Equal-collision preference requires viable survival room.
 # Source: BS Orig. Code of kept functions is copied unchanged.
 
 import time
@@ -135,12 +135,12 @@ CORRIDOR_HARD_FRAC = 0.9
 CORRIDOR_MIXED_FRAC = 0.5
 CORRIDOR_RETREAT_MIN_LENGTH = 12
 CORRIDOR_RETREAT_COST_PCT = 0.10
-# Opponent probability model (LOG ONLY): viable territory + health-adjusted food, converted by softmax.
+# Opponent probability model: viable territory + health-adjusted food, converted by softmax. Set OPP_PROB_LIVE=False for exact legacy rollback.
 OPP_PROB_TERRITORY_WEIGHT = 1.0
 OPP_PROB_MIN_ROOM_FACTOR = 0.5
 OPP_PROB_FOOD_WEIGHT = 0.5
 OPP_PROB_TEMPERATURE = 1.2
-
+OPP_PROB_LIVE = True
 def territory_score(ng: GameTurn):
     # Correct territory only when removing RED head physically disconnects legal next moves into separate components.
     total = len(ng.me.territory)
@@ -173,7 +173,7 @@ def reply_score_ng(ngs: list[GameTurn], n_opponents: int):
 
 def decision_flow(g: GameTurn):
     turn_start = time.time()
-
+    probability_logs = {}
     def decision():
 
         result2 = par2([
@@ -256,64 +256,78 @@ def decision_flow(g: GameTurn):
             return [kill_move]
 
     def next_step_calculation(moves):
-        others_choices = [other.next_snake_choices for other in g.others]
-        others_choices = [choices for choices in others_choices if len(choices) != 0]
-        others_choices = list(itertools.product(*others_choices))
-
         for a in moves:
             ma = g.me.moves_attr[a]
             if ma.is_collision_point: continue
             me2 = snake_next_step(g, g.me, a)
+            choice_sets = []
+            for other in g.others:
+                if OPP_PROB_LIVE:
+                    choices, msg = opponent_probability_choices(other, a)
+                    if msg is not None: probability_logs.setdefault(a, []).append(msg)
+                else: choices = other.next_snake_choices
+                if len(choices) != 0: choice_sets.append(choices)
+            others_choices = list(itertools.product(*choice_sets))
             ngs = []
             for others in others_choices:
                 ng = next_game_turn(g, [snake_copy(me2)]+[snake_copy(other) for other in others])
                 ng.reply_probability = product([other.choice_probability for other in others])
                 ngs.append(ng)
             g.me.moves_ngs[a] = ngs
+
+    def opponent_probability_choices(target, red_move):
+        unsafe = []
+        for other in g.snakes:
+            if other.head == target.head: continue
+            if other.length < target.length: continue
+            unsafe += [a for a in target.allowed_moves if a in other.allowed_moves]
+        safe = [a for a in target.allowed_moves if a not in unsafe]
+        if len(safe) == 0 and len(unsafe) != 0: safe = [take_first(unsafe)]
+        if len(safe) == 0: return [], None
+        if len(safe) == 1: return [snake_next_step(g, target, take_first(safe))], None
+        rows = []
+        for move in safe:
+            target2 = snake_next_step(g, target, move)
+            snakes = [target2]
+            for snake in g.snakes:
+                if snake.head == target.head: continue
+                if snake.head == g.me.head: snakes.append(snake_next_step(g, snake, red_move))
+                elif len(snake.next_snake_choices) != 0: snakes.append(snake_copy(take_first(snake.next_snake_choices)))
+                elif len(snake.allowed_moves) != 0: snakes.append(snake_next_step(g, snake, take_first(snake.allowed_moves)))
+                else: snakes.append(snake_copy(snake))
+            ng = next_game_turn(g, snakes)
+            rows.append({'move': move, 'snake': target2, 'territory': territory_score(ng), 'food': move in g.food})
+        max_territory = max([row['territory'] for row in rows], default=1)
+        cutoff = OPP_PROB_MIN_ROOM_FACTOR * target.length
+        viable = [row for row in rows if row['territory'] > cutoff]
+        fallback = len(viable) == 0
+        if fallback: viable = [row for row in rows if row['territory'] == max_territory]
+        for row in rows:
+            eligible = row in viable
+            territory_ratio = row['territory'] / max(max_territory, 1)
+            food_value = (1 + max(0, (60-target.health)/60)) if eligible and row['food'] else 0
+            row['value'] = OPP_PROB_TERRITORY_WEIGHT * territory_ratio + OPP_PROB_FOOD_WEIGHT * food_value
+            row['weight'] = math.exp(OPP_PROB_TEMPERATURE * row['value']) if eligible else 0
+        total = sum([row['weight'] for row in rows])
+        result = [(row['move'], row['territory'], 'R' if fallback and row in viable else ('X' if row not in viable else '-'), 'F' if row['food'] and row in viable else '-', round(row['value'], 2), round(row['weight']/total, 3)) for row in rows]
+        choices = []
+        for row in viable:
+            row['snake'].choice_probability = row['weight'] / total
+            choices.append(row['snake'])
+        msg = f"opponent probability {target.name}: {result}; cutoff {cutoff:g}; LIVE"
+        return choices, msg
+
     def opponent_probability_log(red_moves):
-        # LOG ONLY. Scores every safe move for each opponent; active reply selection and weights remain unchanged.
         if len(red_moves) == 0: return
         red_move = take_first(red_moves)
-        for target in g.others:
-            unsafe = []
-            for other in g.snakes:
-                if other.head == target.head: continue
-                if other.length < target.length: continue
-                unsafe += [a for a in target.allowed_moves if a in other.allowed_moves]
-            safe = [a for a in target.allowed_moves if a not in unsafe]
-            if len(safe) == 0 and len(unsafe) != 0: safe = [take_first(unsafe)]
-            if len(safe) < 2: continue
-            rows = []
-            for move in safe:
-                snakes = [snake_next_step(g, target, move)]
-                for snake in g.snakes:
-                    if snake.head == target.head: continue
-                    if snake.head == g.me.head:
-                        snakes.append(snake_next_step(g, snake, red_move))
-                    elif len(snake.next_snake_choices) != 0:
-                        snakes.append(snake_copy(take_first(snake.next_snake_choices)))
-                    elif len(snake.allowed_moves) != 0:
-                        snakes.append(snake_next_step(g, snake, take_first(snake.allowed_moves)))
-                    else:
-                        snakes.append(snake_copy(snake))
-                ng = next_game_turn(g, snakes)
-                territory = territory_score(ng)
-                food = move in g.food
-                rows.append({'move': move, 'territory': territory, 'food': food})
-            max_territory = max([row['territory'] for row in rows], default=1)
-            cutoff = OPP_PROB_MIN_ROOM_FACTOR * target.length
-            viable = [row for row in rows if row['territory'] > cutoff]
-            fallback = len(viable) == 0
-            if fallback: viable = [row for row in rows if row['territory'] == max_territory]
-            for row in rows:
-                eligible = row in viable
-                territory_ratio = row['territory'] / max(max_territory, 1)
-                food_value = (1 + max(0, (60-target.health)/60)) if eligible and row['food'] else 0
-                row['value'] = OPP_PROB_TERRITORY_WEIGHT * territory_ratio + OPP_PROB_FOOD_WEIGHT * food_value
-                row['weight'] = math.exp(OPP_PROB_TEMPERATURE * row['value']) if eligible else 0
-            total = sum([row['weight'] for row in rows])
-            result = [(row['move'], row['territory'], 'R' if fallback and row in viable else ('X' if row not in viable else '-'), 'F' if row['food'] and row in viable else '-', round(row['value'], 2), round(row['weight']/total, 3)) for row in rows]
-            g.me.decision_path.append(f"opponent probability {target.name}: {result}; cutoff {cutoff:g}; LOG ONLY")
+        lines = probability_logs.get(red_move)
+        if lines is None:
+            lines = []
+            for target in g.others:
+                _, msg = opponent_probability_choices(target, red_move)
+                if msg is not None: lines.append(msg)
+        for line in lines: g.me.decision_path.append(line)
+        return None
     def future_kill_pressure_log(moves):
         # LOG ONLY. A candidate has future pressure when RED is longer and its next move can take one of a nearby target's
         # next cells while leaving that target at most one alternative. Other opponents use their first predicted reply.
