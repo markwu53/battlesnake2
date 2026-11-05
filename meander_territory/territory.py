@@ -1,9 +1,10 @@
 # BS v2 - minimal Battlesnake bot (fresh start)
-# Decision units: turn_0, win, avoid_death, kill, avoid_collision, avoid_trap, avoid_starvation, just_choose_larger (skips collision-point moves, scores the rest; with tie-break: dynamic gap, all opponent replies, then a second step for every move within the gap of the best all-replies score, then a food step: when I am shorter than the longest opponent, moves within FOOD_TIEBREAK_PCT of the best second-step value are ordered by distance to food I reach first). The tie-break is skipped in the opening (3+ opponents alive and every snake shorter than 8). Reply scoring: 1v1 = WORST reply (minimum), 3-4 snakes = average
+# territory_score corrects true splits. Multi-snake predicted replies use squeeze-weighted probabilities; opponent softmax log uses territory 1.0, squeeze 0.1, food 0.5, temperature 1.2. Equal-collision preference requires viable survival room.
 # Source: BS Orig. Code of kept functions is copied unchanged.
 
 import time
 import itertools
+import math
 from typing import TypeAlias
 
 Int2: TypeAlias = tuple[int, int]
@@ -33,6 +34,7 @@ class Snake:
         self.moves_ngs: dict[Int2, list[GameTurn]] = dict()
         self.moves_attr: dict[Int2, MoveAttr] = dict()
         self.next_snake_choices: list[Snake] = None
+        self.choice_probability: float = 1.0
         self.ms: MeanderStructure = MeanderStructure()
         self.achievable_meander_space: int = 0
 
@@ -73,6 +75,7 @@ class GameTurn:
         self.head_snake = dict()
         self.occupied: set[Int2] = None
         self.log = {}
+        self.reply_probability: float = 1.0
 
     def set_me(self, me: Snake):
         self.me = self.head_snake[me.head]
@@ -90,6 +93,21 @@ game = Game()
 
 # avoid_starvation acts when health <= steps to the nearest food + this margin
 STARVATION_MARGIN = 10
+# Preparation action margin remains 25; observation is broadened to every owned-food case with health <= 50.
+FOOD_PREP_MARGIN = 25
+FOOD_PREP_LOG_HEALTH = 50
+# Active preparation may give up at most this fraction of the best one-step territory score.
+FOOD_PREP_COST_PCT = 0.10
+# Opening growth: while at least 2 opponents remain and RED is shorter than this, food progress may cost up to 20% territory.
+OPENING_GROWTH_MAX_LENGTH = 10
+OPENING_GROWTH_COST_PCT = 0.20
+OPENING_GROWTH_ROOM_FACTOR = 1.5
+# Burst detection (LOG ONLY): rare 1v1 opportunity with many owned foods and an opponent far away or confined.
+BURST_FOOD_COUNT = 8
+BURST_FAR_DISTANCE = 8
+BURST_CONFINED_ROOM_FACTOR = 2
+# get_food room check: a food move needs at least this many times my length in territory (territory + meander, as scored by just_choose_larger) after the move
+FOOD_ROOM_FACTOR = 2
 
 # tie-break: when the best moves of just_choose_larger are within a dynamic gap, look closer at those moves.
 # gap = the larger of TIEBREAK_GAP cells and TIEBREAK_GAP_PCT of the best score
@@ -97,8 +115,6 @@ TIEBREAK_GAP = 2
 TIEBREAK_GAP_PCT = 0.10
 # tie-break is abandoned (today's answer is kept) when the turn has used this many seconds
 TIEBREAK_TIME_LIMIT = 0.25
-# last step of the tie-break: moves whose 2nd-step value is within this share of the best may be decided by food (only when I am shorter than the longest opponent)
-FOOD_TIEBREAK_PCT = 0.03
 
 # tie-break is skipped in the opening: while at least this many opponents are alive and every snake (me included) is shorter than the length below
 TIEBREAK_SKIP_MIN_OPPONENTS = 3
@@ -107,12 +123,53 @@ TIEBREAK_SKIP_MAX_LENGTH = 8
 # avoid_trap: only opponents closer than this path distance vary their replies
 TRAP_DISTANCE = 6
 
-def reply_score(values: list, n_opponents: int):
-    # Combines the scores of one move over the opponents' replies.
-    # 1v1: the WORST reply (minimum), because the single opponent can really pick the reply that hurts me most.
-    # 3 or 4 snakes: the average, because the opponents cannot all coordinate against me.
+# Future kill pressure logging: inspect shorter nearby targets and rational replies; no move changes.
+KILL_PRESSURE_DISTANCE = 5
+KILL_PRESSURE_MIN_REPLIES = 2
+FUTURE_SUPPRESS_MIN_BORDER = 2
+FUTURE_SUPPRESS_THREAT_DISTANCE = 6
+# corridor log (log only): a corridor is a run of at least this many of my territory cells that have no territory of mine on both sides along one axis
+CORRIDOR_MIN_LENGTH = 3
+# corridor tier by the share of wall sides that are board edge or snake body: HARD at or above the first value, MIXED at or above the second, else SOFT
+CORRIDOR_HARD_FRAC = 0.9
+CORRIDOR_MIXED_FRAC = 0.5
+CORRIDOR_RETREAT_MIN_LENGTH = 12
+CORRIDOR_RETREAT_COST_PCT = 0.10
+# Opponent probability model (LOG ONLY): viable territory + health-adjusted food, converted by softmax.
+OPP_PROB_TERRITORY_WEIGHT = 1.0
+OPP_PROB_MIN_ROOM_FACTOR = 0.5
+OPP_PROB_FOOD_WEIGHT = 0.5
+OPP_PROB_TEMPERATURE = 1.2
+
+def territory_score(ng: GameTurn):
+    # Correct territory only when removing RED head physically disconnects legal next moves into separate components.
+    total = len(ng.me.territory)
+    remaining = set(ng.me.territory)
+    remaining.discard(ng.me.head)
+    components, owner, seen = [], {}, set()
+    for c in remaining:
+        if c in seen: continue
+        comp = [c]
+        seen.add(c)
+        for p in comp:
+            for q in adj_cells(p):
+                if q in remaining and q not in seen:
+                    seen.add(q)
+                    comp.append(q)
+        i = len(components); components.append(comp)
+        for p in comp: owner[p] = i
+    branches = {owner[a] for a in ng.me.allowed_moves if a in owner}
+    claimable = 1 + max(len(components[i]) for i in branches) if len(branches) > 1 else total
+    return claimable + ng.me.achievable_meander_space
+def reply_score(values: list, n_opponents: int, weights: list=None):
+    # 1v1 remains worst-case. Multi-snake replies use predicted squeeze probabilities when supplied.
     if n_opponents == 1: return min(values)
-    return sum(values) / len(values)
+    if weights is None: return sum(values) / len(values)
+    total = sum(weights)
+    return sum(v*w for v,w in zip(values, weights)) / total if total else sum(values) / len(values)
+
+def reply_score_ng(ngs: list[GameTurn], n_opponents: int):
+    return reply_score([territory_score(ng) for ng in ngs], n_opponents, [ng.reply_probability for ng in ngs])
 
 def decision_flow(g: GameTurn):
     turn_start = time.time()
@@ -126,14 +183,37 @@ def decision_flow(g: GameTurn):
                 , win
                 , avoid_death
                 , kill
+
                 , next_step_calculation
+                , avoid_border_suppress
+                , avoid_border_leading_suppress
+                , stringline_log
                 , avoid_collision
                 , avoid_trap
+                , border_suppress_kill
+                , food_capture
                 , avoid_starvation
+                , burst_eating_log
+                , corridor_retreat
+                , corridor_log
+                , prefer_equal_collision
+                # get_food disabled: rethink food strategy before re-enabling
                 , just_choose_larger
             ])
         ])(g.me.allowed_moves)
 
+        try:
+            future_kill_pressure_log(g.me.allowed_moves)
+        except Exception as e: g.me.decision_path.append(f"future kill pressure log error: {e!r}")
+        try:
+            territory_seal_log()
+        except Exception as e: g.me.decision_path.append(f"territory seal log error: {e!r}")
+        try:
+            future_border_suppress_log()
+        except Exception as e: g.me.decision_path.append(f"future border suppress log error: {e!r}")
+        try:
+            opponent_probability_log(result2)
+        except Exception as e: g.me.decision_path.append(f"opponent probability log error: {e!r}")
         return result2
 
     def ________MOVE_FUNCTIONS________():
@@ -184,9 +264,217 @@ def decision_flow(g: GameTurn):
             ma = g.me.moves_attr[a]
             if ma.is_collision_point: continue
             me2 = snake_next_step(g, g.me, a)
-            a_others = [[snake_copy(me2)]+[snake_copy(other) for other in others] for others in others_choices]
-            ngs = [next_game_turn(g, snakes) for snakes in a_others]
+            ngs = []
+            for others in others_choices:
+                ng = next_game_turn(g, [snake_copy(me2)]+[snake_copy(other) for other in others])
+                ng.reply_probability = product([other.choice_probability for other in others])
+                ngs.append(ng)
             g.me.moves_ngs[a] = ngs
+    def opponent_probability_log(red_moves):
+        # LOG ONLY. Scores every safe move for each opponent; active reply selection and weights remain unchanged.
+        if len(red_moves) == 0: return
+        red_move = take_first(red_moves)
+        for target in g.others:
+            unsafe = []
+            for other in g.snakes:
+                if other.head == target.head: continue
+                if other.length < target.length: continue
+                unsafe += [a for a in target.allowed_moves if a in other.allowed_moves]
+            safe = [a for a in target.allowed_moves if a not in unsafe]
+            if len(safe) == 0 and len(unsafe) != 0: safe = [take_first(unsafe)]
+            if len(safe) < 2: continue
+            rows = []
+            for move in safe:
+                snakes = [snake_next_step(g, target, move)]
+                for snake in g.snakes:
+                    if snake.head == target.head: continue
+                    if snake.head == g.me.head:
+                        snakes.append(snake_next_step(g, snake, red_move))
+                    elif len(snake.next_snake_choices) != 0:
+                        snakes.append(snake_copy(take_first(snake.next_snake_choices)))
+                    elif len(snake.allowed_moves) != 0:
+                        snakes.append(snake_next_step(g, snake, take_first(snake.allowed_moves)))
+                    else:
+                        snakes.append(snake_copy(snake))
+                ng = next_game_turn(g, snakes)
+                territory = territory_score(ng)
+                food = move in g.food
+                rows.append({'move': move, 'territory': territory, 'food': food})
+            max_territory = max([row['territory'] for row in rows], default=1)
+            cutoff = OPP_PROB_MIN_ROOM_FACTOR * target.length
+            viable = [row for row in rows if row['territory'] > cutoff]
+            fallback = len(viable) == 0
+            if fallback: viable = [row for row in rows if row['territory'] == max_territory]
+            for row in rows:
+                eligible = row in viable
+                territory_ratio = row['territory'] / max(max_territory, 1)
+                food_value = (1 + max(0, (60-target.health)/60)) if eligible and row['food'] else 0
+                row['value'] = OPP_PROB_TERRITORY_WEIGHT * territory_ratio + OPP_PROB_FOOD_WEIGHT * food_value
+                row['weight'] = math.exp(OPP_PROB_TEMPERATURE * row['value']) if eligible else 0
+            total = sum([row['weight'] for row in rows])
+            result = [(row['move'], row['territory'], 'R' if fallback and row in viable else ('X' if row not in viable else '-'), 'F' if row['food'] and row in viable else '-', round(row['value'], 2), round(row['weight']/total, 3)) for row in rows]
+            g.me.decision_path.append(f"opponent probability {target.name}: {result}; cutoff {cutoff:g}; LOG ONLY")
+    def future_kill_pressure_log(moves):
+        # LOG ONLY. A candidate has future pressure when RED is longer and its next move can take one of a nearby target's
+        # next cells while leaving that target at most one alternative. Other opponents use their first predicted reply.
+        results = []
+        for a in moves:
+            if g.me.moves_attr[a].is_collision_point: continue
+            me2 = snake_next_step(g, g.me, a)
+            for target in g.others:
+                if target.length >= g.me.length: continue
+                if distance_pq(g.me.head, target.head) > KILL_PRESSURE_DISTANCE: continue
+                replies = [t for t in target.allowed_moves if t != a]
+                if len(replies) == 0: continue
+                pressured = {}
+                for t in replies:
+                    others = []
+                    for other in g.others:
+                        if other.head == target.head:
+                            others.append(snake_next_step(g, other, t))
+                        elif len(other.next_snake_choices) != 0:
+                            others.append(snake_copy(take_first(other.next_snake_choices)))
+                        elif len(other.allowed_moves) != 0:
+                            others.append(snake_next_step(g, other, take_first(other.allowed_moves)))
+                        else:
+                            others.append(snake_copy(other))
+                    ng = next_game_turn(g, [snake_copy(me2)] + others)
+                    targets = [o for o in ng.others if o.name == target.name]
+                    if len(targets) == 0: continue
+                    nt = take_first(targets)
+                    intercepts = [b for b in ng.me.allowed_moves if b in nt.allowed_moves and not ng.me.moves_attr[b].is_collision_point]
+                    intercepts = [(b, len([q for q in nt.allowed_moves if q != b])) for b in intercepts]
+                    intercepts = [x for x in intercepts if x[1] <= 1]
+                    if len(intercepts) != 0:
+                        best_left = min(n for b, n in intercepts)
+                        pressured[t] = [b for b, n in intercepts if n == best_left]
+                if len(pressured) >= KILL_PRESSURE_MIN_REPLIES:
+                    score = 2 * len(pressured) / len(replies)
+                    results.append((score, a, target.name, len(pressured), len(replies), pressured))
+        if len(results) == 0: return
+        best = max(x[0] for x in results)
+        picks = [x for x in results if x[0] == best]
+        g.me.decision_path.append(f"future kill pressure: {[(a, name, f'{n}/{total}', round(score, 2), follow) for score, a, name, n, total, follow in picks]}; LOG ONLY")
+        return None
+
+    def territory_seal_log():
+        # LOG ONLY. In 1v1, shorter RED with larger territory may close a short exposure gate from the inside.
+        if len(g.others) != 1 or g.me.length >= g.other.length: return
+        ratio = len(g.me.territory) / max(len(g.other.territory), 1)
+        if ratio < 1.3: return
+        def components(points):
+            result, seen = [], set()
+            for c in points:
+                if c in seen: continue
+                comp = [c]
+                seen.add(c)
+                for p in comp:
+                    for q in adj_cells(p):
+                        if q in points and q not in seen:
+                            seen.add(q)
+                            comp.append(q)
+                result.append(set(comp))
+            return result
+        def completion_steps(start, seal):
+            index = {p: i for i, p in enumerate(seal)}
+            start_mask = (1 << index[start]) if start in index else 0
+            queue, seen = [(start, start_mask, 0)], {(start, start_mask)}
+            full = (1 << len(seal)) - 1
+            for p, mask, steps in queue:
+                if mask == full: return steps
+                for q in adj_cells(p):
+                    if q not in g.me.territory: continue
+                    next_mask = mask | ((1 << index[q]) if q in index else 0)
+                    key = (q, next_mask)
+                    if key not in seen:
+                        seen.add(key)
+                        queue.append((q, next_mask, steps + 1))
+            return 999
+        results = []
+        exposure = g.me.inner_contacting_border.get(g.other.head, set())
+        outer = g.me.outer_contacting_border.get(g.other.head, set())
+        areas = {}
+        for a in g.me.allowed_moves:
+            ngs = g.me.moves_ngs.get(a)
+            if not ngs: continue
+            areas[a] = reply_score_ng(ngs, 1)
+        if len(areas) == 0: return
+        best_area = max(areas.values())
+        for comp in components(exposure):
+            if not 2 <= len(comp) <= 3: continue
+            pairs = []
+            for red_point in comp:
+                other_points = [p for p in outer if is_adjacent(red_point, p)]
+                if len(other_points) != 1: break
+                pairs.append((red_point, take_first(other_points)))
+            if len(pairs) != len(comp): continue
+            directions = {sub_pos(r, o) for r, o in pairs}
+            if len(directions) != 1: continue
+            direction = take_first(list(directions))
+            seal = {add_pos(r, direction) for r, o in pairs}
+            if len(seal) != len(comp) or any(p not in g.me.territory for p in seal): continue
+            opponent_steps = min(g.other.territory_point_level.get(o, 999) for r, o in pairs)
+            current_steps = completion_steps(g.me.head, seal)
+            if current_steps >= opponent_steps: continue
+            routes = {a: 1 + completion_steps(a, seal) for a in areas}
+            feasible = [a for a in routes if routes[a] <= opponent_steps]
+            if len(feasible) == 0: continue
+            route = min(routes[a] for a in feasible)
+            picks = [a for a in feasible if routes[a] == route]
+            pick_area = max(areas[a] for a in picks)
+            picks = [a for a in picks if areas[a] == pick_area]
+            cost = best_area - pick_area
+            pct = cost / best_area if best_area else 0
+            if pct > 0.10: continue
+            owned_food = sum(1 for f in g.food if f in g.me.territory)
+            results.append((g.other.name, sorted(comp), sorted(seal), picks, route, opponent_steps, round(ratio, 2), owned_food, round(pct, 3)))
+        if len(results) != 0:
+            g.me.decision_path.append(f"territory seal detected: {results}; LOG ONLY")
+        return None
+    def future_border_suppress_log():
+        # LOG ONLY. Find straight, contiguous, paired contacting borders where longer RED trails the target by one step.
+        detected, rejected = [], []
+        def straight_line(points):
+            if len(points) < FUTURE_SUPPRESS_MIN_BORDER: return
+            xs, ys = {p[0] for p in points}, {p[1] for p in points}
+            if len(xs) == 1: ordered, axis, values = sorted(points, key=lambda p: p[1]), 'v', sorted(p[1] for p in points)
+            elif len(ys) == 1: ordered, axis, values = sorted(points), 'h', sorted(p[0] for p in points)
+            else: return
+            if values != list(range(values[0], values[-1] + 1)): return
+            return axis, ordered
+        for target in g.others:
+            if target.length >= g.me.length: continue
+            red_line = straight_line(g.me.inner_contacting_border.get(target.head, set()))
+            target_line = straight_line(target.inner_contacting_border.get(g.me.head, set()))
+            if red_line is None or target_line is None: continue
+            if red_line[0] != target_line[0] or len(red_line[1]) != len(target_line[1]): continue
+            pairs, used = [], set()
+            for red_point in red_line[1]:
+                target_points = [p for p in target_line[1] if is_adjacent(red_point, p)]
+                if len(target_points) != 1: break
+                pairs.append((red_point, take_first(target_points)))
+                used.add(take_first(target_points))
+            if len(pairs) != len(red_line[1]) or len(used) != len(target_line[1]): continue
+            future = [(r, t, g.me.territory_point_level.get(r), target.territory_point_level.get(t))
+                      for r, t in pairs if t != target.head]
+            future = [x for x in future if x[2] is not None and x[3] is not None]
+            if len(future) == 0: continue
+            first_step = min(x[3] for x in future)
+            candidates = [x for x in future if x[3] == first_step and x[2] == x[3] + 1]
+            if len(candidates) == 0: continue
+            red_point, target_point, red_steps, target_steps = min(candidates, key=lambda x: x[2])
+            threats = [o for o in g.others if o.head != target.head and o.length >= g.me.length
+                       and g.me.to_snake_path_distance.get(o.head, 999) <= FUTURE_SUPPRESS_THREAT_DISTANCE]
+            item = (target.name, red_point, target_point, red_steps, target_steps)
+            if len(threats) != 0:
+                rejected.append((item, [o.name for o in threats]))
+            else:
+                detected.append(item)
+        if len(detected) != 0:
+            g.me.decision_path.append(f"future border suppress detected: {detected}; LOG ONLY")
+        if len(rejected) != 0:
+            g.me.decision_path.append(f"future border suppress rejected: {rejected}; LOG ONLY")
+        return None
 
     def avoid_collision(moves):
         danger = []
@@ -201,26 +489,215 @@ def decision_flow(g: GameTurn):
 
     def avoid_trap(moves):
         # A move is trapped under one set of opponent replies when every move I have next turn is a collision point (or I have none).
-        # Only opponents closer than TRAP_DISTANCE (path distance) vary their replies; farther ones keep their first predicted move.
+        # Nearby opponents vary all predicted replies. Distant opponents normally keep their first prediction, but an omitted
+        # immediate food move is also considered because growth can hold a tail cell and close one of my next-turn exits.
         # Share = trapped replies / considered replies. Moves trapped more often than the best move are dropped.
         # Does nothing when all moves are trapped equally often.
         def trapped(ng):
             return all(ng.me.moves_attr[b].is_collision_point for b in ng.me.allowed_moves)
         movers = [o for o in g.others if len(o.next_snake_choices) != 0]
-        near = [g.me.to_snake_path_distance.get(o.head, 99) < TRAP_DISTANCE for o in movers]
-        combos = itertools.product(*[range(len(o.next_snake_choices)) for o in movers])
-        relevant = [i for i, c in enumerate(combos) if all(k == 0 or n for k, n in zip(c, near))]
+        choices = []
+        near = []
+        for o in movers:
+            cs = list(o.next_snake_choices)
+            heads = {s.head for s in cs}
+            cs += [snake_next_step(g, o, a) for a in o.allowed_moves if a in g.food and a not in heads]
+            choices.append(cs)
+            near.append(g.me.to_snake_path_distance.get(o.head, 99) < TRAP_DISTANCE)
+        combos = itertools.product(*[range(len(cs)) for cs in choices])
+        relevant = [c for c in combos if all(k == 0 or n or choices[j][k].head in g.food
+                                                for j, (k, n) in enumerate(zip(c, near)))]
         share = {}
         for a in moves:
-            ngs = g.me.moves_ngs.get(a)
-            if not ngs: continue
-            share[a] = sum(1 for i in relevant if trapped(ngs[i])) / len(relevant)
+            if g.me.moves_attr[a].is_collision_point: continue
+            me2 = snake_next_step(g, g.me, a)
+            ngs = [next_game_turn(g, [snake_copy(me2)] + [snake_copy(choices[j][k]) for j, k in enumerate(c)])
+                   for c in relevant]
+            if len(ngs) == 0: continue
+            share[a] = sum(1 for ng in ngs if trapped(ng)) / len(ngs)
         if len(share) == 0: return
         best = min(share.values())
         keep = [a for a in moves if a not in share or share[a] == best]
         if len(keep) == len(moves): return
         g.me.decision_path.append(f"avoid trap: trapped share { {a: round(s, 2) for a, s in share.items()} } -> {keep}")
         return keep
+
+    def avoid_border_suppress(moves):
+        # I move along the border; after the predicted replies a strictly longer opponent can take
+        # my only inward escape cell next turn, forcing me farther along the border with no direct way out.
+        if not on_border(g.me.head): return
+        danger = []
+        for a in moves:
+            if not on_border(a): continue
+            direction = sub_pos(a, g.me.head)
+            forward = add_pos(a, direction)
+            if not on_border(forward): continue
+            for ng in g.me.moves_ngs.get(a, []):
+                if forward not in ng.me.allowed_moves: continue
+                inside = [b for b in ng.me.allowed_moves if not on_border(b)]
+                if len(inside) == 0 or not all(ng.me.moves_attr[b].is_collision_point for b in inside): continue
+                me2 = snake_next_step(ng, ng.me, forward)
+                for i, snake in enumerate(ng.others):
+                    if snake.length <= ng.me.length: continue
+                    suppress = [b for b in inside if b in snake.allowed_moves]
+                    if len(suppress) == 0: continue
+                    for b in suppress:
+                        snake2 = snake_next_step(ng, snake, b)
+                        others2 = [snake2 if j == i else take_first(o.next_snake_choices)
+                                   for j, o in enumerate(ng.others) if len(o.next_snake_choices) != 0]
+                        if any(o.head == forward for o in others2): continue
+                        ng2 = next_game_turn(ng, [snake_copy(me2)] + [snake_copy(o) for o in others2])
+                        if not has_direct_wayout(ng2):
+                            danger.append(a)
+                            break
+                    if a in danger: break
+                if a in danger: break
+        if len(danger) != 0 and len(danger) < len(moves):
+            keep = [a for a in moves if a not in danger]
+            g.me.decision_path.append(f"avoid border suppress: removed {danger}")
+            return keep
+
+    def avoid_border_leading_suppress(moves):
+        # I am on the border and move along it; an opponent next to my target cell steps diagonally ahead
+        # in the same direction. It then leads along the border and closes the inward cells.
+        if not on_border(g.me.head): return
+        danger = []
+        for a in moves:
+            if not on_border(a): continue
+            ma = g.me.moves_attr[a]
+            if ma.is_collision_point and not ma.equal_collision_point: continue
+            me2 = snake_next_step(g, g.me, a)
+            direction = sub_pos(a, g.me.head)
+            for i, snake in enumerate(g.others):
+                if distance_pq(a, snake.head) != 1: continue
+                for snake2 in snake.next_snake_choices:
+                    b = snake2.head
+                    if distance_vector_abs(a, b) != (1, 1): continue
+                    if sub_pos(b, snake.head) != direction: continue
+                    others2 = [snake2 if j == i else take_first(o.next_snake_choices)
+                               for j, o in enumerate(g.others) if len(o.next_snake_choices) != 0]
+                    if any(o.head == a for o in others2): continue
+                    ng = next_game_turn(g, [snake_copy(me2)] + [snake_copy(o) for o in others2])
+                    if not has_direct_wayout(ng):
+                        danger.append(a)
+                        break
+                if a in danger: break
+        if len(danger) != 0 and len(danger) < len(moves):
+            keep = [a for a in moves if a not in danger]
+            g.me.decision_path.append(f"avoid border leading suppress: removed {danger}")
+            return keep
+
+    def stringline_log(moves):
+        # LOG ONLY. Detect head-connected territory with no junction/2x2 turning space and mostly persistent walls.
+        def status(ng):
+            T, head = ng.me.territory, ng.me.head
+            seen, queue = {head}, [head]
+            for p in queue:
+                for q in adj_cells(p):
+                    if q in T and q not in seen:
+                        seen.add(q)
+                        queue.append(q)
+            def turning_space(p):
+                if sum(q in T for q in adj_cells(p)) >= 3: return True
+                x, y = p
+                for dx in (-1, 0):
+                    for dy in (-1, 0):
+                        square = {(x+dx,y+dy), (x+dx+1,y+dy), (x+dx,y+dy+1), (x+dx+1,y+dy+1)}
+                        if all(pos_on_board(q) and q in T for q in square): return True
+                return False
+            if any(turning_space(p) for p in seen): return None
+            release = {}
+            for snake in ng.snakes:
+                n = len(snake.body)
+                for i, p in enumerate(snake.body): release[p] = max(release.get(p, 0), n-i)
+            walls = []
+            for p in seen:
+                for q in adj_cells(p) + [q for q in [(p[0]-1,p[1]),(p[0]+1,p[1]),(p[0],p[1]-1),(p[0],p[1]+1)] if not pos_on_board(q)]:
+                    if q in T: continue
+                    walls.append(not pos_on_board(q) or release.get(q, 0) > ng.me.territory_point_level.get(p, 0))
+            hard = sum(walls) / len(walls) if len(walls) != 0 else 0
+            if len(seen) < CORRIDOR_MIN_LENGTH or hard < CORRIDOR_HARD_FRAC: return None
+            return {"cells": len(seen), "hard": hard}
+        found = {}
+        for move in moves:
+            ngs = g.me.moves_ngs.get(move)
+            if not ngs: continue
+            danger = [status(ng) for ng in ngs]
+            danger = [x for x in danger if x is not None]
+            if len(danger) != 0: found[move] = (len(danger), len(ngs), max(x["cells"] for x in danger), max(x["hard"] for x in danger))
+        if len(found) != 0:
+            g.me.decision_path.append(f"stringline detected: { {a: (n, total, cells, round(hard, 2)) for a, (n, total, cells, hard) in found.items()} }; LOG ONLY")
+        return None
+
+    def avoid_border_crawling(moves):
+        # When already on a border, do not continue along it beneath an internal opponent body segment moving in my direction.
+        # An opposite-moving parallel body is allowed; remove the same-direction move only when another move exists.
+        if not on_border(g.me.head): return
+        danger = []
+        for a in moves:
+            if not on_border(a) or a not in g.me.territory: continue
+            d = sub_pos(a, g.me.head)
+            if d == (0, 0): continue
+            for snake in g.others:
+                for i, c in enumerate(snake.body[1:-1], start=1):
+                    x, y = c
+                    if min(x, game.width-x-1, y, game.height-y-1) != 1: continue
+                    if not is_adjacent(c, a): continue
+                    p = snake.body[i-1]  # closer to the head: the direction this body segment is moving
+                    if sub_pos(p, c) == d:
+                        danger.append(a)
+                        break
+                if a in danger: break
+        keep = [a for a in moves if a not in danger]
+        if len(danger) != 0 and len(keep) != 0:
+            g.me.decision_path.append(f"avoid border crawling: removed {danger}")
+            return keep
+
+    def border_suppress_kill(moves):
+        # A longer RED suppresses a shorter snake crawling toward a corner on the border.
+        # Formation: at offset (0,2)/(2,0), RED moves parallel while threatening the inward cell.
+        # Finish: one lane inside and one step behind, RED closes alongside; immediate kill finishes the corner.
+        for snake in g.others:
+            if snake.length >= g.me.length or not on_border(snake.head): continue
+            d = sub_pos(snake.head, snake.neck)
+            forward = add_pos(snake.head, d)
+            if not pos_on_board(forward) or not on_border(forward): continue
+            inward = [b for b in snake.allowed_moves if not on_border(b)]
+            if len(inward) != 1 or forward not in snake.allowed_moves: continue
+            inward = take_first(inward)
+            if any(b not in [forward, inward] for b in snake.allowed_moves): continue
+            rel = distance_vector_abs(g.me.head, snake.head)
+            if rel in [(0, 2), (2, 0)]:
+                a = add_pos(g.me.head, d)
+                if a not in moves or inward not in g.me.allowed_moves: continue
+                g.me.decision_path.append(f"border suppress kill formation: {snake.name}, hold {a}, target forward {forward}")
+                return [a]
+            mx, my = g.me.head
+            if min(mx, game.width-mx-1, my, game.height-my-1) != 1: continue
+            a = add_pos(g.me.head, d)
+            if a not in moves or not is_adjacent(a, snake.head) or a != inward: continue
+            g.me.decision_path.append(f"border suppress kill close: {snake.name}, force {a}, target forward {forward}")
+            return [a]
+
+    def food_capture(moves):
+        # Capture adjacent owned food after danger filters only outside 1v1; 1v1 prioritizes territory until burst mode is active.
+        # Outside 1v1, the resulting territory + meander score must keep the FOOD_ROOM_FACTOR room threshold.
+        if len(g.others) == 1: return
+        food_moves = [a for a in moves if a in g.food and a in g.me.territory]
+        if len(food_moves) == 0: return
+        safe = []
+        scores = {}
+        for a in food_moves:
+            ngs = g.me.moves_ngs.get(a)
+            if not ngs: continue
+            score = reply_score_ng(ngs, len(g.others))
+            scores[a] = score
+            if score >= FOOD_ROOM_FACTOR * g.me.length: safe.append(a)
+        if len(safe) == 0:
+            g.me.decision_path.append(f"food capture skipped: adjacent {food_moves}, room { {a: round(n, 2) for a,n in scores.items()} }")
+            return
+        g.me.decision_path.append(f"food capture: {safe}, room { {a: round(scores[a], 2) for a in safe} }")
+        return safe
 
     def avoid_starvation(moves):
         # Only acts when health is low relative to the distance to food. Otherwise skip.
@@ -252,12 +729,224 @@ def decision_flow(g: GameTurn):
         g.me.decision_path.append(f"avoid starvation: health {g.me.health}, food {nearest} steps away, result {keep}")
         return keep
 
+    def burst_eating_log(moves):
+        # LOG ONLY. Detect a rare 1v1 window for a future multi-food burst strategy.
+        if len(g.others) != 1: return
+        foods = [f for f in g.food if f in g.me.territory]
+        if len(foods) < BURST_FOOD_COUNT: return
+        other = g.other
+        distance = g.me.to_snake_path_distance.get(other.head, 999)
+        room = len(other.territory) + other.achievable_meander_space
+        confined = room <= BURST_CONFINED_ROOM_FACTOR * other.length
+        far = distance >= BURST_FAR_DISTANCE
+        if not (far or confined): return
+        reasons = []
+        if far: reasons.append(f"far {distance}")
+        if confined: reasons.append(f"confined {room}/{other.length}")
+        level = food_steps(g, g.me.head, 0)
+        reachable = [f for f in foods if f in level]
+        nearest = min([level[f] for f in reachable], default=None)
+        g.me.decision_path.append(f"burst eating detected: {len(foods)} owned foods, {' + '.join(reasons)}, reachable {len(reachable)}, nearest {nearest}; LOG ONLY")
+        return None
+
+    def corridor_retreat(moves):
+        # Long-snake safeguard: in a MIXED/HARD corridor, avoid increasing the path back to physically open space.
+        if g.me.length < CORRIDOR_RETREAT_MIN_LENGTH or len(moves) < 2: return
+        rank = {'SOFT': 0, 'MIXED': 1, 'HARD': 2}
+        if not any(rank[c['tier']] >= rank['MIXED'] for c in corridor_scan(g)): return
+        def open_depth(ng):
+            occupied = set(p for snake in ng.snakes for p in snake.body[:-1])
+            free = {p for x in range(game.width) for y in range(game.height) for p in [(x, y)] if p not in occupied or p == ng.me.head}
+            dist = {ng.me.head: 0}
+            queue = [ng.me.head]
+            for p in queue:
+                if sum(q in free for q in adj_cells(p)) == 4: return dist[p]
+                for q in adj_cells(p):
+                    if q in free and q not in dist:
+                        dist[q] = dist[p] + 1
+                        queue.append(q)
+            return 999
+        now = open_depth(g)
+        if now == 0 or now == 999: return
+        depth, area = {}, {}
+        for a in moves:
+            ngs = g.me.moves_ngs.get(a)
+            if not ngs: continue
+            ds = [open_depth(ng) for ng in ngs]
+            depth[a] = max(ds) if len(g.others) == 1 else sum(ds) / len(ds)
+            area[a] = reply_score_ng(ngs, len(g.others))
+        deeper = [a for a in depth if depth[a] > now]
+        retreat = [a for a in depth if depth[a] <= now]
+        if len(deeper) == 0 or len(retreat) == 0: return
+        best = max(area.values())
+        affordable = [a for a in retreat if best == 0 or (best - area[a]) / best <= CORRIDOR_RETREAT_COST_PCT]
+        if len(affordable) == 0: return
+        best_depth = min(depth[a] for a in affordable)
+        pick = [a for a in affordable if depth[a] == best_depth]
+        best_area = max(area[a] for a in pick)
+        pick = [a for a in pick if area[a] == best_area]
+        g.me.decision_path.append(f"corridor retreat: open depth {now}, moves { {a: round(depth[a], 2) for a in depth} }; {pick}, cost {(best-best_area):.2f} ({((best-best_area)/best if best else 0):.1%})")
+        return pick
+
+    def corridor_log(moves):
+        # LOG ONLY, never changes the moves. For every remaining move and every opponent reply, looks for corridors in my territory (see corridor_scan).
+        # Writes one line to the decision path: per move, in how many replies a corridor exists, and the worst one (HARD > MIXED > SOFT, then longest).
+        # "now" is the worst corridor in my current territory. No line = no corridor of CORRIDOR_MIN_LENGTH cells or more after any move.
+        try:
+            rank = {'SOFT': 0, 'MIXED': 1, 'HARD': 2}
+            def worst_of(cs):
+                return max(cs, key=lambda c: (rank[c['tier']], c['length'])) if cs else None
+            def describe(c):
+                return f"{c['tier']} len {c['length']} walls {c['walls']} exits {c['exits']} share {c['share']:.2f}"
+            parts = []
+            for a in moves:
+                ngs = g.me.moves_ngs.get(a)
+                if not ngs: continue
+                worst = [worst_of(corridor_scan(ng)) for ng in ngs]
+                found = [w for w in worst if w is not None]
+                if len(found) == 0: continue
+                parts.append(f"{a}: {len(found)}/{len(ngs)} replies, worst {describe(worst_of(found))}")
+            if len(parts) != 0:
+                now = worst_of(corridor_scan(g))
+                g.me.decision_path.append(f"corridor log: now {describe(now) if now else 'none'}; " + "; ".join(parts))
+        except Exception as e:
+            g.me.decision_path.append(f"corridor log error: {e}")
+        return None
+
+    def prefer_equal_collision(moves):
+        # Equal-length collision (a 50-50 gamble) versus the moves that are not collision points.
+        # just_choose_larger skips every collision point, so it would take a "safe" move even when that move leaves me
+        # with less room than my own length (a longer snake is squeezing me there, so it is a sure death) while the
+        # equal-collision move is only a gamble. When the best safe move scores below my length, take the equal-collision move
+        # that still has room when the opponent does not step on the clash cell (best such score first).
+        eq = [a for a in moves if g.me.moves_attr[a].is_collision_point and g.me.moves_attr[a].equal_collision_point]
+        safe = [a for a in moves if not g.me.moves_attr[a].is_collision_point]
+        if len(eq) == 0 or len(safe) == 0: return
+        def score(ngs): return reply_score_ng(ngs, len(g.others))
+        safe_best = max(score(g.me.moves_ngs[a]) for a in safe)
+        if safe_best >= g.me.length: return
+        others_choices = [other.next_snake_choices for other in g.others]
+        others_choices = [choices for choices in others_choices if len(choices) != 0]
+        eq_score = {}
+        for a in eq:
+            me2 = snake_next_step(g, g.me, a)
+            combos = [c for c in itertools.product(*others_choices) if all(o.head != a for o in c)]
+            if len(combos) == 0: continue
+            ngs = [next_game_turn(g, [snake_copy(me2)] + [snake_copy(o) for o in c]) for c in combos]
+            eq_score[a] = score(ngs)
+        # The safe alternative is already below my length. A non-clash branch only needs to beat that certain-death score.
+        eq_score = {a: n for a, n in eq_score.items() if n > safe_best}
+        if len(eq_score) == 0: return
+        best = max(eq_score.values())
+        pick = [a for a, n in eq_score.items() if n == best]
+        g.me.decision_path.append(f"prefer equal collision: safe moves score at most {round(safe_best, 2)} (< my length {g.me.length}); equal collision {pick} keeps {round(best, 2)} cells if the opponent does not clash")
+        return pick
+
+    def get_food(moves):
+        # Only with 3 or 4 snakes alive, and only when I am shorter than the longest opponent (I need to grow).
+        # Safe food = food inside MY territory (I get there strictly first) and not on my exposure border
+        # (inner_border = my territory cells touching an opponent's territory), so it is at least 1 step inside.
+        # Goes for the nearest safe food: keeps the moves that are on a shortest path to it inside my territory.
+        # Passes the kept moves on to just_choose_larger, which still decides when several moves are left. Does nothing when no safe food exists. A food move is dropped when it would leave me too little room (see the room check below).
+        if len(g.others) < 2: return
+        if g.me.length >= max(o.length for o in g.others): return
+        level = g.me.territory_point_level
+        foods = [f for f in g.food if f in g.me.territory and f not in g.me.inner_border]
+        if len(foods) == 0: return
+        nearest = min(level[f] for f in foods)
+        targets = [f for f in foods if level[f] == nearest]
+        candidates = [a for a in moves if not g.me.moves_attr[a].is_collision_point and a in g.me.territory]
+        keep = []
+        for f in targets:
+            dist = {f: 0}
+            queue = [f]
+            for p in queue:
+                for q in adj_cells(p):
+                    if q in dist or q not in g.me.territory: continue
+                    dist[q] = dist[p] + 1
+                    queue.append(q)
+            keep += [a for a in candidates if dist.get(a) == nearest - 1 and a not in keep]
+        # Room check (food must not cost room): keep a food move only if the territory I keep after it (same score as just_choose_larger) is at least FOOD_ROOM_FACTOR times my length.
+        # Otherwise eating can box me in (e.g. food in a corner pocket). When no food move passes, get_food does nothing and just_choose_larger decides among all moves.
+        keep = [a for a in keep if reply_score_ng(g.me.moves_ngs[a], len(g.others)) >= FOOD_ROOM_FACTOR * g.me.length]
+        if len(keep) == 0: return
+        g.me.decision_path.append(f"get food: safe food {targets} {nearest} steps away -> {keep}")
+        return keep
+
+    def opening_growth(moves, a_area, chosen):
+        # Aggressive early growth advisor after all danger filters and territory tie-breaks.
+        if len(g.others) < 2 or g.me.length >= OPENING_GROWTH_MAX_LENGTH: return chosen
+        foods = [f for f in g.food if f in g.me.territory]
+        if len(foods) == 0: return chosen
+        level = food_steps(g, g.me.head, 0)
+        foods = [f for f in foods if f in level]
+        if len(foods) == 0: return chosen
+        nearest = min(level[f] for f in foods)
+        targets = [f for f in foods if level[f] == nearest]
+        scores = dict(a_area)
+        dist = {a: min([food_steps(g, a, 1).get(f, 99999) for f in targets], default=99999) for a in moves}
+        toward = [a for a in moves if a in scores and dist[a] == nearest]
+        room_ok = [a for a in toward if scores[a] >= OPENING_GROWTH_ROOM_FACTOR * (g.me.length + (1 if a in g.food else 0))]
+        if len(room_ok) == 0:
+            if len(toward) != 0: g.me.decision_path.append(f"opening growth skipped: food {targets} {nearest} steps, no route keeps {OPENING_GROWTH_ROOM_FACTOR:.1f}x room")
+            return chosen
+        best = max(scores.values())
+        food_best = max(scores[a] for a in room_ok)
+        cost = best - food_best
+        pct = cost / best if best else 0
+        preferred = [a for a in room_ok if scores[a] == food_best]
+        if pct > OPENING_GROWTH_COST_PCT:
+            g.me.decision_path.append(f"opening growth skipped: food {targets} {nearest} steps, toward {room_ok}, cost {cost:.2f} ({pct:.1%})")
+            return chosen
+        if any(a in preferred for a in chosen):
+            kept = [a for a in chosen if a in preferred]
+            g.me.decision_path.append(f"opening growth aligned: food {targets} {nearest} steps, {kept}, cost {cost:.2f} ({pct:.1%})")
+            return kept
+        g.me.decision_path.append(f"opening growth: food {targets} {nearest} steps, {chosen} -> {preferred}, cost {cost:.2f} ({pct:.1%})")
+        return preferred
+
+    def food_prepare(moves, a_area, chosen):
+        # Normal food preparation is disabled in 1v1 so territory remains the highest priority.
+        # Burst eating and emergency avoid_starvation are separate paths.
+        if len(g.others) == 1: return chosen
+        foods = [f for f in g.food if f in g.me.territory]
+        if len(foods) == 0: return chosen
+        level = food_steps(g, g.me.head, 0)
+        foods = [f for f in foods if f in level]
+        if len(foods) == 0: return chosen
+        nearest = min(level[f] for f in foods)
+        slack = g.me.health - nearest
+        targets = [f for f in foods if level[f] == nearest]
+        move_dist = {a: min([food_steps(g, a, 1).get(f, 99999) for f in targets], default=99999) for a in moves}
+        toward = [a for a in moves if move_dist[a] == nearest]
+        scores = dict(a_area)
+        toward = [a for a in toward if a in scores]
+        if len(toward) == 0: return chosen
+        best = max(scores.values())
+        food_best = max(scores[a] for a in toward)
+        cost = best - food_best
+        pct = cost / best if best else 0
+        preferred = [a for a in toward if scores[a] == food_best]
+        if slack <= STARVATION_MARGIN or slack > FOOD_PREP_MARGIN:
+            if g.me.health <= FOOD_PREP_LOG_HEALTH:
+                g.me.decision_path.append(f"food prepare observe: food {targets} {nearest} steps, slack {slack}; toward {toward}, cost {cost:.2f} ({pct:.1%}), chosen {chosen}")
+            return chosen
+        if pct > FOOD_PREP_COST_PCT:
+            g.me.decision_path.append(f"food prepare skipped: food {targets} {nearest} steps, slack {slack}; toward {toward}, cost {cost:.2f} ({pct:.1%})")
+            return chosen
+        if any(a in preferred for a in chosen):
+            kept = [a for a in chosen if a in preferred]
+            g.me.decision_path.append(f"food prepare aligned: food {targets} {nearest} steps, slack {slack}; {kept}, cost {cost:.2f} ({pct:.1%})")
+            return kept
+        g.me.decision_path.append(f"food prepare: food {targets} {nearest} steps, slack {slack}; {chosen} -> {preferred}, cost {cost:.2f} ({pct:.1%})")
+        return preferred
+
     def just_choose_larger(moves):
         # collision-point moves are skipped (they have no moves_ngs entry); the other moves are still scored
         moves = [a for a in moves if not g.me.moves_attr[a].is_collision_point]
         if len(moves) == 0: return
 
-        a_area = [(a, reply_score([len(ng.me.territory)+ng.me.achievable_meander_space for ng in ngs], len(g.others))) 
+        a_area = [(a, reply_score_ng(ngs, len(g.others))) 
                   for a in moves for ngs in [g.me.moves_ngs[a]]]
         max_n = max([n for a,n in a_area ])
         max_a = [a for a,n in a_area if n == max_n]
@@ -269,8 +958,11 @@ def decision_flow(g: GameTurn):
         if len(close) > 1 and early_short: g.me.decision_path.append("tie-break skipped: early game, short snakes")
         elif len(close) > 1:
             max_a = tie_break(g, close, max_a, turn_start + TIEBREAK_TIME_LIMIT)
+        if len(g.others) >= 2 and g.me.length < OPENING_GROWTH_MAX_LENGTH:
+            max_a = opening_growth(moves, a_area, max_a)
+        else:
+            max_a = food_prepare(moves, a_area, max_a)
         return max_a
-
     def ________DECISION_MAIN_FLOW________():
         return
 
@@ -290,8 +982,7 @@ def decision_flow(g: GameTurn):
     return decision()
 
 def second_step_value(ng: GameTurn, deadline: float):
-    # Best territory I can get one step after ng. Over the opponents' choices: 1v1 = worst reply, 3-4 snakes = average (reply_score).
-    # Returns None if the deadline passes before the answer is complete.
+    # Best territory one step later, weighted by predicted joint reply probability (1v1 remains worst-case).
     if len(ng.me.allowed_moves) == 0: return 0
     others_choices = [other.next_snake_choices for other in ng.others]
     others_choices = [choices for choices in others_choices if len(choices) != 0]
@@ -300,35 +991,14 @@ def second_step_value(ng: GameTurn, deadline: float):
     for b in ng.me.allowed_moves:
         if ng.me.moves_attr[b].is_collision_point: continue
         me2 = snake_next_step(ng, ng.me, b)
-        scores = []
+        ng2s = []
         for others in others_choices:
             if time.time() > deadline: return None
             ng2 = next_game_turn(ng, [snake_copy(me2)]+[snake_copy(other) for other in others])
-            scores.append(len(ng2.me.territory)+ng2.me.achievable_meander_space)
-        best = max(best, reply_score(scores, len(ng.others)))
+            ng2.reply_probability = product([other.choice_probability for other in others])
+            ng2s.append(ng2)
+        best = max(best, reply_score_ng(ng2s, len(ng.others)))
     return best
-
-def food_tie_break(g: GameTurn, near: list, default: list):
-    # Last step of the tie-break. near: moves whose 2nd-step value is within FOOD_TIEBREAK_PCT of the best; default: the exact best moves.
-    # Only when I am shorter than the longest opponent (I must grow to survive a head-to-head): prefer the move closest to food that I reach strictly before every opponent
-    # (an opponent of equal or greater length that arrives at the same time wins the food). It never overrides the territory scores beyond the FOOD_TIEBREAK_PCT band.
-    # `near` has no collision-point moves (just_choose_larger removed them). Keeps `default` when I am the longest, no food qualifies, or the food does not separate the moves.
-    if g.me.length >= max(o.length for o in g.others): return default
-    my_steps = {a: food_steps(g, a, 1) for a in near}
-    other_steps = [(o, food_steps(g, o.head, 0)) for o in g.others]
-    move_dist = {a: 99999 for a in near}
-    for f in g.food:
-        mine = min([my_steps[a][f] for a in near if f in my_steps[a]], default=None)
-        if mine is None: continue
-        if any(osteps.get(f, 99999) < mine or (osteps.get(f, 99999) == mine and o.length >= g.me.length) for o, osteps in other_steps): continue
-        for a in near:
-            if f in my_steps[a]: move_dist[a] = min(move_dist[a], my_steps[a][f])
-    if all(d == 99999 for d in move_dist.values()): return default
-    closest = min(move_dist.values())
-    result = [a for a in near if move_dist[a] == closest]
-    if len(result) == len(near): return default
-    g.me.decision_path.append(f"food tie-break: steps to my food { {a: d for a, d in move_dist.items()} } -> {result}")
-    return result
 
 def second_step_tie_break(g: GameTurn, close: list, default: list, deadline: float):
     # close: moves with equal scores after the all-replies tie-break. Looks one more step ahead for these moves only.
@@ -341,12 +1011,10 @@ def second_step_tie_break(g: GameTurn, close: list, default: list, deadline: flo
             if any(v is None for v in vs):
                 g.me.decision_path.append("tie-break skipped: out of time")
                 return default
-            values[a] = reply_score(vs, len(g.others))
+            values[a] = reply_score(vs, len(g.others), [ng.reply_probability for ng in ngs])
         best = max(values.values())
         result = [a for a in close if values[a] == best]
         g.me.decision_path.append(f"tie-break 2nd step: { {a: round(v, 2) for a, v in values.items()} } -> {result}")
-        near = [a for a in close if values[a] >= best - FOOD_TIEBREAK_PCT * best]
-        if len(near) > 1: result = food_tie_break(g, near, result)
         return result
     except Exception as e:
         g.me.decision_path.append(f"tie-break failed: {e!r}")
@@ -364,7 +1032,7 @@ def all_replies_value(g: GameTurn, a: Int2, deadline: float):
         if time.time() > deadline: return None
         others = [snake_next_step(g, other, move) for other, move in zip(movers, replies)]
         ng = next_game_turn(g, [snake_copy(me2)] + others)
-        scores.append(len(ng.me.territory) + ng.me.achievable_meander_space)
+        scores.append(territory_score(ng))
     return reply_score(scores, len(g.others))
 
 def tie_break(g: GameTurn, close: list, default: list, deadline: float):
@@ -409,6 +1077,74 @@ def equal_collision_point(ng: GameTurn, a: Int2):
     if ng.me.head not in heads: return False
     return len(heads) > 1
 
+def has_direct_wayout(ng: GameTurn):
+    # True when tail erosion gives me more territory than the static map would (the snakes' bodies, minus tails, never move).
+    taken = set()
+    layer = {snake.head: {snake.head} for snake in ng.snakes}
+    static_cells = 0
+    while len(layer) != 0:
+        taken.update(layer.keys())
+        static_cells += sum(1 for p, heads in layer.items() if heads == {ng.me.head})
+        set_of_pair = {(q, p) for p in layer for q in adj_cells(p) if q not in ng.occupied and q not in taken}
+        q_dict = association_dict(set_of_pair)
+        next_layer = dict()
+        for q, ps in q_dict.items():
+            max_length = max([ng.head_snake[head].length for p in ps for head in layer[p]])
+            next_layer[q] = {head for p in ps for head in layer[p] if ng.head_snake[head].length == max_length}
+        layer = next_layer
+    return static_cells != len(ng.me.territory)
+
+def corridor_scan(ng: GameTurn):
+    # Finds corridors in MY territory (used only for logging). A territory cell is a corridor cell when, along one axis (left+right or up+down),
+    # both neighbours are not my territory. A corridor is a connected run of corridor cells with at least CORRIDOR_MIN_LENGTH cells.
+    # Each wall side is classified: 'edge' = board edge; 'body' = a snake body cell that is still there when I arrive (release time > my arrival level);
+    # 'soft' = anything else (opponent territory, contested cell, a body that is gone by then).
+    # tier: HARD when at least CORRIDOR_HARD_FRAC of all wall sides are edge/body, MIXED when at least CORRIDOR_MIXED_FRAC, else SOFT.
+    # exits = number of my territory cells outside the corridor that touch it (0 = the corridor is all my room, 1 = dead end with one way in/out).
+    # share = corridor cells / all my territory cells.
+    me = ng.me
+    T = me.territory
+    level = me.territory_point_level
+    release = {}
+    for snake in ng.snakes:
+        n = len(snake.body)
+        for i, p in enumerate(snake.body):
+            release[p] = max(release.get(p, 0), n - i)
+    def side(w, t):
+        if not pos_on_board(w): return 'edge'
+        if release.get(w, 0) > t: return 'body'
+        return 'soft'
+    cells = {}
+    for c in T:
+        x, y = c
+        best = None
+        for p, q in (((x-1, y), (x+1, y)), ((x, y-1), (x, y+1))):
+            if p in T or q in T: continue
+            s = (side(p, level[c]), side(q, level[c]))
+            if best is None or sum(1 for k in s if k != 'soft') > sum(1 for k in best if k != 'soft'): best = s
+        if best is not None: cells[c] = best
+    corridors = []
+    seen = set()
+    for c in cells:
+        if c in seen: continue
+        comp = [c]
+        seen.add(c)
+        for p in comp:
+            for q in adj_cells(p):
+                if q in cells and q not in seen:
+                    seen.add(q)
+                    comp.append(q)
+        if len(comp) < CORRIDOR_MIN_LENGTH: continue
+        sides = [k for p in comp for k in cells[p]]
+        hard_frac = sum(1 for k in sides if k != 'soft') / len(sides)
+        tier = 'HARD' if hard_frac >= CORRIDOR_HARD_FRAC else 'MIXED' if hard_frac >= CORRIDOR_MIXED_FRAC else 'SOFT'
+        compset = set(comp)
+        exits = {q for p in comp for q in adj_cells(p) if q in T and q not in compset}
+        corridors.append({'tier': tier, 'length': len(comp), 'hard_frac': hard_frac,
+                          'walls': f"e{sides.count('edge')} b{sides.count('body')} s{sides.count('soft')}",
+                          'exits': len(exits), 'share': len(comp) / max(len(T), 1)})
+    return corridors
+
 def moves_attributes(ng: GameTurn):
     for a in ng.me.allowed_moves:
         ma = MoveAttr()
@@ -450,75 +1186,60 @@ def set_next_snake_choices(ng: GameTurn):
     for snake in ng.others:
         snake.next_snake_choices = next_snake_choices(ng, snake)
 
+def squeeze_moves(ng: GameTurn, snake: Snake, safe_moves: list[Int2]):
+    border = snake.inner_contacting_border[ng.me.head]
+    if len(border) == 0: return []
+    distance_to_border = min([snake.territory_point_level[a] for a in border])
+    border_points = [a for a in border if snake.territory_point_level[a] == distance_to_border]
+    return list({a for a in safe_moves for b in border_points if tree_distance(snake, a, b) >= 0})
+
+def weighted_choices(ng: GameTurn, snake: Snake, moves: list[Int2], squeeze: list[Int2]):
+    moves = list(dict.fromkeys(moves))
+    n, ns = len(moves), len([a for a in moves if a in squeeze])
+    if n == 2 and ns == 1:
+        weights = [2/3 if a in squeeze else 1/3 for a in moves]
+    elif n == 3 and ns == 2:
+        weights = [0.4 if a in squeeze else 0.2 for a in moves]
+    elif n == 3 and ns == 1:
+        weights = [0.5 if a in squeeze else 0.25 for a in moves]
+    else:
+        weights = [1/n for a in moves]
+    result = [snake_next_step(ng, snake, a) for a in moves]
+    for snake2, weight in zip(result, weights): snake2.choice_probability = weight
+    return result
+
 def next_snake_choices(ng: GameTurn, snake: Snake):
     if len(snake.allowed_moves) == 0: return []
-
-    if len(snake.allowed_moves) == 1:
-        snake_move = take_first(snake.allowed_moves)
-        snake2 = snake_next_step(ng, snake, snake_move)
-        return [snake2]
+    if len(snake.allowed_moves) == 1: return [snake_next_step(ng, snake, take_first(snake.allowed_moves))]
 
     unsafe_moves = []
     for other in ng.snakes:
         if other.head == snake.head: continue
         if other.length < snake.length: continue
         for a in snake.allowed_moves:
-            if a in other.allowed_moves:
-                unsafe_moves.append(a)
+            if a in other.allowed_moves: unsafe_moves.append(a)
 
     safe_moves = [a for a in snake.allowed_moves if a not in unsafe_moves]
-    if len(safe_moves) == 0:
-        snake_move = take_first(unsafe_moves)
-        snake2 = snake_next_step(ng, snake, snake_move)
-        return [snake2]
+    if len(safe_moves) == 0: return [snake_next_step(ng, snake, take_first(unsafe_moves))]
+    if len(safe_moves) == 1: return [snake_next_step(ng, snake, take_first(safe_moves))]
 
-    if len(safe_moves) == 1:
-        snake_move = take_first(safe_moves)
-        snake2 = snake_next_step(ng, snake, snake_move)
-        return [snake2]
+    squeeze = squeeze_moves(ng, snake, safe_moves)
+    if len(ng.others) == 1: return weighted_choices(ng, snake, safe_moves, squeeze)
+    if distance_pq(ng.me.head, snake.head) == 2 and len(ng.me.inner_contacting_border[snake.head]) != 0:
+        return weighted_choices(ng, snake, safe_moves, squeeze)
 
-    # 1v1: the single opponent can play any of its safe moves, so consider all of them, however far away it is.
-    # (3-4 snakes keep the single predicted move below.)
-    if len(ng.others) == 1:
-        return [snake_next_step(ng, snake, a) for a in safe_moves]
-
-    if distance_pq(ng.me.head, snake.head) == 2:
-        if len(ng.me.inner_contacting_border[snake.head]) != 0:
-            snake2s = [snake_next_step(ng, snake, a) for a in safe_moves]
-            return snake2s
-
-    # when snake have more than 1 safe_moves
-    # it will try to squeeze me or get food
     foods = [a for a in safe_moves if a in ng.food]
     path_distance = ng.me.to_snake_path_distance[snake.head]
+    if len(snake.inner_contacting_border[ng.me.head]) == 0: return [snake_next_step(ng, snake, take_first(safe_moves))]
 
-    # this is a simplified version of squeeze
-    squeeze = [a for a in safe_moves if distance_pq(a, ng.me.head) < distance_pq(snake.head, ng.me.head)]
-    # full version just go to all the closest territory border points
-    border = snake.inner_contacting_border[ng.me.head]
-    if len(border) == 0:
+    if path_distance > 8:
         snake_move = take_first(safe_moves)
-        snake2 = snake_next_step(ng, snake, snake_move)
-        return [snake2]
+        if len(foods) != 0: snake_move = take_first(foods)
+        elif len(squeeze) != 0: snake_move = take_first(squeeze)
+        return [snake_next_step(ng, snake, snake_move)]
 
-    distance_to_border = min([snake.territory_point_level[a] for a in border])
-    border_points = [a for a in border if snake.territory_point_level[a] == distance_to_border]
-    squeeze = {a for a in safe_moves for b in border_points if tree_distance(snake, a, b) >= 0}
-    squeeze = list(squeeze)
-
-    snake_move = take_first(safe_moves)
-    if path_distance > 8: 
-        if len(foods) != 0:
-            snake_move = take_first(foods)
-        elif len(squeeze) != 0:
-            snake_move = take_first(squeeze)
-        snake2 = snake_next_step(ng, snake, snake_move)
-        return [snake2]
-
-    snake_moves = squeeze + foods
-    snake_moves = list(set(snake_moves))
-    snake2s = [snake_next_step(ng, snake, a) for a in snake_moves]
-    return snake2s
+    snake_moves = list(set(squeeze + foods))
+    return weighted_choices(ng, snake, snake_moves, squeeze)
 
 def resolve_snakes(snakes: list[Snake]):
     resolved_snakes = []
@@ -837,6 +1558,11 @@ def tree_distance(snake: Snake, p, q):
 
 def ________UTILITY_FUNCTIONS________():
     return
+
+def product(values):
+    result = 1.0
+    for value in values: result *= value
+    return result
 
 def take_first(moves):
     return moves[0]
