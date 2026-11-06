@@ -397,6 +397,116 @@ def run_enumeration_tests():
     print("Enumeration assertions passed")
 
 
+def summarize_moves(g):
+    """Return RED direction -> one-turn outcome counts, not probabilities.
+
+    Includes only directions modeled by enumerate_turns (including fallback).
+    Classification applies only to those modeled replies and this one turn;
+    surviving all replies does not establish longer-term safety.
+    Streams outcomes without retaining their boards. Does not mutate g.
+    RED already dead: return an empty dictionary.
+    """
+    if g.me is None:
+        return {}
+    summary = {}
+    for moves, ng in enumerate_turns(g):
+        direction = moves[g.me_id]
+        row = summary.setdefault(direction, {
+            "replies": 0, "survives": 0, "dies": 0, "death_reasons": {}})
+        row["replies"] += 1
+        if ng.me is not None:
+            row["survives"] += 1
+        else:
+            row["dies"] += 1
+            reason = next(s["reason"] for s in ng.eliminated
+                          if s["id"] == g.me_id)
+            reasons = row["death_reasons"]
+            reasons[reason] = reasons.get(reason, 0) + 1
+    for row in summary.values():
+        if row["dies"] == 0:
+            row["classification"] = "survives all modeled replies"
+        elif row["survives"] == 0:
+            row["classification"] = "dies in all modeled replies"
+        else:
+            row["classification"] = "mixed"
+    return summary
+
+
+def run_summary_tests():
+    """Call manually; verifies diagnostics, not live strategy."""
+    def state(bodies, health=100):
+        snakes = [{"id": str(i), "name": str(i), "body": b,
+                   "health": health} for i, b in enumerate(bodies)]
+        return init_game({"game": {"id": "summary-test"}, "turn": 0,
+                          "you": snakes[0], "board": {"width": 7,
+                          "height": 7, "snakes": snakes, "food": []}})
+
+    def check(summary):
+        for row in summary.values():
+            assert row["replies"] > 0
+            assert row["replies"] == row["survives"] + row["dies"]
+            assert sum(row["death_reasons"].values()) == row["dies"]
+
+    # Three replies per RED direction; right has one equal-length clash.
+    g = state([[(1, 2), (1, 1)], [(3, 2), (3, 1)]])
+    before = repr(g.__dict__) + repr([s.__dict__ for s in g.snakes])
+    summary = summarize_moves(g)
+    assert set(summary) == {"right", "left", "up"}
+    assert summary["right"] == {
+        "replies": 3, "survives": 2, "dies": 1,
+        "death_reasons": {"head-to-head collision": 1},
+        "classification": "mixed"}
+    for direction in ("left", "up"):
+        assert summary[direction] == {
+            "replies": 3, "survives": 3, "dies": 0,
+            "death_reasons": {},
+            "classification": "survives all modeled replies"}
+    assert sum(row["replies"] for row in summary.values()) == 9
+    assert before == repr(g.__dict__) + repr([s.__dict__ for s in g.snakes])
+    check(summary)
+    # Repeated calls have independent result dictionaries.
+    summary["right"]["death_reasons"]["test"] = 99
+    assert "test" not in summarize_moves(g)["right"]["death_reasons"]
+    # RED has one exit; the opponent has two replies, one a longer-head clash.
+    g = state([[(0, 0), (0, 1), (0, 1)],
+               [(2, 0), (2, 1), (1, 1), (1, 1)]])
+    summary = summarize_moves(g)
+    assert set(summary) == {"right"}
+    assert summary["right"]["classification"] == "mixed"
+    assert summary["right"]["replies"] == 2
+    assert summary["right"]["survives"] == summary["right"]["dies"] == 1
+    assert summary["right"]["death_reasons"] == {"head-to-head collision": 1}
+    check(summary)
+    # Health death is counted even for basic legal empty-cell moves.
+    g = state([[(2, 2), (2, 1)]], health=1)
+    summary = summarize_moves(g)
+    assert len(summary) == 3
+    assert all(row["death_reasons"] == {"out of health": 1}
+               and row["classification"] == "dies in all modeled replies"
+               for row in summary.values())
+    check(summary)
+    # Blocked RED fallback: retain all four directions and exact reasons.
+    g = state([[(0, 0), (0, 1), (1, 1), (1, 0), (1, 0)]])
+    summary = summarize_moves(g)
+    assert len(summary) == 4
+    assert summary["right"]["death_reasons"] == {"self collision": 1}
+    assert summary["up"]["death_reasons"] == {"self collision": 1}
+    for direction in ("left", "down"):
+        assert summary[direction]["death_reasons"] == {"wall collision": 1}
+    check(summary)
+    # Single-tail entry remains represented as a surviving outcome.
+    g = state([[(0, 0), (0, 1), (1, 1), (1, 0)]])
+    summary = summarize_moves(g)
+    assert set(summary) == {"right"} and summary["right"]["survives"] == 1
+    check(summary)
+    # No-op when RED is already dead, with or without other survivors.
+    g = state([[(0, 0), (0, 1)], [(4, 4), (4, 3)]])
+    ng = next_game_turn(g, {"0": "left", "1": "up"})
+    assert summarize_moves(ng) == {}
+    assert summarize_moves(GameTurn.from_snakes(g, [], [], [])) == {}
+    print("Summary assertions passed")
+
+
 def main(game_state, log=True):
     start = time.perf_counter()
     g = init_game(game_state)
@@ -451,9 +561,12 @@ if __name__ == "__main__":
     # run_move_generation_tests()
     # run_transition_tests()
     # run_enumeration_tests()
+    # run_summary_tests()
     # Replace this dictionary with one turn from our me/others log.
     turn_log = {'id': '1f7b6e6f-1ad1-4fd7-9a7f-29d7425408a7', 'turn': 0, 'me': {'name': 'mark_snake_test RED', 'health': 100, 'length': 3, 'body': [(5, 1), (5, 1), (5, 1)]}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 100, 'length': 3, 'body': [(9, 5), (9, 5), (9, 5)]}, {'name': 'mark_snake_test GREEN', 'health': 100, 'length': 3, 'body': [(5, 9), (5, 9), (5, 9)]}, {'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 3, 'body': [(1, 5), (1, 5), (1, 5)]}], 'food': [(4, 0), (10, 4), (6, 10), (0, 6), (5, 5)], 'module': 'territory new', 'decision_path': ['1vn', 'allowed moves: [(6, 1), (4, 1), (5, 2), (5, 0)]', "opponent probability mark_snake_test BLUE: [((10, 5), 22, '-', '-', 0.88, 0.23), ((8, 5), 24, '-', '-', 0.96, 0.253), ((9, 6), 25, '-', '-', 1.0, 0.265), ((9, 4), 24, '-', '-', 0.96, 0.253)]; cutoff 1.5; LIVE SHARED TOP1", "opponent probability mark_snake_test GREEN: [((6, 9), 21, '-', '-', 1.0, 0.264), ((4, 9), 21, '-', '-', 1.0, 0.264), ((5, 10), 19, '-', '-', 0.9, 0.236), ((5, 8), 19, '-', '-', 0.9, 0.236)]; cutoff 1.5; LIVE SHARED TOP1", "opponent probability mark_snake_test YELLOW: [((2, 5), 24, '-', '-', 0.96, 0.253), ((0, 5), 22, '-', '-', 0.88, 0.23), ((1, 6), 25, '-', '-', 1.0, 0.265), ((1, 4), 24, '-', '-', 0.96, 0.253)]; cutoff 1.5; LIVE SHARED TOP1"], 'next_coord': (5, 0), 'next_move': 'down', 'time': '0.019s'}
     game_state = init_from_log(turn_log)
+    # Optional one-turn diagnostic (counts, not probabilities):
+    # print(summarize_moves(init_game(game_state)))
     # For a snakes/alive engine log instead:
     # game_state = init_from_game_engine_log(turn_log, "mark_snake_test RED")
     main(game_state, log=True)
