@@ -54,8 +54,8 @@ class GameTurn:
         self.me_id = self.me.id
         self.others = [s for s in self.snakes if s is not self.me]
         self.food = get_coord(board["food"])
-        # Conservative first version: tails are blocked too.
-        self.occupied = {p for s in self.snakes for p in s.body}
+        # Occupancy for the next move: remove one tail segment per snake.
+        self.occupied = {p for s in self.snakes for p in s.body[:-1]}
         self.decision_path = []
         self.eliminated = []
 
@@ -72,7 +72,7 @@ class GameTurn:
         g.me = next((s for s in snakes if s.id == g.me_id), None)
         g.others = [s for s in snakes if s.id != g.me_id]
         g.food = list(food)
-        g.occupied = {p for s in snakes for p in s.body}
+        g.occupied = {p for s in snakes for p in s.body[:-1]}
         g.decision_path = []
         g.eliminated = eliminated
         return g
@@ -96,7 +96,7 @@ def candidate_moves(g, snake):
 def legal_moves(g, snake):
     """Basic current-board legality, not simultaneous collision safety.
 
-    All current body cells, including tails, remain blocked for now.
+    Last segments are excluded; duplicated/overlapping tail cells stay blocked.
     Head-to-head risk is intentionally not filtered here.
     An empty list is returned when no move passes these checks.
     """
@@ -135,10 +135,24 @@ def run_move_generation_tests():
     # Same generator works for opponents using their own heads and necks.
     g = state([[(0, 0), (0, 1)], [(4, 4), (4, 3)]])
     assert legal_moves(g, g.others[0]) == [("left", (3, 4))]
-    # Current own body/tail and opponent body/tail all block moves.
+    # Own and opponent single tails are available, even with other free moves.
     g = state([[(2, 2), (2, 1), (1, 1), (1, 2)],
                [(4, 3), (3, 3), (3, 2)]])
-    assert legal_moves(g, g.me) == [("up", (2, 3))]
+    assert legal_moves(g, g.me) == [("right", (3, 2)),
+                                     ("left", (1, 2)), ("up", (2, 3))]
+    assert (2, 1) in g.occupied and (3, 3) in g.occupied
+    # Duplicated own tail remains blocked.
+    g = state([[(2, 2), (2, 1), (1, 1), (1, 2), (1, 2)]])
+    assert ("left", (1, 2)) not in legal_moves(g, g.me)
+    # Duplicated opponent tail remains blocked.
+    g = state([[(2, 2), (2, 1)],
+               [(4, 3), (3, 3), (3, 2), (3, 2)]])
+    assert ("right", (3, 2)) not in legal_moves(g, g.me)
+    # A single tail overlapping another retained body segment stays blocked.
+    g = state([[(2, 2), (2, 1)],
+               [(4, 3), (3, 3), (3, 2)],
+               [(4, 2), (3, 2), (3, 1)]])
+    assert (3, 2) in g.occupied
     # A coiled starting body still permits all four adjacent cells.
     g = state([[(2, 2), (2, 2), (2, 2)]])
     assert legal_moves(g, g.me) == candidate_moves(g, g.me)
@@ -146,8 +160,8 @@ def run_move_generation_tests():
     g = state([[(1, 2), (1, 1)], [(3, 2), (3, 1)]])
     assert ("right", (2, 2)) in legal_moves(g, g.me)
     assert ("left", (2, 2)) in legal_moves(g, g.others[0])
-    # legal_moves itself never supplies a fallback.
-    g = state([[(0, 0), (0, 1), (1, 1), (1, 0)]])
+    # legal_moves itself never supplies a fallback; duplicated tail blocks exit.
+    g = state([[(0, 0), (0, 1), (1, 1), (1, 0), (1, 0)]])
     assert legal_moves(g, g.me) == []
     assert choose_move(g) == ("right", (1, 0))
     print("Move generation assertions passed")
@@ -271,8 +285,8 @@ def enumerate_turns(g):
     """Yield (moves, next_state) for each modeled joint move, lazily.
 
     Each live snake uses legal_moves, or all four candidates if empty.
-    This is a conservative subset, NOT exhaustive simultaneous legality:
-    tail-entry moves are omitted when another basic legal move exists.
+    Single tail-entry moves are included alongside other basic legal moves.
+    Basic legality is not a guarantee of simultaneous survival.
     Fallback choices may be fatal; next_game_turn resolves each outcome.
     Keep RED-death outcomes. No scoring, probabilities, or move selection.
     Every yielded mapping/state is independent of the other outcomes.
@@ -330,15 +344,33 @@ def run_enumeration_tests():
     assert (99, 99) not in b[1].me.body and (99, 99) not in g.me.body
     assert not b[1].food and not g.food
     assert not b[1].decision_path and not g.decision_path
-    # Empty conservative legality is NOT certain death: old tail can vacate.
+    # A single old tail is a basic legal exit, without fallback.
     g = state([[(0, 0), (0, 1), (1, 1), (1, 0)]])
+    assert legal_moves(g, g.me) == [("right", (1, 0))]
+    outcomes = list(enumerate_turns(g))
+    assert len(outcomes) == 1 and outcomes[0][1].me is not None
+    # Tail entry is retained even when other empty-cell moves exist.
+    g = state([[(2, 2), (2, 1), (1, 1), (1, 2)]])
+    outcomes = list(enumerate_turns(g))
+    assert {m["0"] for m, _ in outcomes} == {"right", "left", "up"}
+    assert next(ng for m, ng in outcomes if m["0"] == "left").me is not None
+    # Opponent single-tail entry is included in joint combinations too.
+    g = state([[(2, 2), (2, 1)], [(4, 3), (3, 3), (3, 2)]])
+    outcomes = list(enumerate_turns(g))
+    assert any(m["0"] == "right" and m["1"] == "up"
+               and ng.me is not None for m, ng in outcomes)
+    # Simulated states rebuild occupancy with the same tail policy.
+    ng = next_game_turn(g, {"0": "up", "1": "up"})
+    assert ng.occupied == {p for s in ng.snakes for p in s.body[:-1]}
+    assert (2, 2) not in ng.occupied and (3, 3) not in ng.occupied
+    # A truly blocked snake still gets all four fallback candidates.
+    g = state([[(0, 0), (0, 1), (1, 1), (1, 0), (1, 0)]])
     assert legal_moves(g, g.me) == []
     outcomes = list(enumerate_turns(g))
-    assert len(outcomes) == 4
-    assert next(ng for m, ng in outcomes if m["0"] == "right").me is not None
-    assert any(ng.me is None for _, ng in outcomes)
+    assert len(outcomes) == 4 and all(ng.me is None for _, ng in outcomes)
     # A blocked opponent is included in EVERY mapping, never dropped.
-    g = state([[(4, 4), (4, 3)], [(0, 0), (0, 1), (1, 1), (1, 0)]])
+    g = state([[(4, 4), (4, 3)],
+               [(0, 0), (0, 1), (1, 1), (1, 0), (1, 0)]])
     outcomes = list(enumerate_turns(g))
     assert len(outcomes) == 12
     assert all(set(m) == {"0", "1"} for m, _ in outcomes)
