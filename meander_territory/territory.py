@@ -498,7 +498,7 @@ def decision_flow(g: GameTurn):
 
     def future_border_suppress(moves):
         # Live early positioning: reach a straight exposure gate one step before a shorter border target.
-        # Uses current territory paths and existing one-step scores; no additional opponent simulation.
+        # Higher-priority danger units filter unsafe moves first; this unit does not apply a broad nearby-snake veto.
         detected, rejected = [], []
         def straight_line(points):
             if len(points) < FUTURE_SUPPRESS_MIN_BORDER: return
@@ -525,11 +525,6 @@ def decision_flow(g: GameTurn):
             if len(future) == 0: continue
             first = min(x[3] for x in future)
             red_point, target_point, red_steps, target_steps = take_first([x for x in future if x[3] == first])
-            threats = [o for o in g.others if o.head != target.head and o.length >= g.me.length
-                       and g.me.to_snake_path_distance.get(o.head, 999) <= FUTURE_SUPPRESS_THREAT_DISTANCE]
-            if len(threats) != 0:
-                rejected.append(((target.name, red_point, target_point, red_steps, target_steps), [o.name for o in threats]))
-                continue
             dist, queue = {red_point: 0}, [red_point]
             for q in queue:
                 for z in adj_cells(q):
