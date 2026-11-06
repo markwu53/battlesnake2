@@ -1,5 +1,6 @@
 # BS v3 - minimal framework with one-turn transitions. No territory or strategy.
 import time
+from itertools import product
 
 MODULE = "BS v3 minimal"
 # Fixed order is a placeholder, not a preference learned from the board.
@@ -86,26 +87,70 @@ def on_board(g, point):
     return 0 <= x < g.width and 0 <= y < g.height
 
 
-def candidate_moves(g):
-    x, y = g.me.head
+def candidate_moves(g, snake):
+    """Return all four (direction, destination) pairs for this snake."""
+    x, y = snake.head
     return [(name, (x + dx, y + dy)) for name, (dx, dy) in DIRECTIONS]
 
 
+def legal_moves(g, snake):
+    """Basic current-board legality, not simultaneous collision safety.
+
+    All current body cells, including tails, remain blocked for now.
+    Head-to-head risk is intentionally not filtered here.
+    An empty list is returned when no move passes these checks.
+    """
+    return [(name, point) for name, point in candidate_moves(g, snake)
+            if on_board(g, point) and point != snake.neck
+            and point not in g.occupied]
+
+
 def choose_move(g):
-    candidates = candidate_moves(g)
-    legal = [(name, point) for name, point in candidates
-             if on_board(g, point) and point != g.me.neck
-             and point not in g.occupied]
+    legal = legal_moves(g, g.me)
     g.decision_path.append(f"basic legal moves: {[p for _, p in legal]}")
     if legal:
         g.decision_path.append("placeholder: first basic legal move")
         return legal[0]
-    # Always return a valid direction string, even in a lost position.
-    # This fallback is NOT claimed to be safe.
+    # Fallback belongs to the chooser, never to legal_moves.
+    # Always return a direction, but do not claim this fallback is safe.
+    candidates = candidate_moves(g, g.me)
     fallback = [(name, point) for name, point in candidates
                 if on_board(g, point) and point != g.me.neck]
     g.decision_path.append("no legal move: deterministic fallback")
     return (fallback or candidates)[0]
+
+
+def run_move_generation_tests():
+    """Call manually; not run during engine turns."""
+    def state(bodies):
+        snakes = [{"id": str(i), "name": str(i), "body": b,
+                   "health": 100} for i, b in enumerate(bodies)]
+        return init_game({"game": {"id": "move-test"}, "turn": 0,
+                          "you": snakes[0], "board": {"width": 5,
+                          "height": 5, "snakes": snakes, "food": []}})
+    # Candidates include off-board and blocked cells; legality filters them.
+    g = state([[(0, 0), (0, 1), (0, 2)]])
+    assert len(candidate_moves(g, g.me)) == 4
+    assert legal_moves(g, g.me) == [("right", (1, 0))]
+    # Same generator works for opponents using their own heads and necks.
+    g = state([[(0, 0), (0, 1)], [(4, 4), (4, 3)]])
+    assert legal_moves(g, g.others[0]) == [("left", (3, 4))]
+    # Current own body/tail and opponent body/tail all block moves.
+    g = state([[(2, 2), (2, 1), (1, 1), (1, 2)],
+               [(4, 3), (3, 3), (3, 2)]])
+    assert legal_moves(g, g.me) == [("up", (2, 3))]
+    # A coiled starting body still permits all four adjacent cells.
+    g = state([[(2, 2), (2, 2), (2, 2)]])
+    assert legal_moves(g, g.me) == candidate_moves(g, g.me)
+    # Do not remove a free cell just because an opponent could also enter it.
+    g = state([[(1, 2), (1, 1)], [(3, 2), (3, 1)]])
+    assert ("right", (2, 2)) in legal_moves(g, g.me)
+    assert ("left", (2, 2)) in legal_moves(g, g.others[0])
+    # legal_moves itself never supplies a fallback.
+    g = state([[(0, 0), (0, 1), (1, 1), (1, 0)]])
+    assert legal_moves(g, g.me) == []
+    assert choose_move(g) == ("right", (1, 0))
+    print("Move generation assertions passed")
 
 
 def next_game_turn(g: GameTurn, moves: dict) -> GameTurn:
@@ -222,6 +267,104 @@ def run_transition_tests():
     print("Transition assertions passed")
 
 
+def enumerate_turns(g):
+    """Yield (moves, next_state) for each modeled joint move, lazily.
+
+    Each live snake uses legal_moves, or all four candidates if empty.
+    This is a conservative subset, NOT exhaustive simultaneous legality:
+    tail-entry moves are omitted when another basic legal move exists.
+    Fallback choices may be fatal; next_game_turn resolves each outcome.
+    Keep RED-death outcomes. No scoring, probabilities, or move selection.
+    Every yielded mapping/state is independent of the other outcomes.
+    Do not mutate input g while consuming this generator.
+    No live snakes means no outcomes (not an extra empty-board turn).
+    """
+    ids = [s.id for s in g.snakes]
+    if any(i is None for i in ids) or len(set(ids)) != len(ids):
+        raise ValueError("Enumeration requires unique non-null snake IDs")
+    if not ids:
+        return
+    choices = [legal_moves(g, s) or candidate_moves(g, s)
+               for s in g.snakes]
+    for combination in product(*choices):
+        moves = {sid: direction for sid, (direction, _) in zip(ids, combination)}
+        yield moves, next_game_turn(g, moves)
+
+
+def run_enumeration_tests():
+    """Call manually; these fixtures do not change the live chooser."""
+    def state(bodies):
+        snakes = [{"id": str(i), "name": str(i), "body": b,
+                   "health": 100} for i, b in enumerate(bodies)]
+        return init_game({"game": {"id": "enumeration-test"}, "turn": 0,
+                          "you": snakes[0], "board": {"width": 7,
+                          "height": 7, "snakes": snakes, "food": []}})
+    # Three basic moves each: nine distinct complete joint mappings.
+    g = state([[(1, 2), (1, 1)], [(3, 2), (3, 1)]])
+    before = repr(([s.dict() for s in g.snakes], g.food, g.occupied,
+                   g.turn, g.decision_path, g.eliminated))
+    stream = enumerate_turns(g)
+    assert iter(stream) is stream
+    outcomes = list(stream)
+    assert len(outcomes) == 9
+    assert len({tuple(m.items()) for m, _ in outcomes}) == 9
+    assert all(set(m) == {"0", "1"} for m, _ in outcomes)
+    assert all(isinstance(ng, GameTurn) and ng.turn == 1
+               for _, ng in outcomes)
+    clash = next(ng for m, ng in outcomes
+                 if m == {"0": "right", "1": "left"})
+    assert clash.me is None and len(clash.eliminated) == 2
+    assert before == repr(([s.dict() for s in g.snakes], g.food, g.occupied,
+                           g.turn, g.decision_path, g.eliminated))
+    # Sibling mappings, snakes, and mutable collections are independent.
+    a, b = outcomes[1], outcomes[2]
+    assert a[0] is not b[0] and a[1] is not b[1]
+    assert a[1].me is not b[1].me and a[1].me is not g.me
+    assert a[1].me.body is not b[1].me.body
+    assert a[1].me.body is not g.me.body
+    a[0]["0"] = "changed"
+    a[1].me.body.append((99, 99))
+    a[1].food.append((98, 98))
+    a[1].decision_path.append("test")
+    assert b[0]["0"] == "right"
+    assert (99, 99) not in b[1].me.body and (99, 99) not in g.me.body
+    assert not b[1].food and not g.food
+    assert not b[1].decision_path and not g.decision_path
+    # Empty conservative legality is NOT certain death: old tail can vacate.
+    g = state([[(0, 0), (0, 1), (1, 1), (1, 0)]])
+    assert legal_moves(g, g.me) == []
+    outcomes = list(enumerate_turns(g))
+    assert len(outcomes) == 4
+    assert next(ng for m, ng in outcomes if m["0"] == "right").me is not None
+    assert any(ng.me is None for _, ng in outcomes)
+    # A blocked opponent is included in EVERY mapping, never dropped.
+    g = state([[(4, 4), (4, 3)], [(0, 0), (0, 1), (1, 1), (1, 0)]])
+    outcomes = list(enumerate_turns(g))
+    assert len(outcomes) == 12
+    assert all(set(m) == {"0", "1"} for m, _ in outcomes)
+    assert {m["1"] for m, _ in outcomes} == set(dict(DIRECTIONS))
+    # Four coiled snakes each have four choices: 256 outcomes.
+    g = state([[(x, y)] * 3 for x, y in [(1, 1), (5, 1), (1, 5), (5, 5)]])
+    assert sum(1 for _ in enumerate_turns(g)) == 256
+    # Enumeration continues after RED dies, using only survivors' IDs.
+    g = state([[(0, 0), (0, 1)], [(4, 4), (4, 3)]])
+    ng = next_game_turn(g, {"0": "left", "1": "up"})
+    outcomes = list(enumerate_turns(ng))
+    assert outcomes and all(set(m) == {"1"} and later.me is None
+                            for m, later in outcomes)
+    empty = GameTurn.from_snakes(g, [], [], [])
+    assert list(enumerate_turns(empty)) == []
+    # Reject ambiguous IDs instead of silently overwriting a mapping key.
+    g.snakes[1].id = g.snakes[0].id
+    try:
+        next(enumerate_turns(g))
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("Duplicate IDs must be rejected")
+    print("Enumeration assertions passed")
+
+
 def main(game_state, log=True):
     start = time.perf_counter()
     g = init_game(game_state)
@@ -272,7 +415,10 @@ def init_from_game_engine_log(record, name, width=None, height=None):
 
 
 if __name__ == "__main__":
+    # Optional checks (uncomment to run before the replay):
+    # run_move_generation_tests()
     # run_transition_tests()
+    # run_enumeration_tests()
     # Replace this dictionary with one turn from our me/others log.
     turn_log = {'id': '1f7b6e6f-1ad1-4fd7-9a7f-29d7425408a7', 'turn': 0, 'me': {'name': 'mark_snake_test RED', 'health': 100, 'length': 3, 'body': [(5, 1), (5, 1), (5, 1)]}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 100, 'length': 3, 'body': [(9, 5), (9, 5), (9, 5)]}, {'name': 'mark_snake_test GREEN', 'health': 100, 'length': 3, 'body': [(5, 9), (5, 9), (5, 9)]}, {'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 3, 'body': [(1, 5), (1, 5), (1, 5)]}], 'food': [(4, 0), (10, 4), (6, 10), (0, 6), (5, 5)], 'module': 'territory new', 'decision_path': ['1vn', 'allowed moves: [(6, 1), (4, 1), (5, 2), (5, 0)]', "opponent probability mark_snake_test BLUE: [((10, 5), 22, '-', '-', 0.88, 0.23), ((8, 5), 24, '-', '-', 0.96, 0.253), ((9, 6), 25, '-', '-', 1.0, 0.265), ((9, 4), 24, '-', '-', 0.96, 0.253)]; cutoff 1.5; LIVE SHARED TOP1", "opponent probability mark_snake_test GREEN: [((6, 9), 21, '-', '-', 1.0, 0.264), ((4, 9), 21, '-', '-', 1.0, 0.264), ((5, 10), 19, '-', '-', 0.9, 0.236), ((5, 8), 19, '-', '-', 0.9, 0.236)]; cutoff 1.5; LIVE SHARED TOP1", "opponent probability mark_snake_test YELLOW: [((2, 5), 24, '-', '-', 0.96, 0.253), ((0, 5), 22, '-', '-', 0.88, 0.23), ((1, 6), 25, '-', '-', 1.0, 0.265), ((1, 4), 24, '-', '-', 0.96, 0.253)]; cutoff 1.5; LIVE SHARED TOP1"], 'next_coord': (5, 0), 'next_move': 'down', 'time': '0.019s'}
     game_state = init_from_log(turn_log)
