@@ -88,6 +88,103 @@ def choose_move(g):
     return (fallback or candidates)[0]
 
 
+def next_game_turn(g, moves):
+    """Standard-board transition, without food spawning or hazards.
+
+    g: GameTurn. moves: {snake_id: direction}, exactly one per live snake.
+    Returns a replay-style dictionary: me/others contain survivors only;
+    me is None when RED dies. eliminated contains moved snake data/reason.
+    Original g and moves are never modified. Use init_from_log(result) only
+    if result['me'] is not None. This function does not choose any moves.
+    """
+    ids = [s.id for s in g.snakes]
+    if any(i is None for i in ids) or len(set(ids)) != len(ids):
+        raise ValueError("Transition requires unique non-null snake IDs")
+    if set(moves) != set(ids):
+        raise ValueError("Provide exactly one direction per live snake ID")
+    directions = dict(DIRECTIONS)
+    if any(m not in directions for m in moves.values()):
+        raise ValueError("Directions must be right, left, up, or down")
+    food = set(g.food)
+    moved, eaten = [], set()
+    for s in g.snakes:
+        dx, dy = directions[moves[s.id]]
+        head = (s.head[0] + dx, s.head[1] + dy)
+        body = [head] + list(s.body[:-1])
+        health = s.health - 1
+        # Standard order: move/remove tail, then feed/duplicate new tail.
+        if head in food:
+            body.append(body[-1])
+            health = 100
+            eaten.add(head)
+        moved.append({"id": s.id, "name": s.name, "body": body,
+                      "health": health, "length": len(body)})
+    causes = {}
+    # Health/wall eliminations precede collision resolution.
+    for s in moved:
+        if s["health"] <= 0:
+            causes[s["id"]] = "out of health"
+        elif not on_board(g, s["body"][0]):
+            causes[s["id"]] = "wall collision"
+    active = [s for s in moved if s["id"] not in causes]
+    # Collect all collision outcomes before removing anyone: a snake that
+    # dies from collision still obstructs others during this turn.
+    for s in active:
+        head = s["body"][0]
+        if head in s["body"][1:]:
+            causes[s["id"]] = "self collision"
+        elif any(head in o["body"][1:] for o in active if o is not s):
+            causes[s["id"]] = "body collision"
+        elif any(head == o["body"][0] and s["length"] <= o["length"]
+                 for o in active if o is not s):
+            causes[s["id"]] = "head-to-head collision"
+    survivors = [s for s in moved if s["id"] not in causes]
+    return {"id": g.id, "turn": g.turn + 1,
+            "width": g.width, "height": g.height,
+            "me": next((s for s in survivors if s["id"] == g.me.id), None),
+            "others": [s for s in survivors if s["id"] != g.me.id],
+            "food": [f for f in g.food if f not in eaten],
+            "eliminated": [dict(s, reason=causes[s["id"]])
+                           for s in moved if s["id"] in causes]}
+
+
+def run_transition_tests():
+    """Small illustrative assertions; call manually, not on engine turns."""
+    def state(bodies, food=(), health=100):
+        snakes = [{"id": str(i), "name": str(i), "body": b,
+                   "health": health} for i, b in enumerate(bodies)]
+        return init_game({"game": {"id": "transition-test"}, "turn": 0,
+                          "you": snakes[0], "board": {"width": 11,
+                          "height": 11, "snakes": snakes, "food": list(food)}})
+    g = state([[(2, 2), (2, 1), (1, 1)]])
+    before = g.me.dict()
+    ng = next_game_turn(g, {"0": "right"})
+    assert ng["me"]["body"] == [(3, 2), (2, 2), (2, 1)]
+    assert ng["me"]["health"] == 99 and g.me.dict() == before
+    g = state([[(2, 2), (2, 1), (1, 1)]], [(3, 2)], health=1)
+    ng = next_game_turn(g, {"0": "right"})
+    assert ng["me"]["health"] == 100 and ng["me"]["length"] == 4
+    assert ng["me"]["body"][-2:] == [(2, 1), (2, 1)] and not ng["food"]
+    g = state([[(2, 2), (2, 1)], [(4, 2), (4, 1)]])
+    ng = next_game_turn(g, {"0": "right", "1": "left"})
+    assert ng["me"] is None and not ng["others"] and len(ng["eliminated"]) == 2
+    g = state([[(2, 2), (2, 1), (1, 1)], [(4, 2), (4, 1)]])
+    ng = next_game_turn(g, {"0": "right", "1": "left"})
+    assert ng["me"] is not None and not ng["others"]
+    g = state([[(0, 0), (0, 1)]])
+    assert next_game_turn(g, {"0": "left"})["me"] is None
+    assert next_game_turn(g, {"0": "up"})["me"] is None
+    g = state([[(2, 2), (2, 1)]], health=1)
+    assert next_game_turn(g, {"0": "right"})["me"] is None
+    # Entering a singly occupied old tail is allowed after it vacates.
+    g = state([[(2, 2), (2, 1), (1, 1), (1, 2)]])
+    assert next_game_turn(g, {"0": "left"})["me"] is not None
+    # A duplicated tail still occupies its cell after one segment vacates.
+    g = state([[(2, 2), (2, 1), (1, 1), (1, 2), (1, 2)]])
+    assert next_game_turn(g, {"0": "left"})["me"] is None
+    print("Transition assertions passed")
+
+
 def main(game_state, log=True):
     start = time.perf_counter()
     g = init_game(game_state)
