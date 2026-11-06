@@ -547,11 +547,11 @@ def decision_flow(g: GameTurn):
             if not ngs: continue
             total = sum(ng.reply_probability for ng in ngs)
             dangerous = sum(ng.reply_probability for ng in ngs
-                            if any(c['exits'] == 0 for c in corridor_scan(ng)))
-            risk[a] = dangerous / total if total else 0
-        if len(risk) < 2: return
-        safest = min(risk.values())
-        danger = [a for a, r in risk.items()
+                            if any(c['exits'] == 0 and (
+                                ng.me.head in c['cells']
+                                or (len([q for q in adj_cells(ng.me.head) if q in ng.me.territory]) == 1
+                                    and take_first([q for q in adj_cells(ng.me.head) if q in ng.me.territory]) in c['cells'])
+                            ) for c in corridor_scan(ng))
                   if r >= STRINGLINE_RISK_MIN and r - safest >= STRINGLINE_RISK_GAP]
         keep = [a for a in moves if a not in danger]
         if len(danger) == 0 or len(keep) == 0: return
@@ -1250,7 +1250,7 @@ def corridor_scan(ng: GameTurn):
         exits = {q for p in comp for q in adj_cells(p) if q in T and q not in compset and turning_space(q)}
         corridors.append({'tier': tier, 'length': len(comp), 'hard_frac': hard_frac,
                           'walls': f"e{sides.count('edge')} b{sides.count('body')} s{sides.count('soft')}",
-                          'exits': len(exits), 'share': len(comp) / max(len(T), 1)})
+                          'exits': len(exits), 'cells': set(comp), 'share': len(comp) / max(len(T), 1)})
     return corridors
 
 def moves_attributes(ng: GameTurn):
