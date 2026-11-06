@@ -1234,8 +1234,10 @@ def decision_flow(g: GameTurn):
 
         gap = max(TIEBREAK_GAP, TIEBREAK_GAP_PCT * max_n)
         close = [a for a,n in a_area if n >= max_n - gap]
+        simulation_cutdown = g.turn < OPP_PROB_FULL_FROM_TURN or len(g.snakes) == 4
         early_short = len(g.others) >= TIEBREAK_SKIP_MIN_OPPONENTS and all(sn.length < TIEBREAK_SKIP_MAX_LENGTH for sn in [g.me] + g.others)
-        if len(close) > 1 and early_short: g.me.decision_path.append("tie-break skipped: early game, short snakes")
+        if len(close) > 1 and simulation_cutdown: g.me.decision_path.append("tie-break skipped: simulation cutdown")
+        elif len(close) > 1 and early_short: g.me.decision_path.append("tie-break skipped: early game, short snakes")
         elif len(close) > 1:
             max_a = tie_break(g, close, max_a, turn_start + TIEBREAK_TIME_LIMIT)
         if len(g.others) >= 2 and g.me.length < OPENING_GROWTH_MAX_LENGTH:
