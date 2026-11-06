@@ -124,7 +124,7 @@ TIEBREAK_SKIP_MAX_LENGTH = 8
 # avoid_trap: only opponents closer than this path distance vary their replies
 TRAP_DISTANCE = 6
 STRINGLINE_RISK_MIN, STRINGLINE_RISK_GAP = 0.20, 0.10
-DEFINITE_CONFINEMENT_MAX_TERRITORY = 2
+DEFINITE_CONFINEMENT_MAX_TERRITORY = 3
 FOOD_ESCAPE_PROB_MIN = 0.60
 # Future kill pressure logging: inspect shorter nearby targets and rational replies; no move changes.
 KILL_PRESSURE_DISTANCE = 5
@@ -553,7 +553,7 @@ def decision_flow(g: GameTurn):
 
     def avoid_definite_confinement(moves):
         # Higher priority than collision/trap. Reuses existing one-step states; no additional simulation ply.
-        # Definite confinement = no territorial contact border and at most two split-corrected claimable cells.
+        # Empty inner_border is mandatory; then either claimable room <= 3 or a fully hard head stringline is definite confinement.
         def claimable_territory(ng):
             total = len(ng.me.territory)
             remaining = set(ng.me.territory)
@@ -573,8 +573,38 @@ def decision_flow(g: GameTurn):
                 for p in comp: owner[p] = i
             branches = {owner[b] for b in ng.me.allowed_moves if b in owner}
             return 1 + max(len(components[i]) for i in branches) if len(branches) > 1 else total
+        def fully_hard_head_stringline(ng):
+            T, head = ng.me.territory, ng.me.head
+            seen, queue = {head}, [head]
+            for p in queue:
+                for q in adj_cells(p):
+                    if q in T and q not in seen:
+                        seen.add(q)
+                        queue.append(q)
+            if len(seen) < CORRIDOR_MIN_LENGTH: return False
+            def turning_space(p):
+                if sum(q in T for q in adj_cells(p)) >= 3: return True
+                x, y = p
+                for dx in (-1, 0):
+                    for dy in (-1, 0):
+                        square = {(x+dx,y+dy), (x+dx+1,y+dy), (x+dx,y+dy+1), (x+dx+1,y+dy+1)}
+                        if all(pos_on_board(q) and q in T for q in square): return True
+                return False
+            if any(turning_space(p) for p in seen): return False
+            release = {}
+            for snake in ng.snakes:
+                n = len(snake.body)
+                for i, p in enumerate(snake.body): release[p] = max(release.get(p, 0), n-i)
+            walls = []
+            for p in seen:
+                outside = [q for q in [(p[0]-1,p[1]),(p[0]+1,p[1]),(p[0],p[1]-1),(p[0],p[1]+1)] if not pos_on_board(q)]
+                for q in adj_cells(p) + outside:
+                    if q in T: continue
+                    walls.append(not pos_on_board(q) or release.get(q, 0) > ng.me.territory_point_level.get(p, 0))
+            return len(walls) != 0 and all(walls)
         def confined(ng):
-            return len(ng.me.inner_border) == 0 and claimable_territory(ng) <= DEFINITE_CONFINEMENT_MAX_TERRITORY
+            if len(ng.me.inner_border) != 0: return False
+            return claimable_territory(ng) <= DEFINITE_CONFINEMENT_MAX_TERRITORY or fully_hard_head_stringline(ng)
         danger = []
         for a in moves:
             ngs = g.me.moves_ngs.get(a)
