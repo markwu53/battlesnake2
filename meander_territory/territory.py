@@ -1,5 +1,5 @@
 # BS v2 - minimal Battlesnake bot (fresh start)
-# Shared opponent probabilities use TOP1 before turn 100 and weighted replies afterward; probable zero-exit stringlines, guarded 1v1 burst eating, and poor-topology opening-growth routes are filtered before territory selection.
+# Shared opponent probabilities use TOP1 before turn 125 or while four snakes are alive; definite confinement, probable zero-exit stringlines, guarded 1v1 burst eating, and poor-topology opening-growth routes are filtered before territory selection.
 # Source: BS Orig. Code of kept functions is copied unchanged.
 
 import time
@@ -178,6 +178,7 @@ def reply_score_ng(ngs: list[GameTurn], n_opponents: int):
 def decision_flow(g: GameTurn):
     turn_start = time.time()
     probability_logs = {}
+    probability_choices = {}
     def decision():
 
         result2 = par2([
@@ -193,6 +194,7 @@ def decision_flow(g: GameTurn):
                 , avoid_border_leading_suppress
                 , avoid_definite_confinement
                 , stringline_log
+                , choose_collision_gamble
                 , avoid_collision
                 , avoid_trap
                 , avoid_probable_stringline
@@ -269,8 +271,12 @@ def decision_flow(g: GameTurn):
         for other in g.others:
             if OPP_PROB_LIVE:
                 choices, msg = opponent_probability_choices(other)
-                if msg is not None: lines.append(msg); choices = [max(choices, key=lambda snake: snake.choice_probability)] if g.turn < OPP_PROB_FULL_FROM_TURN or len(g.snakes) == 4 else choices
-            else: choices = other.next_snake_choices
+                if msg is not None: lines.append(msg)
+            else:
+                choices = other.next_snake_choices
+            probability_choices[other.head] = choices
+            if OPP_PROB_LIVE and msg is not None and (g.turn < OPP_PROB_FULL_FROM_TURN or len(g.snakes) == 4):
+                choices = [max(choices, key=lambda snake: snake.choice_probability)]
             if len(choices) != 0: choice_sets.append(choices)
         probability_logs['shared'] = lines
         others_choices = list(itertools.product(*choice_sets))
@@ -615,16 +621,34 @@ def decision_flow(g: GameTurn):
         g.me.decision_path.append(f"avoid definite confinement: removed {danger} -> {keep}")
         return keep
 
+    def choose_collision_gamble(moves):
+        # If every move is a collision point, choose the cell with the lowest modeled clash probability.
+        # Reuses shared opponent probabilities from next_step_calculation; no new simulation.
+        if len(moves) < 2 or any(not g.me.moves_attr[a].is_collision_point for a in moves): return
+        risk = {}
+        for a in moves:
+            p = 0
+            for other in g.others:
+                if other.length < g.me.length: continue
+                choices = probability_choices.get(other.head, other.next_snake_choices or [])
+                p += sum(o.choice_probability for o in choices if o.head == a)
+            risk[a] = p
+        best = min(risk.values())
+        keep = [a for a in moves if risk[a] == best]
+        if len(keep) == len(moves): return
+        g.me.decision_path.append(f"choose collision gamble: risk { {a: round(x, 3) for a,x in risk.items()} } -> {keep}")
+        return keep
     def avoid_collision(moves):
         danger = []
         for a in moves:
             ma = g.me.moves_attr[a]
             if ma.is_collision_point and not ma.equal_collision_point:
                 danger.append(a)
-        if len(danger) != 0:
-            moves = [a for a in moves if a not in danger]
-            g.me.decision_path.append(f"avoid collision result: {moves}")
-            return moves
+        keep = [a for a in moves if a not in danger]
+        if len(danger) != 0 and len(keep) != 0:
+            g.me.decision_path.append(f"avoid collision result: {keep}")
+            return keep
+
 
     def avoid_trap(moves):
         # A move is trapped under one set of opponent replies when every move I have next turn is a collision point (or I have none).
@@ -662,18 +686,20 @@ def decision_flow(g: GameTurn):
         return keep
 
     def avoid_probable_stringline(moves):
-        # Probabilistic early danger: prefer moves with materially less zero-exit corridor risk.
+        # Prefer moves with materially less zero-exit corridor risk.
+        # A corridor is relevant when it contains RED head or every immediate territory route from the head enters it.
         risk = {}
         for a in moves:
             ngs = g.me.moves_ngs.get(a)
             if not ngs: continue
             total = sum(ng.reply_probability for ng in ngs)
-            dangerous = sum(ng.reply_probability for ng in ngs
-                            if any(c['exits'] == 0 and (
-                                ng.me.head in c['cells']
-                                or (len([q for q in adj_cells(ng.me.head) if q in ng.me.territory]) == 1
-                                    and take_first([q for q in adj_cells(ng.me.head) if q in ng.me.territory]) in c['cells'])
-                            ) for c in corridor_scan(ng)))
+            dangerous = 0
+            for ng in ngs:
+                routes = [q for q in adj_cells(ng.me.head) if q in ng.me.territory]
+                bad = any(c["exits"] == 0 and (ng.me.head in c["cells"] or
+                          (len(routes) != 0 and all(q in c["cells"] for q in routes)))
+                          for c in corridor_scan(ng))
+                if bad: dangerous += ng.reply_probability
             risk[a] = dangerous / total if total else 0
         if len(risk) < 2: return
         safest = min(risk.values())
