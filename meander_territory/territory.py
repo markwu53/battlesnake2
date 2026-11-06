@@ -1,6 +1,7 @@
-# BS v3 - minimal framework with one-turn transitions. No territory or strategy.
+# BS v3 - transitions, outcome diagnostics, and static territory. No strategy.
 import time
 from itertools import product
+from collections import deque
 
 MODULE = "BS v3 minimal"
 # Fixed order is a placeholder, not a preference learned from the board.
@@ -507,6 +508,127 @@ def run_summary_tests():
     print("Summary assertions passed")
 
 
+def static_territory(g):
+    """Return distances, territories, and contested cells for a fixed board.
+
+    Each live snake gets an independent shortest-path flood from its head.
+    ALL current body cells, including tails, are fixed obstacles. A head
+    is allowed only as its own starting point (distance zero).
+    Territory counts exclude all occupied cells. Unique earliest arrival
+    owns a cell; equal earliest arrivals are contested, regardless of length.
+    Unreachable empty cells are neither owned nor contested.
+    No tail erosion, food/health, meandering, or future survival prediction.
+    Does not mutate g or use its tail-excluding move-legality occupancy.
+    Keys in distances and territories are live snake IDs, including RED's
+    opponents after RED dies. An empty board returns empty collections.
+    """
+    ids = [s.id for s in g.snakes]
+    if any(sid is None for sid in ids) or len(set(ids)) != len(ids):
+        raise ValueError("Territory requires unique non-null snake IDs")
+    blocked = {p for s in g.snakes for p in s.body}
+    distances = {}
+    for snake in g.snakes:
+        dist = {snake.head: 0}
+        queue = deque([snake.head])
+        while queue:
+            point = queue.popleft()
+            for _, (dx, dy) in DIRECTIONS:
+                nxt = (point[0] + dx, point[1] + dy)
+                if on_board(g, nxt) and nxt not in blocked and nxt not in dist:
+                    dist[nxt] = dist[point] + 1
+                    queue.append(nxt)
+        distances[snake.id] = dist
+    territories = {sid: set() for sid in ids}
+    contested = set()
+    for x in range(g.width):
+        for y in range(g.height):
+            point = (x, y)
+            if point in blocked:
+                continue
+            arrivals = [(dist[point], sid) for sid, dist in distances.items()
+                        if point in dist]
+            if not arrivals:
+                continue
+            earliest = min(distance for distance, _ in arrivals)
+            winners = [sid for distance, sid in arrivals if distance == earliest]
+            if len(winners) == 1:
+                territories[winners[0]].add(point)
+            else:
+                contested.add(point)
+    return {"distances": distances, "territories": territories,
+            "contested": contested}
+
+
+def run_territory_tests():
+    """Call manually; tests static geometry, not survival guarantees."""
+    def state(bodies, width=5, height=5):
+        snakes = [{"id": str(i), "name": str(i), "body": b,
+                   "health": 100} for i, b in enumerate(bodies)]
+        return init_game({"game": {"id": "territory-test"}, "turn": 0,
+                          "you": snakes[0], "board": {"width": width,
+                          "height": height, "snakes": snakes, "food": []}})
+
+    def check(g, result):
+        occupied = {p for s in g.snakes for p in s.body}
+        seen = set(result["contested"])
+        assert not seen & occupied
+        for cells in result["territories"].values():
+            assert not cells & occupied and not cells & seen
+            assert all(on_board(g, p) for p in cells)
+            seen.update(cells)
+
+    # Symmetric heads: nine empty cells each and a five-cell contested column.
+    g = state([[(1, 2)], [(3, 2)]])
+    before = repr(g.__dict__) + repr([s.__dict__ for s in g.snakes])
+    result = static_territory(g)
+    assert result["contested"] == {(2, y) for y in range(5)}
+    assert result["territories"]["0"] == {(x, y) for x in (0, 1)
+                                             for y in range(5)} - {(1, 2)}
+    assert len(result["territories"]["1"]) == 9
+    assert result["distances"]["0"][(1, 2)] == 0
+    assert result["distances"]["0"][(2, 2)] == 1
+    assert (3, 2) not in result["distances"]["0"]
+    assert before == repr(g.__dict__) + repr([s.__dict__ for s in g.snakes])
+    check(g, result)
+    # Length does not break an equal-distance ownership tie.
+    g = state([[(1, 2), (1, 1)], [(3, 2)]])
+    result = static_territory(g)
+    assert (2, 2) in result["contested"]
+    check(g, result)
+    # Rectangular board, one snake: every other cell belongs to it.
+    g = state([[(1, 1)]], width=4, height=3)
+    result = static_territory(g)
+    assert len(result["territories"]["0"]) == 11 and not result["contested"]
+    assert result["distances"]["0"][(3, 2)] == 3
+    check(g, result)
+    # A fixed body wall forces a detour; distances are paths, not Manhattan.
+    g = state([[(1, 2), (2, 2), (2, 1), (2, 0)]])
+    result = static_territory(g)
+    assert result["distances"]["0"][(3, 2)] == 4
+    assert (2, 0) not in result["distances"]["0"]
+    check(g, result)
+    # Static flood blocks even a singly occupied tail that legal_moves allows.
+    g = state([[(0, 0), (0, 1), (1, 1), (1, 0)]])
+    assert legal_moves(g, g.me) == [("right", (1, 0))]
+    result = static_territory(g)
+    assert result["distances"]["0"] == {(0, 0): 0}
+    assert not result["territories"]["0"] and not result["contested"]
+    check(g, result)
+    # Fresh result collections on repeated calls.
+    result["territories"]["0"].add((99, 99))
+    assert not static_territory(g)["territories"]["0"]
+    # Surviving opponents are still evaluated after RED's elimination.
+    g = state([[(0, 0), (0, 1)], [(3, 3), (3, 2)]])
+    ng = next_game_turn(g, {"0": "left", "1": "up"})
+    result = static_territory(ng)
+    assert ng.me is None and set(result["territories"]) == {"1"}
+    check(ng, result)
+    empty = GameTurn.from_snakes(g, [], [], [])
+    assert static_territory(empty) == {"distances": {}, "territories": {},
+                                       "contested": set()}
+    print("Territory assertions passed")
+
+
 def main(game_state, log=True):
     start = time.perf_counter()
     g = init_game(game_state)
@@ -562,6 +684,7 @@ if __name__ == "__main__":
     # run_transition_tests()
     # run_enumeration_tests()
     # run_summary_tests()
+    # run_territory_tests()
     # Replace this dictionary with one turn from our me/others log.
     turn_log = {'id': '1f7b6e6f-1ad1-4fd7-9a7f-29d7425408a7', 'turn': 0, 'me': {'name': 'mark_snake_test RED', 'health': 100, 'length': 3, 'body': [(5, 1), (5, 1), (5, 1)]}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 100, 'length': 3, 'body': [(9, 5), (9, 5), (9, 5)]}, {'name': 'mark_snake_test GREEN', 'health': 100, 'length': 3, 'body': [(5, 9), (5, 9), (5, 9)]}, {'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 3, 'body': [(1, 5), (1, 5), (1, 5)]}], 'food': [(4, 0), (10, 4), (6, 10), (0, 6), (5, 5)], 'module': 'territory new', 'decision_path': ['1vn', 'allowed moves: [(6, 1), (4, 1), (5, 2), (5, 0)]', "opponent probability mark_snake_test BLUE: [((10, 5), 22, '-', '-', 0.88, 0.23), ((8, 5), 24, '-', '-', 0.96, 0.253), ((9, 6), 25, '-', '-', 1.0, 0.265), ((9, 4), 24, '-', '-', 0.96, 0.253)]; cutoff 1.5; LIVE SHARED TOP1", "opponent probability mark_snake_test GREEN: [((6, 9), 21, '-', '-', 1.0, 0.264), ((4, 9), 21, '-', '-', 1.0, 0.264), ((5, 10), 19, '-', '-', 0.9, 0.236), ((5, 8), 19, '-', '-', 0.9, 0.236)]; cutoff 1.5; LIVE SHARED TOP1", "opponent probability mark_snake_test YELLOW: [((2, 5), 24, '-', '-', 0.96, 0.253), ((0, 5), 22, '-', '-', 0.88, 0.23), ((1, 6), 25, '-', '-', 1.0, 0.265), ((1, 4), 24, '-', '-', 0.96, 0.253)]; cutoff 1.5; LIVE SHARED TOP1"], 'next_coord': (5, 0), 'next_move': 'down', 'time': '0.019s'}
     game_state = init_from_log(turn_log)
