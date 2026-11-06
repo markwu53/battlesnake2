@@ -109,7 +109,7 @@ BURST_CONFINED_ROOM_FACTOR = 2
 BURST_COST_PCT, BURST_ROOM_FACTOR = 0.10, 1.5
 # get_food room check: a food move needs at least this many times my length in territory (territory + meander, as scored by just_choose_larger) after the move
 FOOD_ROOM_FACTOR = 2
-OPP_PROB_FULL_FROM_TURN = 100
+OPP_PROB_FULL_FROM_TURN = 125
 # tie-break: when the best moves of just_choose_larger are within a dynamic gap, look closer at those moves.
 # gap = the larger of TIEBREAK_GAP cells and TIEBREAK_GAP_PCT of the best score
 TIEBREAK_GAP = 2
@@ -267,7 +267,7 @@ def decision_flow(g: GameTurn):
         for other in g.others:
             if OPP_PROB_LIVE:
                 choices, msg = opponent_probability_choices(other)
-                if msg is not None: lines.append(msg); choices = [max(choices, key=lambda snake: snake.choice_probability)] if g.turn < OPP_PROB_FULL_FROM_TURN else choices
+                if msg is not None: lines.append(msg); choices = [max(choices, key=lambda snake: snake.choice_probability)] if g.turn < OPP_PROB_FULL_FROM_TURN or len(g.snakes) == 4 else choices
             else: choices = other.next_snake_choices
             if len(choices) != 0: choice_sets.append(choices)
         probability_logs['shared'] = lines
@@ -322,7 +322,7 @@ def decision_flow(g: GameTurn):
         for row in viable:
             row['snake'].choice_probability = row['weight'] / total
             choices.append(row['snake'])
-        msg = f"opponent probability {target.name}: {result}; cutoff {cutoff:g}; LIVE SHARED {'TOP1' if g.turn < OPP_PROB_FULL_FROM_TURN else 'WEIGHTED'}"
+        msg = f"opponent probability {target.name}: {result}; cutoff {cutoff:g}; LIVE SHARED {'TOP1' if g.turn < OPP_PROB_FULL_FROM_TURN or len(g.snakes) == 4 else 'WEIGHTED'}"
         return choices, msg
     def opponent_probability_log(red_moves):
         if len(red_moves) == 0: return
@@ -2016,4 +2016,3 @@ if __name__ == "__main__":
     #game_state = init_from_db_log(id, turn, self_name)
     # game_state = init_from_game_engine_log(log, self_name)
     main(game_state, log=True)
-
