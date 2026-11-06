@@ -1,4 +1,4 @@
-# BS v3 - minimal runnable framework. No territory, simulation, or strategy.
+# BS v3 - minimal framework with one-turn transitions. No territory or strategy.
 import time
 
 MODULE = "BS v3 minimal"
@@ -50,11 +50,31 @@ class GameTurn:
         if len(matches) != 1:
             raise ValueError("Cannot uniquely identify our snake")
         self.me = matches[0]
+        self.me_id = self.me.id
         self.others = [s for s in self.snakes if s is not self.me]
         self.food = get_coord(board["food"])
         # Conservative first version: tails are blocked too.
         self.occupied = {p for s in self.snakes for p in s.body}
         self.decision_path = []
+        self.eliminated = []
+
+
+    @classmethod
+    def from_snakes(cls, previous, snakes, food, eliminated):
+        """Build a simulated state without requiring RED to survive."""
+        g = cls.__new__(cls)
+        g.id = previous.id
+        g.turn = previous.turn + 1
+        g.width, g.height = previous.width, previous.height
+        g.me_id = previous.me_id
+        g.snakes = snakes
+        g.me = next((s for s in snakes if s.id == g.me_id), None)
+        g.others = [s for s in snakes if s.id != g.me_id]
+        g.food = list(food)
+        g.occupied = {p for s in snakes for p in s.body}
+        g.decision_path = []
+        g.eliminated = eliminated
+        return g
 
 
 def init_game(game_state):
@@ -88,14 +108,16 @@ def choose_move(g):
     return (fallback or candidates)[0]
 
 
-def next_game_turn(g, moves):
+def next_game_turn(g: GameTurn, moves: dict) -> GameTurn:
     """Standard-board transition, without food spawning or hazards.
 
     g: GameTurn. moves: {snake_id: direction}, exactly one per live snake.
-    Returns a replay-style dictionary: me/others contain survivors only;
-    me is None when RED dies. eliminated contains moved snake data/reason.
-    Original g and moves are never modified. Use init_from_log(result) only
-    if result['me'] is not None. This function does not choose any moves.
+    Returns a GameTurn containing surviving Snake objects.
+    result.me is None when RED dies; result.me_id retains RED's identity.
+    result.eliminated is a list of moved snake dictionaries with reasons
+    from this transition only. Original g and moves are never modified.
+    Pass the result directly into another transition, even after RED dies.
+    This function does not choose any moves.
     """
     ids = [s.id for s in g.snakes]
     if any(i is None for i in ids) or len(set(ids)) != len(ids):
@@ -139,13 +161,12 @@ def next_game_turn(g, moves):
                  for o in active if o is not s):
             causes[s["id"]] = "head-to-head collision"
     survivors = [s for s in moved if s["id"] not in causes]
-    return {"id": g.id, "turn": g.turn + 1,
-            "width": g.width, "height": g.height,
-            "me": next((s for s in survivors if s["id"] == g.me.id), None),
-            "others": [s for s in survivors if s["id"] != g.me.id],
-            "food": [f for f in g.food if f not in eaten],
-            "eliminated": [dict(s, reason=causes[s["id"]])
-                           for s in moved if s["id"] in causes]}
+    return GameTurn.from_snakes(
+        g,
+        [Snake(s) for s in survivors],
+        [f for f in g.food if f not in eaten],
+        [dict(s, reason=causes[s["id"]]) for s in moved if s["id"] in causes])
+
 
 
 def run_transition_tests():
@@ -159,29 +180,45 @@ def run_transition_tests():
     g = state([[(2, 2), (2, 1), (1, 1)]])
     before = g.me.dict()
     ng = next_game_turn(g, {"0": "right"})
-    assert ng["me"]["body"] == [(3, 2), (2, 2), (2, 1)]
-    assert ng["me"]["health"] == 99 and g.me.dict() == before
+    assert ng.me.body == [(3, 2), (2, 2), (2, 1)]
+    assert ng.me.health == 99 and g.me.dict() == before
     g = state([[(2, 2), (2, 1), (1, 1)]], [(3, 2)], health=1)
     ng = next_game_turn(g, {"0": "right"})
-    assert ng["me"]["health"] == 100 and ng["me"]["length"] == 4
-    assert ng["me"]["body"][-2:] == [(2, 1), (2, 1)] and not ng["food"]
+    assert ng.me.health == 100 and ng.me.length == 4
+    assert ng.me.body[-2:] == [(2, 1), (2, 1)] and not ng.food
     g = state([[(2, 2), (2, 1)], [(4, 2), (4, 1)]])
     ng = next_game_turn(g, {"0": "right", "1": "left"})
-    assert ng["me"] is None and not ng["others"] and len(ng["eliminated"]) == 2
+    assert ng.me is None and not ng.others and len(ng.eliminated) == 2
     g = state([[(2, 2), (2, 1), (1, 1)], [(4, 2), (4, 1)]])
     ng = next_game_turn(g, {"0": "right", "1": "left"})
-    assert ng["me"] is not None and not ng["others"]
-    g = state([[(0, 0), (0, 1)]])
-    assert next_game_turn(g, {"0": "left"})["me"] is None
-    assert next_game_turn(g, {"0": "up"})["me"] is None
+    assert ng.me is not None and not ng.others
+    g = state([[(0, 0), (0, 1), (0, 2)]])
+    assert next_game_turn(g, {"0": "left"}).me is None
+    assert next_game_turn(g, {"0": "up"}).me is None
     g = state([[(2, 2), (2, 1)]], health=1)
-    assert next_game_turn(g, {"0": "right"})["me"] is None
+    assert next_game_turn(g, {"0": "right"}).me is None
     # Entering a singly occupied old tail is allowed after it vacates.
     g = state([[(2, 2), (2, 1), (1, 1), (1, 2)]])
-    assert next_game_turn(g, {"0": "left"})["me"] is not None
+    assert next_game_turn(g, {"0": "left"}).me is not None
     # A duplicated tail still occupies its cell after one segment vacates.
     g = state([[(2, 2), (2, 1), (1, 1), (1, 2), (1, 2)]])
-    assert next_game_turn(g, {"0": "left"})["me"] is None
+    assert next_game_turn(g, {"0": "left"}).me is None
+    # Object return, direct chaining, and branch independence.
+    g = state([[(2, 2), (2, 1), (1, 1)]])
+    ng = next_game_turn(g, {"0": "right"})
+    assert isinstance(ng, GameTurn) and isinstance(ng.me, Snake)
+    assert ng.me is not g.me and ng.me.body is not g.me.body
+    later = next_game_turn(ng, {"0": "up"})
+    assert later.turn == 2 and later.me.head == (3, 3)
+    assert ng.turn == 1 and ng.me.head == (3, 2)
+    # RED can die while opponents remain available for further simulation.
+    g = state([[(0, 0), (0, 1)], [(5, 5), (5, 4)]])
+    ng = next_game_turn(g, {"0": "left", "1": "up"})
+    assert ng.me is None and ng.me_id == "0"
+    assert len(ng.snakes) == 1 and isinstance(ng.others[0], Snake)
+    assert ng.eliminated[0]["reason"] == "wall collision"
+    later = next_game_turn(ng, {"1": "right"})
+    assert later.me is None and later.others[0].head == (6, 6)
     print("Transition assertions passed")
 
 
@@ -235,6 +272,7 @@ def init_from_game_engine_log(record, name, width=None, height=None):
 
 
 if __name__ == "__main__":
+    # run_transition_tests()
     # Replace this dictionary with one turn from our me/others log.
     turn_log = {'id': '1f7b6e6f-1ad1-4fd7-9a7f-29d7425408a7', 'turn': 0, 'me': {'name': 'mark_snake_test RED', 'health': 100, 'length': 3, 'body': [(5, 1), (5, 1), (5, 1)]}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 100, 'length': 3, 'body': [(9, 5), (9, 5), (9, 5)]}, {'name': 'mark_snake_test GREEN', 'health': 100, 'length': 3, 'body': [(5, 9), (5, 9), (5, 9)]}, {'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 3, 'body': [(1, 5), (1, 5), (1, 5)]}], 'food': [(4, 0), (10, 4), (6, 10), (0, 6), (5, 5)], 'module': 'territory new', 'decision_path': ['1vn', 'allowed moves: [(6, 1), (4, 1), (5, 2), (5, 0)]', "opponent probability mark_snake_test BLUE: [((10, 5), 22, '-', '-', 0.88, 0.23), ((8, 5), 24, '-', '-', 0.96, 0.253), ((9, 6), 25, '-', '-', 1.0, 0.265), ((9, 4), 24, '-', '-', 0.96, 0.253)]; cutoff 1.5; LIVE SHARED TOP1", "opponent probability mark_snake_test GREEN: [((6, 9), 21, '-', '-', 1.0, 0.264), ((4, 9), 21, '-', '-', 1.0, 0.264), ((5, 10), 19, '-', '-', 0.9, 0.236), ((5, 8), 19, '-', '-', 0.9, 0.236)]; cutoff 1.5; LIVE SHARED TOP1", "opponent probability mark_snake_test YELLOW: [((2, 5), 24, '-', '-', 0.96, 0.253), ((0, 5), 22, '-', '-', 0.88, 0.23), ((1, 6), 25, '-', '-', 1.0, 0.265), ((1, 4), 24, '-', '-', 0.96, 0.253)]; cutoff 1.5; LIVE SHARED TOP1"], 'next_coord': (5, 0), 'next_move': 'down', 'time': '0.019s'}
     game_state = init_from_log(turn_log)
