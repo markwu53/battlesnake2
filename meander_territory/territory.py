@@ -116,6 +116,7 @@ TIEBREAK_GAP = 2
 TIEBREAK_GAP_PCT = 0.10
 # tie-break is abandoned (today's answer is kept) when the turn has used this many seconds
 TIEBREAK_TIME_LIMIT = 0.25
+OPTIONAL_LOG_TIME_LIMIT = 0.35
 
 # tie-break is skipped in the opening: while at least this many opponents are alive and every snake (me included) is shorter than the length below
 TIEBREAK_SKIP_MIN_OPPONENTS = 3
@@ -192,6 +193,7 @@ def decision_flow(g: GameTurn):
                 , next_step_calculation
                 , avoid_border_suppress
                 , avoid_border_leading_suppress
+                , avoid_border_crawling
                 , avoid_definite_confinement
                 , stringline_log
                 , choose_collision_gamble
@@ -212,15 +214,18 @@ def decision_flow(g: GameTurn):
             ])
         ])(g.me.allowed_moves)
 
-        try:
-            future_kill_pressure_log(g.me.allowed_moves)
-        except Exception as e: g.me.decision_path.append(f"future kill pressure log error: {e!r}")
-        try:
-            territory_seal_log()
-        except Exception as e: g.me.decision_path.append(f"territory seal log error: {e!r}")
-        try:
-            territory_seal_preservation_log(g.me.allowed_moves)
-        except Exception as e: g.me.decision_path.append(f"territory seal preservation log error: {e!r}")
+        if time.time() <= turn_start + OPTIONAL_LOG_TIME_LIMIT:
+            try:
+                future_kill_pressure_log(g.me.allowed_moves)
+            except Exception as e: g.me.decision_path.append(f"future kill pressure log error: {e!r}")
+            try:
+                territory_seal_log()
+            except Exception as e: g.me.decision_path.append(f"territory seal log error: {e!r}")
+            try:
+                territory_seal_preservation_log(g.me.allowed_moves)
+            except Exception as e: g.me.decision_path.append(f"territory seal preservation log error: {e!r}")
+        else:
+            g.me.decision_path.append("optional diagnostics skipped: time budget")
         try:
             opponent_probability_log(result2)
         except Exception as e: g.me.decision_path.append(f"opponent probability log error: {e!r}")
