@@ -1854,7 +1854,7 @@ def main(game_state, log=True):
 
     g.end_time = time.time()
 
-    g.log["module"] = "territory new"
+    g.log["module"] = "meander territory"
     g.log["decision_path"] = g.me.decision_path
     # g.log["allowed_moves"] = g.me.allowed_moves
     g.log["next_coord"] = g.next_coord
@@ -1930,7 +1930,7 @@ def init_from_game_engine_log(log, name):
     return game_state
 
 if __name__ == "__main__":
-    log = {'id': 'e83d7c1c-7890-498d-88b3-4ddc9a1eee7d', 'turn': 171, 'me': {'name': 'mark_snake_test RED', 'health': 10, 'length': 8, 'body': [(4, 9), (4, 8), (3, 8), (2, 8), (1, 8), (1, 9), (2, 9), (3, 9)]}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 96, 'length': 18, 'body': [(4, 7), (3, 7), (2, 7), (1, 7), (0, 7), (0, 6), (0, 5), (0, 4), (0, 3), (1, 3), (2, 3), (2, 2), (3, 2), (4, 2), (5, 2), (5, 3), (5, 4), (5, 5)]}, {'name': 'mark_snake_test GREEN', 'health': 86, 'length': 12, 'body': [(8, 7), (8, 8), (8, 9), (7, 9), (6, 9), (6, 10), (5, 10), (5, 9), (5, 8), (6, 8), (6, 7), (6, 6)]}, {'name': 'mark_snake_test YELLOW', 'health': 87, 'length': 16, 'body': [(8, 3), (8, 2), (8, 1), (8, 0), (7, 0), (6, 0), (5, 0), (4, 0), (3, 0), (2, 0), (1, 0), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)]}], 'food': [(9, 10), (8, 10), (10, 6)], 'module': 'territory new', 'decision_path': ['1vn', 'allowed moves: [(3, 9), (4, 10)]', 'just choose larger: [(3, 9), (4, 10)]', 'just choose larger: [(3, 9), (4, 10)]'], 'next_coord': (3, 9), 'next_move': 'left', 'time': '0.023s'}
+    log = {'id': 'e83d7c1c-7890-498d-88b3-4ddc9a1eee7d', 'turn': 171, 'me': {'name': 'mark_snake_test RED', 'health': 10, 'length': 8, 'body': [(4, 9), (4, 8), (3, 8), (2, 8), (1, 8), (1, 9), (2, 9), (3, 9)]}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 96, 'length': 18, 'body': [(4, 7), (3, 7), (2, 7), (1, 7), (0, 7), (0, 6), (0, 5), (0, 4), (0, 3), (1, 3), (2, 3), (2, 2), (3, 2), (4, 2), (5, 2), (5, 3), (5, 4), (5, 5)]}, {'name': 'mark_snake_test GREEN', 'health': 86, 'length': 12, 'body': [(8, 7), (8, 8), (8, 9), (7, 9), (6, 9), (6, 10), (5, 10), (5, 9), (5, 8), (6, 8), (6, 7), (6, 6)]}, {'name': 'mark_snake_test YELLOW', 'health': 87, 'length': 16, 'body': [(8, 3), (8, 2), (8, 1), (8, 0), (7, 0), (6, 0), (5, 0), (4, 0), (3, 0), (2, 0), (1, 0), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1)]}], 'food': [(9, 10), (8, 10), (10, 6)], 'module': 'meander territory', 'decision_path': ['1vn', 'allowed moves: [(3, 9), (4, 10)]', 'just choose larger: [(3, 9), (4, 10)]', 'just choose larger: [(3, 9), (4, 10)]'], 'next_coord': (3, 9), 'next_move': 'left', 'time': '0.023s'}
 
     game_state = init_from_log(log)
     self_name = "mark_snake_test RED"
