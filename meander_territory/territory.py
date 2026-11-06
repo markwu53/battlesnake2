@@ -124,6 +124,7 @@ TIEBREAK_SKIP_MAX_LENGTH = 8
 # avoid_trap: only opponents closer than this path distance vary their replies
 TRAP_DISTANCE = 6
 STRINGLINE_RISK_MIN, STRINGLINE_RISK_GAP = 0.20, 0.10
+DEFINITE_CONFINEMENT_MAX_TERRITORY = 2
 FOOD_ESCAPE_PROB_MIN = 0.60
 # Future kill pressure logging: inspect shorter nearby targets and rational replies; no move changes.
 KILL_PRESSURE_DISTANCE = 5
@@ -190,6 +191,7 @@ def decision_flow(g: GameTurn):
                 , next_step_calculation
                 , avoid_border_suppress
                 , avoid_border_leading_suppress
+                , avoid_definite_confinement
                 , stringline_log
                 , avoid_collision
                 , avoid_trap
@@ -548,6 +550,40 @@ def decision_flow(g: GameTurn):
         g.me.decision_path.append(f"future border suppress: {choices} -> {keep}")
         return keep
 
+
+    def avoid_definite_confinement(moves):
+        # Higher priority than collision/trap. Reuses existing one-step states; no additional simulation ply.
+        # Definite confinement = no territorial contact border and at most two split-corrected claimable cells.
+        def claimable_territory(ng):
+            total = len(ng.me.territory)
+            remaining = set(ng.me.territory)
+            remaining.discard(ng.me.head)
+            components, owner, seen = [], {}, set()
+            for c in remaining:
+                if c in seen: continue
+                comp = [c]
+                seen.add(c)
+                for p in comp:
+                    for q in adj_cells(p):
+                        if q in remaining and q not in seen:
+                            seen.add(q)
+                            comp.append(q)
+                i = len(components)
+                components.append(comp)
+                for p in comp: owner[p] = i
+            branches = {owner[b] for b in ng.me.allowed_moves if b in owner}
+            return 1 + max(len(components[i]) for i in branches) if len(branches) > 1 else total
+        def confined(ng):
+            return len(ng.me.inner_border) == 0 and claimable_territory(ng) <= DEFINITE_CONFINEMENT_MAX_TERRITORY
+        danger = []
+        for a in moves:
+            ngs = g.me.moves_ngs.get(a)
+            if not ngs: continue
+            if all(confined(ng) for ng in ngs): danger.append(a)
+        keep = [a for a in moves if a not in danger]
+        if len(danger) == 0 or len(keep) == 0: return
+        g.me.decision_path.append(f"avoid definite confinement: removed {danger} -> {keep}")
+        return keep
 
     def avoid_collision(moves):
         danger = []
