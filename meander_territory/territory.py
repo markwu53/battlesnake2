@@ -513,8 +513,10 @@ def decision_flow(g: GameTurn):
         best_score = max(scores.values())
         for target in g.others:
             if target.length >= g.me.length: continue
+            if not on_border(target.head): continue
             red_border = g.me.inner_contacting_border.get(target.head, set())
             target_border = target.inner_contacting_border.get(g.me.head, set())
+            if len(target_border) == 0 or not all(on_border(t) for t in target_border): continue
             if straight_line(red_border) is None or straight_line(red_border) != straight_line(target_border): continue
             pairs = [(r, take_first([t for t in target_border if is_adjacent(r, t)]))
                      for r in red_border if len([t for t in target_border if is_adjacent(r, t)]) == 1]
@@ -2014,3 +2016,4 @@ if __name__ == "__main__":
     #game_state = init_from_db_log(id, turn, self_name)
     # game_state = init_from_game_engine_log(log, self_name)
     main(game_state, log=True)
+
