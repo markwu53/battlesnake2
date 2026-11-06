@@ -551,7 +551,11 @@ def decision_flow(g: GameTurn):
                                 ng.me.head in c['cells']
                                 or (len([q for q in adj_cells(ng.me.head) if q in ng.me.territory]) == 1
                                     and take_first([q for q in adj_cells(ng.me.head) if q in ng.me.territory]) in c['cells'])
-                            ) for c in corridor_scan(ng))
+                            ) for c in corridor_scan(ng)))
+            risk[a] = dangerous / total if total else 0
+        if len(risk) < 2: return
+        safest = min(risk.values())
+        danger = [a for a, r in risk.items()
                   if r >= STRINGLINE_RISK_MIN and r - safest >= STRINGLINE_RISK_GAP]
         keep = [a for a in moves if a not in danger]
         if len(danger) == 0 or len(keep) == 0: return
