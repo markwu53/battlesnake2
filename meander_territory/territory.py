@@ -212,6 +212,9 @@ def decision_flow(g: GameTurn):
             territory_seal_log()
         except Exception as e: g.me.decision_path.append(f"territory seal log error: {e!r}")
         try:
+            territory_seal_preservation_log(g.me.allowed_moves)
+        except Exception as e: g.me.decision_path.append(f"territory seal preservation log error: {e!r}")
+        try:
             future_border_suppress_log()
         except Exception as e: g.me.decision_path.append(f"future border suppress log error: {e!r}")
         try:
@@ -448,6 +451,51 @@ def decision_flow(g: GameTurn):
         if len(results) != 0:
             g.me.decision_path.append(f"territory seal detected: {results}; LOG ONLY")
         return None
+    def territory_seal_preservation_log(moves):
+        # LOG ONLY. Diagnose when a dominant 1v1 territory choice turns away from a nearby exposure gate.
+        # Reuses existing one-step reply states; never changes moves and adds no new opponent ply.
+        if len(g.others) != 1 or len(moves) < 2: return
+        ratio = len(g.me.territory) / max(len(g.other.territory), 1)
+        if ratio < 1.3: return
+        exposure = g.me.inner_contacting_border.get(g.other.head, set())
+        if len(exposure) == 0: return
+        gate_level = min([g.me.territory_point_level.get(x, 999) for x in exposure], default=999)
+        if gate_level > 2: return
+        direction = sub_pos(g.me.head, g.me.neck)
+        metrics = {}
+        for move in moves:
+            ngs = g.me.moves_ngs.get(move)
+            if not ngs: continue
+            rows = []
+            for ng in ngs:
+                border = ng.me.inner_contacting_border.get(ng.other.head, set())
+                seen, comps = set(), []
+                for x in border:
+                    if x in seen: continue
+                    comp = [x]; seen.add(x)
+                    for y in comp:
+                        for z in adj_cells(y):
+                            if z in border and z not in seen: seen.add(z); comp.append(z)
+                    comps.append(len(comp))
+                rows.append((territory_score(ng), len(ng.other.territory) + ng.other.achievable_meander_space,
+                             len(border), min(comps, default=0)))
+            metrics[move] = {
+                "red": min(x[0] for x in rows),
+                "opp": max(x[1] for x in rows),
+                "exposure": max(x[2] for x in rows),
+                "gate": max(x[3] for x in rows),
+                "straight": sub_pos(move, g.me.head) == direction,
+            }
+        if len(metrics) < 2: return
+        area_best = max(x["red"] for x in metrics.values())
+        area_pick = [m for m, x in metrics.items() if x["red"] == area_best]
+        straight = [m for m, x in metrics.items() if x["straight"]]
+        if len(straight) == 0: return
+        seal_pick = min(straight, key=lambda m: (metrics[m]["opp"], metrics[m]["exposure"], metrics[m]["gate"], -metrics[m]["red"]))
+        if seal_pick in area_pick: return
+        g.me.decision_path.append(f"territory seal preservation: area {area_pick}, hold {seal_pick}, gate level {gate_level}, metrics {metrics}; LOG ONLY")
+        return None
+
     def future_border_suppress_log():
         # LOG ONLY. Find straight, contiguous, paired contacting borders where longer RED trails the target by one step.
         detected, rejected = [], []
