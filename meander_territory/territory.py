@@ -130,6 +130,7 @@ KILL_PRESSURE_DISTANCE = 5
 KILL_PRESSURE_MIN_REPLIES = 2
 FUTURE_SUPPRESS_MIN_BORDER = 2
 FUTURE_SUPPRESS_THREAT_DISTANCE = 6
+FUTURE_SUPPRESS_COST_PCT = 0.50
 # corridor log (log only): a corridor is a run of at least this many of my territory cells that have no territory of mine on both sides along one axis
 CORRIDOR_MIN_LENGTH = 3
 # corridor tier by the share of wall sides that are board edge or snake body: HARD at or above the first value, MIXED at or above the second, else SOFT
@@ -193,7 +194,9 @@ def decision_flow(g: GameTurn):
                 , avoid_collision
                 , avoid_trap
                 , avoid_probable_stringline
+                , leading_border_suppress_kill
                 , border_suppress_kill
+                , future_border_suppress
                 , food_capture
                 , avoid_starvation
                 , burst_eating
@@ -214,9 +217,6 @@ def decision_flow(g: GameTurn):
         try:
             territory_seal_preservation_log(g.me.allowed_moves)
         except Exception as e: g.me.decision_path.append(f"territory seal preservation log error: {e!r}")
-        try:
-            future_border_suppress_log()
-        except Exception as e: g.me.decision_path.append(f"future border suppress log error: {e!r}")
         try:
             opponent_probability_log(result2)
         except Exception as e: g.me.decision_path.append(f"opponent probability log error: {e!r}")
@@ -496,50 +496,61 @@ def decision_flow(g: GameTurn):
         g.me.decision_path.append(f"territory seal preservation: area {area_pick}, hold {seal_pick}, gate level {gate_level}, metrics {metrics}; LOG ONLY")
         return None
 
-    def future_border_suppress_log():
-        # LOG ONLY. Find straight, contiguous, paired contacting borders where longer RED trails the target by one step.
+    def future_border_suppress(moves):
+        # Live early positioning: reach a straight exposure gate one step before a shorter border target.
+        # Uses current territory paths and existing one-step scores; no additional opponent simulation.
         detected, rejected = [], []
         def straight_line(points):
             if len(points) < FUTURE_SUPPRESS_MIN_BORDER: return
             xs, ys = {p[0] for p in points}, {p[1] for p in points}
-            if len(xs) == 1: ordered, axis, values = sorted(points, key=lambda p: p[1]), 'v', sorted(p[1] for p in points)
-            elif len(ys) == 1: ordered, axis, values = sorted(points), 'h', sorted(p[0] for p in points)
+            if len(xs) == 1: axis, values = 'v', sorted(p[1] for p in points)
+            elif len(ys) == 1: axis, values = 'h', sorted(p[0] for p in points)
             else: return
             if values != list(range(values[0], values[-1] + 1)): return
-            return axis, ordered
+            return axis
+        scores = {a: reply_score_ng(g.me.moves_ngs[a], len(g.others)) for a in moves if g.me.moves_ngs.get(a)}
+        if len(scores) == 0: return
+        best_score = max(scores.values())
         for target in g.others:
             if target.length >= g.me.length: continue
-            red_line = straight_line(g.me.inner_contacting_border.get(target.head, set()))
-            target_line = straight_line(target.inner_contacting_border.get(g.me.head, set()))
-            if red_line is None or target_line is None: continue
-            if red_line[0] != target_line[0] or len(red_line[1]) != len(target_line[1]): continue
-            pairs, used = [], set()
-            for red_point in red_line[1]:
-                target_points = [p for p in target_line[1] if is_adjacent(red_point, p)]
-                if len(target_points) != 1: break
-                pairs.append((red_point, take_first(target_points)))
-                used.add(take_first(target_points))
-            if len(pairs) != len(red_line[1]) or len(used) != len(target_line[1]): continue
+            red_border = g.me.inner_contacting_border.get(target.head, set())
+            target_border = target.inner_contacting_border.get(g.me.head, set())
+            if straight_line(red_border) is None or straight_line(red_border) != straight_line(target_border): continue
+            pairs = [(r, take_first([t for t in target_border if is_adjacent(r, t)]))
+                     for r in red_border if len([t for t in target_border if is_adjacent(r, t)]) == 1]
+            if len(pairs) < FUTURE_SUPPRESS_MIN_BORDER: continue
             future = [(r, t, g.me.territory_point_level.get(r), target.territory_point_level.get(t))
                       for r, t in pairs if t != target.head]
-            future = [x for x in future if x[2] is not None and x[3] is not None]
+            future = [x for x in future if x[2] is not None and x[3] is not None and x[2] == x[3] + 1]
             if len(future) == 0: continue
-            first_step = min(x[3] for x in future)
-            candidates = [x for x in future if x[3] == first_step and x[2] == x[3] + 1]
-            if len(candidates) == 0: continue
-            red_point, target_point, red_steps, target_steps = min(candidates, key=lambda x: x[2])
+            first = min(x[3] for x in future)
+            red_point, target_point, red_steps, target_steps = take_first([x for x in future if x[3] == first])
             threats = [o for o in g.others if o.head != target.head and o.length >= g.me.length
                        and g.me.to_snake_path_distance.get(o.head, 999) <= FUTURE_SUPPRESS_THREAT_DISTANCE]
-            item = (target.name, red_point, target_point, red_steps, target_steps)
             if len(threats) != 0:
-                rejected.append((item, [o.name for o in threats]))
-            else:
-                detected.append(item)
-        if len(detected) != 0:
-            g.me.decision_path.append(f"future border suppress detected: {detected}; LOG ONLY")
-        if len(rejected) != 0:
-            g.me.decision_path.append(f"future border suppress rejected: {rejected}; LOG ONLY")
-        return None
+                rejected.append(((target.name, red_point, target_point, red_steps, target_steps), [o.name for o in threats]))
+                continue
+            dist, queue = {red_point: 0}, [red_point]
+            for q in queue:
+                for z in adj_cells(q):
+                    if z in g.me.territory and z not in dist: dist[z] = dist[q] + 1; queue.append(z)
+            head_steps = dist.get(g.me.head, 999)
+            keep = [a for a in moves if dist.get(a) == head_steps - 1 and a in scores]
+            affordable = [a for a in keep if best_score == 0 or (best_score - scores[a]) / best_score <= FUTURE_SUPPRESS_COST_PCT]
+            if len(affordable) == 0:
+                rejected.append(((target.name, red_point, target_point, head_steps, target_steps), "territory cost"))
+                continue
+            pick_score = max(scores[a] for a in affordable)
+            pick = [a for a in affordable if scores[a] == pick_score]
+            detected.append((head_steps, target.name, red_point, target_point, pick, round((best_score-pick_score)/best_score if best_score else 0, 3)))
+        if len(rejected) != 0: g.me.decision_path.append(f"future border suppress rejected: {rejected}")
+        if len(detected) == 0: return
+        nearest = min(x[0] for x in detected)
+        choices = [x for x in detected if x[0] == nearest]
+        keep = list(dict.fromkeys(a for x in choices for a in x[4]))
+        g.me.decision_path.append(f"future border suppress: {choices} -> {keep}")
+        return keep
+
 
     def avoid_collision(moves):
         danger = []
@@ -744,8 +755,7 @@ def decision_flow(g: GameTurn):
 
     def border_suppress_kill(moves):
         # A longer RED suppresses a shorter snake crawling toward a corner on the border.
-        # Formation: at offset (0,2)/(2,0), RED moves parallel while threatening the inward cell.
-        # Finish: one lane inside and one step behind, RED closes alongside; immediate kill finishes the corner.
+        # Lock takes the target's only inward escape first; parallel formation is only a fallback.
         for snake in g.others:
             if snake.length >= g.me.length or not on_border(snake.head): continue
             d = sub_pos(snake.head, snake.neck)
@@ -757,6 +767,9 @@ def decision_flow(g: GameTurn):
             if any(b not in [forward, inward] for b in snake.allowed_moves): continue
             rel = distance_vector_abs(g.me.head, snake.head)
             if rel in [(0, 2), (2, 0)]:
+                if inward in moves:
+                    g.me.decision_path.append(f"border suppress kill lock: {snake.name}, take inward {inward}, target forward {forward}")
+                    return [inward]
                 a = add_pos(g.me.head, d)
                 if a not in moves or inward not in g.me.allowed_moves: continue
                 g.me.decision_path.append(f"border suppress kill formation: {snake.name}, hold {a}, target forward {forward}")
@@ -767,6 +780,23 @@ def decision_flow(g: GameTurn):
             if a not in moves or not is_adjacent(a, snake.head) or a != inward: continue
             g.me.decision_path.append(f"border suppress kill close: {snake.name}, force {a}, target forward {forward}")
             return [a]
+
+    def leading_border_suppress_kill(moves):
+        # Offensive continuation: a shorter/equal RED leads one lane inward while an equal/longer target is forced along the border.
+        for snake in g.others:
+            if snake.length < g.me.length or not on_border(snake.head): continue
+            if distance_vector_abs(g.me.head, snake.head) != (1, 1): continue
+            border = [b for b in snake.allowed_moves if on_border(b)]
+            inward = [b for b in snake.allowed_moves if not on_border(b)]
+            if len(border) != 1 or len(inward) != 0: continue
+            b = take_first(border)
+            d = sub_pos(b, snake.head)
+            lead = [a for a in moves if not on_border(a)
+                    and sub_pos(a, g.me.head) == d
+                    and distance_vector_abs(a, b) == (1, 1)]
+            if len(lead) == 0: continue
+            g.me.decision_path.append(f"leading border suppress kill: {snake.name}, lead {lead}, target forced {b}")
+            return lead
 
     def food_capture(moves):
         # Capture adjacent owned food after danger filters only outside 1v1; 1v1 prioritizes territory until burst mode is active.
