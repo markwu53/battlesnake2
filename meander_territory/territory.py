@@ -1,10 +1,11 @@
-# BS v3 - transitions, outcome diagnostics, and static territory. No strategy.
+# BS v3 - one-turn survival-first chooser with static territory.
 import time
 from itertools import product
 from collections import deque
+from fractions import Fraction
 
-MODULE = "BS v3 minimal"
-# Fixed order is a placeholder, not a preference learned from the board.
+MODULE = "BS v3 one-turn static"
+# Fixed direction order is used only for exact ties and deterministic fallback.
 DIRECTIONS = (("right", (1, 0)), ("left", (-1, 0)),
               ("up", (0, 1)), ("down", (0, -1)))
 
@@ -106,19 +107,54 @@ def legal_moves(g, snake):
             and point not in g.occupied]
 
 
+def select_evaluated_move(evaluation):
+    """Return (direction, policy reason), or (None, reason) if all die.
+
+    Fixed DIRECTIONS order breaks exact ties, not dictionary insertion order.
+    Surviving-reply fraction is an unweighted heuristic, NOT a probability.
+    """
+    ordered = [name for name, _ in DIRECTIONS if name in evaluation]
+    safe = [name for name in ordered if evaluation[name]["dies"] == 0
+            and evaluation[name]["survives"] > 0]
+    live = [name for name in ordered if evaluation[name]["survives"] > 0]
+    pool = safe or live
+    if not pool:
+        return None, "all modeled moves die: deterministic fallback"
+    if safe:
+        reason = "survives all modeled replies; mean territory, minimum, direction order"
+    else:
+        reason = "no all-reply survivor; unweighted surviving-reply fraction, mean territory, minimum, direction order"
+    def key(name):
+        row = evaluation[name]
+        return (Fraction(row["survives"], row["replies"]),
+                row["territory_mean"], row["territory_min"])
+    return max(pool, key=key), reason
+
+
 def choose_move(g):
+    """One-turn baseline; no deadline control or longer-term guarantee."""
+    if g.me is None:
+        raise ValueError("Cannot choose a move for an eliminated snake")
     legal = legal_moves(g, g.me)
     g.decision_path.append(f"basic legal moves: {[p for _, p in legal]}")
+    evaluation = evaluate_moves(g)
+    g.decision_path.append(f"one-turn evaluation (counts, not probabilities): {evaluation}")
+    direction, reason = select_evaluated_move(evaluation)
+    if direction is not None:
+        point = next(point for name, point in candidate_moves(g, g.me)
+                     if name == direction)
+        g.decision_path.append(f"one-turn choose {direction}: {reason}")
+        return direction, point
+    # Preserve the old deterministic fallback; do not claim it is safe.
     if legal:
-        g.decision_path.append("placeholder: first basic legal move")
-        return legal[0]
-    # Fallback belongs to the chooser, never to legal_moves.
-    # Always return a direction, but do not claim this fallback is safe.
-    candidates = candidate_moves(g, g.me)
-    fallback = [(name, point) for name, point in candidates
-                if on_board(g, point) and point != g.me.neck]
-    g.decision_path.append("no legal move: deterministic fallback")
-    return (fallback or candidates)[0]
+        fallback = legal[0]
+    else:
+        candidates = candidate_moves(g, g.me)
+        on_board_moves = [(name, point) for name, point in candidates
+                          if on_board(g, point) and point != g.me.neck]
+        fallback = (on_board_moves or candidates)[0]
+    g.decision_path.append(f"{reason}; choose {fallback[0]}")
+    return fallback
 
 
 def run_move_generation_tests():
@@ -398,7 +434,7 @@ def run_enumeration_tests():
     print("Enumeration assertions passed")
 
 
-def summarize_moves(g):
+def summarize_moves(g, include_territory=False):
     """Return RED direction -> one-turn outcome counts, not probabilities.
 
     Includes only directions modeled by enumerate_turns (including fallback).
@@ -406,6 +442,9 @@ def summarize_moves(g):
     surviving all replies does not establish longer-term safety.
     Streams outcomes without retaining their boards. Does not mutate g.
     RED already dead: return an empty dictionary.
+    include_territory adds min/mean/max over surviving replies only.
+    These are unweighted descriptive statistics, not expected utility.
+    No surviving replies: territory statistics are None, never zero.
     """
     if g.me is None:
         return {}
@@ -415,8 +454,18 @@ def summarize_moves(g):
         row = summary.setdefault(direction, {
             "replies": 0, "survives": 0, "dies": 0, "death_reasons": {}})
         row["replies"] += 1
+        if include_territory and "territory_min" not in row:
+            row.update(territory_min=None, territory_mean=None,
+                       territory_max=None, territory_sum=0)
         if ng.me is not None:
             row["survives"] += 1
+            if include_territory:
+                cells = len(static_territory(ng)["territories"][g.me_id])
+                row["territory_sum"] += cells
+                row["territory_min"] = (cells if row["territory_min"] is None
+                                        else min(row["territory_min"], cells))
+                row["territory_max"] = (cells if row["territory_max"] is None
+                                        else max(row["territory_max"], cells))
         else:
             row["dies"] += 1
             reason = next(s["reason"] for s in ng.eliminated
@@ -424,6 +473,10 @@ def summarize_moves(g):
             reasons = row["death_reasons"]
             reasons[reason] = reasons.get(reason, 0) + 1
     for row in summary.values():
+        if include_territory:
+            total = row.pop("territory_sum")
+            if row["survives"]:
+                row["territory_mean"] = total / row["survives"]
         if row["dies"] == 0:
             row["classification"] = "survives all modeled replies"
         elif row["survives"] == 0:
@@ -629,6 +682,206 @@ def run_territory_tests():
     print("Territory assertions passed")
 
 
+def evaluate_moves(g):
+    """One-turn survival counts plus static territory on surviving replies.
+
+    Returns the same direction-keyed structure as summarize_moves, with
+    territory_min, territory_mean, territory_max added to each row.
+    None means no surviving replies; a numeric zero is real zero territory.
+    Mean is unweighted and conditional on survival, NOT a probability or
+    an expected score. Read death counts alongside territory statistics.
+    Does not choose a move or retain the simulated boards.
+    """
+    return summarize_moves(g, include_territory=True)
+
+
+def run_evaluation_tests():
+    """Call manually; tests diagnostics without changing live decisions."""
+    def state(bodies, health=100):
+        snakes = [{"id": str(i), "name": str(i), "body": b,
+                   "health": health} for i, b in enumerate(bodies)]
+        return init_game({"game": {"id": "evaluation-test"}, "turn": 0,
+                          "you": snakes[0], "board": {"width": 5,
+                          "height": 5, "snakes": snakes, "food": []}})
+
+    # Lone length-two snake leaves 23 empty reachable cells after each move.
+    g = state([[(2, 2), (2, 1)]])
+    before = repr(g.__dict__) + repr([s.__dict__ for s in g.snakes])
+    result = evaluate_moves(g)
+    assert set(result) == {"right", "left", "up"}
+    for row in result.values():
+        assert row["survives"] == row["replies"] == 1 and row["dies"] == 0
+        assert row["territory_min"] == row["territory_mean"] == row["territory_max"] == 23
+        assert "territory_sum" not in row
+    assert before == repr(g.__dict__) + repr([s.__dict__ for s in g.snakes])
+    # Mixed replies: territory excludes the fatal equal-head clash entirely.
+    g = state([[(1, 2), (1, 1)], [(3, 2), (3, 1)]])
+    result = evaluate_moves(g)
+    basic = summarize_moves(g)
+    samples = {direction: [] for direction in result}
+    for moves, ng in enumerate_turns(g):
+        if ng.me is not None:
+            samples[moves[g.me_id]].append(
+                len(static_territory(ng)["territories"][g.me_id]))
+    for direction, row in result.items():
+        assert all(row[key] == value for key, value in basic[direction].items())
+        values = samples[direction]
+        assert len(values) == row["survives"]
+        assert row["territory_min"] == min(values)
+        assert row["territory_max"] == max(values)
+        assert abs(row["territory_mean"] - sum(values) / len(values)) < 1e-12
+    assert result["right"]["classification"] == "mixed"
+    assert result["right"]["survives"] == 2 and result["right"]["dies"] == 1
+    # No survivors: do not invent zero territory or divide by zero.
+    g = state([[(2, 2), (2, 1)]], health=1)
+    result = evaluate_moves(g)
+    for row in result.values():
+        assert row["survives"] == 0 and row["dies"] == 1
+        assert all(row[key] is None for key in
+                   ("territory_min", "territory_mean", "territory_max"))
+    # Independent result dictionaries on repeated calls.
+    result["right"]["territory_min"] = 999
+    assert evaluate_moves(g)["right"]["territory_min"] is None
+    # Blocked fallback directions are preserved and have no territory stats.
+    g = state([[(0, 0), (0, 1), (1, 1), (1, 0), (1, 0)]])
+    result = evaluate_moves(g)
+    assert len(result) == 4
+    assert all(row["survives"] == 0 and row["territory_mean"] is None
+               for row in result.values())
+    # RED already dead: no move evaluations, even while an opponent survives.
+    g = state([[(0, 0), (0, 1)], [(3, 3), (3, 2)]])
+    ng = next_game_turn(g, {"0": "left", "1": "up"})
+    assert evaluate_moves(ng) == {}
+    assert evaluate_moves(GameTurn.from_snakes(g, [], [], [])) == {}
+    print("Evaluation assertions passed")
+
+
+def run_chooser_tests():
+    """Synthetic policy tests plus actual-board integration checks."""
+    def row(survives, replies, mean, minimum):
+        return {"survives": survives, "replies": replies,
+                "dies": replies - survives,
+                "territory_mean": mean, "territory_min": minimum}
+
+    # All-reply survival outranks a mixed move with much larger territory.
+    result = {"right": row(2, 3, 100, 90), "left": row(3, 3, 1, 0)}
+    assert select_evaluated_move(result)[0] == "left"
+    # Average outranks minimum; minimum only breaks an average tie.
+    result = {"right": row(3, 3, 10, 1), "left": row(3, 3, 9, 8)}
+    assert select_evaluated_move(result)[0] == "right"
+    result["left"]["territory_mean"] = 10
+    assert select_evaluated_move(result)[0] == "left"
+    # Exact ties use DIRECTIONS, even if dictionary order is reversed.
+    result = {"left": row(3, 3, 10, 5), "right": row(3, 3, 10, 5)}
+    assert select_evaluated_move(result)[0] == "right"
+    # Without all-reply survival, fraction outranks raw surviving count/area.
+    result = {"right": row(2, 3, 1, 0), "left": row(3, 6, 100, 90)}
+    assert select_evaluated_move(result)[0] == "right"
+    # Equal fractions with different denominators fall through to territory.
+    result = {"right": row(1, 2, 10, 4), "left": row(2, 4, 11, 1)}
+    assert select_evaluated_move(result)[0] == "left"
+    result["right"]["territory_mean"] = 11
+    assert select_evaluated_move(result)[0] == "right"
+    # All-death rows with None statistics never enter numeric comparisons.
+    assert select_evaluated_move({"right": row(0, 3, None, None)})[0] is None
+    assert select_evaluated_move({})[0] is None
+
+    def state(bodies, health=100):
+        snakes = [{"id": str(i), "name": str(i), "body": b,
+                   "health": health} for i, b in enumerate(bodies)]
+        return {"game": {"id": "chooser-test"}, "turn": 0,
+                "you": snakes[0], "board": {"width": 5, "height": 5,
+                "snakes": snakes, "food": []}}
+
+    # Actual equal-head danger is avoided while an all-reply survivor exists.
+    raw = state([[(1, 2), (1, 1)], [(3, 2), (3, 1)]])
+    g = init_game(raw)
+    before = repr([s.__dict__ for s in g.snakes])
+    direction, point = choose_move(g)
+    assert direction in {"left", "up"}
+    assert (direction, point) in legal_moves(g, g.me)
+    assert before == repr([s.__dict__ for s in g.snakes])
+    assert any("one-turn evaluation" in message for message in g.decision_path)
+    assert any("one-turn choose" in message for message in g.decision_path)
+    # Health makes every basic legal move fatal: preserve first-legal fallback.
+    g = init_game(state([[(2, 2), (2, 1)]], health=1))
+    assert choose_move(g) == ("right", (3, 2))
+    # No basic legal move: preserve on-board/non-neck fallback.
+    g = init_game(state([[(0, 0), (0, 1), (1, 1), (1, 0), (1, 0)]]))
+    assert choose_move(g) == ("right", (1, 0))
+    # Local engine contract remains main -> True and next_move direction.
+    raw = state([[(2, 2), (2, 1)]])
+    assert main(raw, log=False) is True
+    assert raw["next_move"] in dict(DIRECTIONS)
+    print("Chooser assertions passed")
+
+
+def evaluate_continuations(g):
+    """Two-turn diagnostic only; never called by the live chooser.
+
+    For each modeled first-turn reply where RED survives, ask whether
+    there EXISTS a second RED move surviving ALL modeled second replies.
+    RED may choose that second move after observing the first-turn board.
+    Counts are unweighted, not probabilities. No safe second move does
+    not mean certain death: mixed second moves may still survive.
+    No territory scoring, pruning, deadline, or newly spawned food.
+    """
+    if g.me is None:
+        return {}
+    result = {}
+    for moves, ng in enumerate_turns(g):
+        row = result.setdefault(moves[g.me_id], {
+            "first_replies": 0, "first_deaths": 0,
+            "survivors_with_safe_second": 0,
+            "survivors_without_safe_second": 0,
+            "safe_second_min": None, "safe_second_max": None})
+        row["first_replies"] += 1
+        if ng.me is None:
+            row["first_deaths"] += 1
+            continue
+        second = summarize_moves(ng)
+        count = sum(r["survives"] > 0 and r["dies"] == 0
+                    for r in second.values())
+        key = ("survivors_with_safe_second" if count else
+               "survivors_without_safe_second")
+        row[key] += 1
+        row["safe_second_min"] = (count if row["safe_second_min"] is None
+                                   else min(row["safe_second_min"], count))
+        row["safe_second_max"] = (count if row["safe_second_max"] is None
+                                   else max(row["safe_second_max"], count))
+    return result
+
+
+def run_continuation_tests():
+    """Call manually; this diagnostic does not select a move."""
+    def state(body, health=100):
+        snake = {"id": "0", "name": "RED", "body": body, "health": health}
+        return init_game({"game": {"id": "continuation-test"}, "turn": 0,
+                          "you": snake, "board": {"width": 5, "height": 5,
+                          "snakes": [snake], "food": []}})
+    g = state([(2, 2), (2, 1)])
+    before = repr(g.__dict__) + repr(g.me.__dict__)
+    result = evaluate_continuations(g)
+    assert set(result) == {"right", "left", "up"}
+    for row in result.values():
+        assert row["first_replies"] == row["survivors_with_safe_second"] == 1
+        assert row["first_deaths"] == row["survivors_without_safe_second"] == 0
+        assert row["safe_second_min"] == row["safe_second_max"] == 3
+    assert before == repr(g.__dict__) + repr(g.me.__dict__)
+    # Survive one turn, but health runs out on every second move.
+    result = evaluate_continuations(state([(2, 2), (2, 1)], health=2))
+    for row in result.values():
+        assert row["survivors_without_safe_second"] == 1
+        assert row["safe_second_min"] == row["safe_second_max"] == 0
+    # Immediate deaths have no second-move statistics.
+    result = evaluate_continuations(state([(2, 2), (2, 1)], health=1))
+    for row in result.values():
+        assert row["first_deaths"] == 1
+        assert row["safe_second_min"] is None and row["safe_second_max"] is None
+    assert evaluate_continuations(GameTurn.from_snakes(g, [], [], [])) == {}
+    print("Continuation assertions passed")
+
+
 def main(game_state, log=True):
     start = time.perf_counter()
     g = init_game(game_state)
@@ -685,11 +938,16 @@ if __name__ == "__main__":
     # run_enumeration_tests()
     # run_summary_tests()
     # run_territory_tests()
+    # run_evaluation_tests()
+    # run_chooser_tests()
+    # run_continuation_tests()
     # Replace this dictionary with one turn from our me/others log.
     turn_log = {'id': '1f7b6e6f-1ad1-4fd7-9a7f-29d7425408a7', 'turn': 0, 'me': {'name': 'mark_snake_test RED', 'health': 100, 'length': 3, 'body': [(5, 1), (5, 1), (5, 1)]}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 100, 'length': 3, 'body': [(9, 5), (9, 5), (9, 5)]}, {'name': 'mark_snake_test GREEN', 'health': 100, 'length': 3, 'body': [(5, 9), (5, 9), (5, 9)]}, {'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 3, 'body': [(1, 5), (1, 5), (1, 5)]}], 'food': [(4, 0), (10, 4), (6, 10), (0, 6), (5, 5)], 'module': 'territory new', 'decision_path': ['1vn', 'allowed moves: [(6, 1), (4, 1), (5, 2), (5, 0)]', "opponent probability mark_snake_test BLUE: [((10, 5), 22, '-', '-', 0.88, 0.23), ((8, 5), 24, '-', '-', 0.96, 0.253), ((9, 6), 25, '-', '-', 1.0, 0.265), ((9, 4), 24, '-', '-', 0.96, 0.253)]; cutoff 1.5; LIVE SHARED TOP1", "opponent probability mark_snake_test GREEN: [((6, 9), 21, '-', '-', 1.0, 0.264), ((4, 9), 21, '-', '-', 1.0, 0.264), ((5, 10), 19, '-', '-', 0.9, 0.236), ((5, 8), 19, '-', '-', 0.9, 0.236)]; cutoff 1.5; LIVE SHARED TOP1", "opponent probability mark_snake_test YELLOW: [((2, 5), 24, '-', '-', 0.96, 0.253), ((0, 5), 22, '-', '-', 0.88, 0.23), ((1, 6), 25, '-', '-', 1.0, 0.265), ((1, 4), 24, '-', '-', 0.96, 0.253)]; cutoff 1.5; LIVE SHARED TOP1"], 'next_coord': (5, 0), 'next_move': 'down', 'time': '0.019s'}
     game_state = init_from_log(turn_log)
     # Optional one-turn diagnostic (counts, not probabilities):
     # print(summarize_moves(init_game(game_state)))
+    # Survival counts plus territory statistics on surviving replies:
+    # print(evaluate_moves(init_game(game_state)))
     # For a snakes/alive engine log instead:
     # game_state = init_from_game_engine_log(turn_log, "mark_snake_test RED")
     main(game_state, log=True)
