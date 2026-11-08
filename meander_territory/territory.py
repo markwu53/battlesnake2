@@ -4,9 +4,13 @@ from itertools import product
 from collections import deque
 from fractions import Fraction
 
-MODULE = "BS v3 one-turn static deadline"
+MODULE = "BS v3 one-turn + bounded suppress"
 MOVE_TIME_LIMIT = 0.35  # Cooperative computation budget; not a wall-clock guarantee.
 FOOD_SAFETY_MARGIN = 25  # Start preferring reachable food before health becomes critical.
+SUPPRESS_DEPTH = 13
+SUPPRESS_CHOICE_BUDGET = 1
+SUPPRESS_FORCED_STEPS = 4
+SUPPRESS_NODE_LIMIT = 1000000
 
 
 class MoveDeadlineExceeded(Exception):
@@ -202,6 +206,53 @@ def select_evaluated_move(evaluation, food_distances=None):
     return max(pool, key=key), reason
 
 
+def isolated_threat_game(g, threat):
+    """Copy the current board with only RED and one candidate threat."""
+    me = g.me.dict()
+    other = threat.dict()
+    state = {"game": {"id": g.id}, "turn": g.turn,
+             "you": me, "board": {"width": g.width, "height": g.height,
+             "snakes": [me, other], "food": list(g.food)}}
+    return init_game(state)
+
+
+def live_suppress_forced_losses(g, directions, deadline):
+    """Return proven-loss directions and compact diagnostics.
+
+    Uses the validated isolated-opponent reduced model. UNKNOWN and incomplete
+    searches never veto. If every supplied safe direction is proven, none is
+    vetoed: live integration requires a remaining one-turn-safe alternative.
+    """
+    if g.turn == 0:
+        return set(), []
+    ordered = [name for name, _ in DIRECTIONS if name in directions]
+    threats = future_threat_candidates(g, SUPPRESS_FORCED_STEPS)
+    proven, rows = set(), []
+    for direction in ordered:
+        for threat in threats:
+            remaining = deadline - time.perf_counter()
+            if remaining <= 0:
+                rows.append({"direction": direction, "threat": threat.id,
+                             "status": "UNKNOWN", "work": None})
+                break
+            isolated = isolated_threat_game(g, threat)
+            result = focused_bounded_setup_forced_loss(
+                isolated, direction, SUPPRESS_DEPTH,
+                SUPPRESS_CHOICE_BUDGET, remaining, SUPPRESS_NODE_LIMIT,
+                {threat.id}, True)
+            status = result["status"]
+            rows.append({"direction": direction, "threat": threat.id,
+                         "status": status, "work": result.get("work"),
+                         "seconds": result.get("elapsed_seconds")})
+            if status == "APPROX_BOUNDED_SETUP_FORCED_LOSS":
+                proven.add(direction)
+                break
+        if time.perf_counter() >= deadline:
+            break
+    veto = proven if set(ordered) - proven else set()
+    return veto, rows
+
+
 def choose_move(g, deadline=None):
     """Complete safety first; abandon incomplete territory work at deadline.
 
@@ -224,8 +275,17 @@ def choose_move(g, deadline=None):
         # Cheap complete pass: no territory floods. Partial counts never escape.
         safety = summarize_moves(g, deadline=deadline)
         food_distances = urgent_food_distances(g, candidates, deadline)
+        safe_ordered = [name for name, _ in DIRECTIONS
+                        if name in safety and safety[name]["dies"] == 0
+                        and safety[name]["survives"] > 0]
+        suppress_veto, suppress_rows = (live_suppress_forced_losses(
+            g, safe_ordered, deadline) if len(safe_ordered) > 1 else (set(), []))
+        if suppress_rows:
+            g.decision_path.append(
+                f"bounded suppress checks: {suppress_rows}; veto: {sorted(suppress_veto)}")
         ordered = [name for name, _ in DIRECTIONS
-                   if name in safety and safety[name]["survives"] > 0]
+                   if name in safety and safety[name]["survives"] > 0
+                   and name not in suppress_veto]
         if ordered:
             def fallback_key(name):
                 distance = (None if food_distances is None else
@@ -238,8 +298,13 @@ def choose_move(g, deadline=None):
             fallback = next(move for move in candidates if move[0] == direction)
         phase = "territory"
         evaluation = evaluate_moves(g, deadline=deadline)
+        if suppress_veto:
+            evaluation = {name: row for name, row in evaluation.items()
+                          if name not in suppress_veto}
         check_deadline(deadline)
         direction, reason = select_evaluated_move(evaluation, food_distances)
+        if suppress_veto:
+            reason += "; completed bounded suppress forced-loss veto"
     except MoveDeadlineExceeded:
         if phase == "safety":
             message = "deadline: safety INCOMPLETE, discarded; basic deterministic fallback (not proven safe)"
@@ -1005,6 +1070,133 @@ def run_chooser_tests():
     assert any("urgent reachable food distance" in message
                for message in g.decision_path)
     print("Chooser assertions passed")
+
+
+BORDER_ESCAPE_HISTORY = [
+    {'id': '66deea9f-94a7-4bac-8113-b5044a16c7d7', 'turn': 82, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 88, 'length': 5, 'body': [(4, 2), (4, 3), (3, 3), (3, 2), (3, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 85, 'length': 8, 'body': [(3, 7), (2, 7), (2, 6), (2, 5), (2, 4), (3, 4), (3, 5), (3, 6)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 91, 'length': 9, 'body': [(6, 6), (6, 5), (7, 5), (7, 6), (7, 7), (8, 7), (8, 8), (8, 9), (8, 10)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 93, 'length': 13, 'body': [(8, 6), (8, 5), (8, 4), (8, 3), (8, 2), (7, 2), (6, 2), (6, 1), (7, 1), (8, 1), (8, 0), (9, 0), (9, 1)]}], 'food': [(2, 0), (9, 10)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(5, 2), (4, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 6, 'survives': 6, 'dies': 0, 'death_reasons': {}, 'territory_min': 21, 'territory_mean': 24.666666666666668, 'territory_max': 28, 'classification': 'survives all modeled replies'}, 'down': {'replies': 6, 'survives': 6, 'dies': 0, 'death_reasons': {}, 'territory_min': 20, 'territory_mean': 23.5, 'territory_max': 27, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 2), 'next_move': 'right', 'time': '0.025s'},
+    {'id': '66deea9f-94a7-4bac-8113-b5044a16c7d7', 'turn': 83, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 87, 'length': 5, 'body': [(5, 2), (4, 2), (4, 3), (3, 3), (3, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 84, 'length': 8, 'body': [(4, 7), (3, 7), (2, 7), (2, 6), (2, 5), (2, 4), (3, 4), (3, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 90, 'length': 9, 'body': [(6, 7), (6, 6), (6, 5), (7, 5), (7, 6), (7, 7), (8, 7), (8, 8), (8, 9)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 92, 'length': 13, 'body': [(9, 6), (8, 6), (8, 5), (8, 4), (8, 3), (8, 2), (7, 2), (6, 2), (6, 1), (7, 1), (8, 1), (8, 0), (9, 0)]}], 'food': [(2, 0), (9, 10)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(5, 3), (5, 1)]', "one-turn evaluation (counts, not probabilities): {'up': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 5, 'territory_mean': 10.333333333333334, 'territory_max': 31, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 20, 'territory_mean': 21.0, 'territory_max': 22, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 1), 'next_move': 'down', 'time': '0.067s'},
+    {'id': '66deea9f-94a7-4bac-8113-b5044a16c7d7', 'turn': 84, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 86, 'length': 5, 'body': [(5, 1), (5, 2), (4, 2), (4, 3), (3, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 83, 'length': 8, 'body': [(4, 6), (4, 7), (3, 7), (2, 7), (2, 6), (2, 5), (2, 4), (3, 4)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 89, 'length': 9, 'body': [(6, 8), (6, 7), (6, 6), (6, 5), (7, 5), (7, 6), (7, 7), (8, 7), (8, 8)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 91, 'length': 13, 'body': [(9, 7), (9, 6), (8, 6), (8, 5), (8, 4), (8, 3), (8, 2), (7, 2), (6, 2), (6, 1), (7, 1), (8, 1), (8, 0)]}], 'food': [(2, 0), (9, 10)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(4, 1), (5, 0)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 18, 'territory_mean': 21.444444444444443, 'territory_max': 28, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 16, 'territory_mean': 18.333333333333332, 'territory_max': 22, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (4, 1), 'next_move': 'left', 'time': '0.030s'},
+    {'id': '66deea9f-94a7-4bac-8113-b5044a16c7d7', 'turn': 85, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 85, 'length': 5, 'body': [(4, 1), (5, 1), (5, 2), (4, 2), (4, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 82, 'length': 8, 'body': [(3, 6), (4, 6), (4, 7), (3, 7), (2, 7), (2, 6), (2, 5), (2, 4)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 88, 'length': 9, 'body': [(7, 8), (6, 8), (6, 7), (6, 6), (6, 5), (7, 5), (7, 6), (7, 7), (8, 7)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 90, 'length': 13, 'body': [(9, 8), (9, 7), (9, 6), (8, 6), (8, 5), (8, 4), (8, 3), (8, 2), (7, 2), (6, 2), (6, 1), (7, 1), (8, 1)]}], 'food': [(2, 0), (9, 10), (6, 9)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(3, 1), (4, 0)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 6, 'survives': 6, 'dies': 0, 'death_reasons': {}, 'territory_min': 18, 'territory_mean': 20.0, 'territory_max': 22, 'classification': 'survives all modeled replies'}, 'down': {'replies': 6, 'survives': 6, 'dies': 0, 'death_reasons': {}, 'territory_min': 16, 'territory_mean': 18.0, 'territory_max': 20, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (3, 1), 'next_move': 'left', 'time': '0.009s'},
+    {'id': '66deea9f-94a7-4bac-8113-b5044a16c7d7', 'turn': 86, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 84, 'length': 5, 'body': [(3, 1), (4, 1), (5, 1), (5, 2), (4, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 81, 'length': 8, 'body': [(3, 5), (3, 6), (4, 6), (4, 7), (3, 7), (2, 7), (2, 6), (2, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 87, 'length': 9, 'body': [(7, 9), (7, 8), (6, 8), (6, 7), (6, 6), (6, 5), (7, 5), (7, 6), (7, 7)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 89, 'length': 13, 'body': [(9, 9), (9, 8), (9, 7), (9, 6), (8, 6), (8, 5), (8, 4), (8, 3), (8, 2), (7, 2), (6, 2), (6, 1), (7, 1)]}], 'food': [(2, 0), (9, 10), (6, 9)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(2, 1), (3, 2), (3, 0)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 17, 'territory_mean': 21.0, 'territory_max': 25, 'classification': 'survives all modeled replies'}, 'up': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 17, 'territory_mean': 22.0, 'territory_max': 26, 'classification': 'survives all modeled replies'}, 'down': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 16, 'territory_mean': 19.0, 'territory_max': 23, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (3, 2), 'next_move': 'up', 'time': '0.075s'},
+    {'id': '66deea9f-94a7-4bac-8113-b5044a16c7d7', 'turn': 87, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 83, 'length': 5, 'body': [(3, 2), (3, 1), (4, 1), (5, 1), (5, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 80, 'length': 8, 'body': [(2, 5), (3, 5), (3, 6), (4, 6), (4, 7), (3, 7), (2, 7), (2, 6)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 100, 'length': 10, 'body': [(6, 9), (7, 9), (7, 8), (6, 8), (6, 7), (6, 6), (6, 5), (7, 5), (7, 6), (7, 6)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 14, 'body': [(9, 10), (9, 9), (9, 8), (9, 7), (9, 6), (8, 6), (8, 5), (8, 4), (8, 3), (8, 2), (7, 2), (6, 2), (6, 1), (6, 1)]}], 'food': [(2, 0)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(4, 2), (2, 2), (3, 3)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 5, 'territory_mean': 16.0, 'territory_max': 42, 'classification': 'survives all modeled replies'}, 'left': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 17, 'territory_mean': 32.666666666666664, 'territory_max': 50, 'classification': 'survives all modeled replies'}, 'up': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 6, 'territory_mean': 26.666666666666668, 'territory_max': 51, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (2, 2), 'next_move': 'left', 'time': '0.041s'},
+    {'id': '66deea9f-94a7-4bac-8113-b5044a16c7d7', 'turn': 88, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 82, 'length': 5, 'body': [(2, 2), (3, 2), (3, 1), (4, 1), (5, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 79, 'length': 8, 'body': [(2, 4), (2, 5), (3, 5), (3, 6), (4, 6), (4, 7), (3, 7), (2, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 99, 'length': 10, 'body': [(6, 10), (6, 9), (7, 9), (7, 8), (6, 8), (6, 7), (6, 6), (6, 5), (7, 5), (7, 6)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 14, 'body': [(8, 10), (9, 10), (9, 9), (9, 8), (9, 7), (9, 6), (8, 6), (8, 5), (8, 4), (8, 3), (8, 2), (7, 2), (6, 2), (6, 1)]}], 'food': [(2, 0)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(1, 2), (2, 3), (2, 1)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 9, 'territory_mean': 15.75, 'territory_max': 30, 'classification': 'survives all modeled replies'}, 'up': {'replies': 12, 'survives': 8, 'dies': 4, 'death_reasons': {'head-to-head collision': 4}, 'territory_min': 20, 'territory_mean': 31.0, 'territory_max': 41, 'classification': 'mixed'}, 'down': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 13, 'territory_mean': 20.0, 'territory_max': 32, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (2, 1), 'next_move': 'down', 'time': '0.022s'},
+    {'id': '66deea9f-94a7-4bac-8113-b5044a16c7d7', 'turn': 89, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 81, 'length': 5, 'body': [(2, 1), (2, 2), (3, 2), (3, 1), (4, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 78, 'length': 8, 'body': [(3, 4), (2, 4), (2, 5), (3, 5), (3, 6), (4, 6), (4, 7), (3, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 98, 'length': 10, 'body': [(5, 10), (6, 10), (6, 9), (7, 9), (7, 8), (6, 8), (6, 7), (6, 6), (6, 5), (7, 5)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 98, 'length': 14, 'body': [(8, 9), (8, 10), (9, 10), (9, 9), (9, 8), (9, 7), (9, 6), (8, 6), (8, 5), (8, 4), (8, 3), (8, 2), (7, 2), (6, 2)]}], 'food': [(2, 0)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(1, 1), (2, 0)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 4, 'survives': 4, 'dies': 0, 'death_reasons': {}, 'territory_min': 7, 'territory_mean': 11.0, 'territory_max': 15, 'classification': 'survives all modeled replies'}, 'down': {'replies': 4, 'survives': 4, 'dies': 0, 'death_reasons': {}, 'territory_min': 12, 'territory_mean': 13.0, 'territory_max': 14, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (2, 0), 'next_move': 'down', 'time': '0.007s'},
+    {'id': '66deea9f-94a7-4bac-8113-b5044a16c7d7', 'turn': 90, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 100, 'length': 6, 'body': [(2, 0), (2, 1), (2, 2), (3, 2), (3, 1), (3, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 77, 'length': 8, 'body': [(4, 4), (3, 4), (2, 4), (2, 5), (3, 5), (3, 6), (4, 6), (4, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 97, 'length': 10, 'body': [(4, 10), (5, 10), (6, 10), (6, 9), (7, 9), (7, 8), (6, 8), (6, 7), (6, 6), (6, 5)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 97, 'length': 14, 'body': [(8, 8), (8, 9), (8, 10), (9, 10), (9, 9), (9, 8), (9, 7), (9, 6), (8, 6), (8, 5), (8, 4), (8, 3), (8, 2), (7, 2)]}], 'food': [(3, 8)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(3, 0), (1, 0)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 6, 'survives': 6, 'dies': 0, 'death_reasons': {}, 'territory_min': 7, 'territory_mean': 14.333333333333334, 'territory_max': 28, 'classification': 'survives all modeled replies'}, 'left': {'replies': 6, 'survives': 6, 'dies': 0, 'death_reasons': {}, 'territory_min': 5, 'territory_mean': 9.333333333333334, 'territory_max': 12, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (3, 0), 'next_move': 'right', 'time': '0.029s'},
+    {'id': '66deea9f-94a7-4bac-8113-b5044a16c7d7', 'turn': 91, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 99, 'length': 6, 'body': [(3, 0), (2, 0), (2, 1), (2, 2), (3, 2), (3, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 76, 'length': 8, 'body': [(4, 3), (4, 4), (3, 4), (2, 4), (2, 5), (3, 5), (3, 6), (4, 6)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 96, 'length': 10, 'body': [(3, 10), (4, 10), (5, 10), (6, 10), (6, 9), (7, 9), (7, 8), (6, 8), (6, 7), (6, 6)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 96, 'length': 14, 'body': [(8, 7), (8, 8), (8, 9), (8, 10), (9, 10), (9, 9), (9, 8), (9, 7), (9, 6), (8, 6), (8, 5), (8, 4), (8, 3), (8, 2)]}], 'food': [(3, 8), (2, 8)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(4, 0), (3, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 6, 'survives': 6, 'dies': 0, 'death_reasons': {}, 'territory_min': 6, 'territory_mean': 10.666666666666666, 'territory_max': 18, 'classification': 'survives all modeled replies'}, 'up': {'replies': 6, 'survives': 6, 'dies': 0, 'death_reasons': {}, 'territory_min': 0, 'territory_mean': 6.666666666666667, 'territory_max': 18, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (4, 0), 'next_move': 'right', 'time': '0.011s'},
+]
+
+
+def is_border_point(g, point):
+    x, y = point
+    return x in (0, g.width - 1) or y in (0, g.height - 1)
+
+
+def border_escape_diagnostic(g):
+    """OFFLINE structural diagnostic; never called by the live chooser.
+
+    For each RED action, preserve one-turn survival counts, then measure whether
+    RED leaves the border, how many all-reply-safe next actions remain, how many
+    of those leave the border, and whether a longer opponent can contest the
+    inward lane. Counts describe modeled replies and are not probabilities.
+    """
+    if g.me is None:
+        return {"turn": g.turn, "on_border": False, "actions": {},
+                "recommendation": None}
+    root = legal_moves(g, g.me) or candidate_moves(g, g.me)
+    actions = {name: {"replies": 0, "survives": 0, "dies": 0,
+                      "border_after": 0, "safe_next_min": None,
+                      "off_border_safe_next_min": None,
+                      "inward_contested_replies": 0}
+               for name, _ in root}
+    destinations = dict(root)
+    for moves, ng in enumerate_turns(g):
+        direction = moves[g.me_id]
+        row = actions[direction]
+        row["replies"] += 1
+        if ng.me is None:
+            row["dies"] += 1
+            continue
+        row["survives"] += 1
+        on_border = is_border_point(ng, ng.me.head)
+        row["border_after"] += on_border
+        summary = summarize_moves(ng)
+        next_moves = dict(legal_moves(ng, ng.me) or candidate_moves(ng, ng.me))
+        safe = [name for name, result in summary.items()
+                if result["survives"] > 0 and result["dies"] == 0]
+        off_border = [name for name in safe
+                      if not is_border_point(ng, next_moves[name])]
+        safe_count, escape_count = len(safe), len(off_border)
+        row["safe_next_min"] = (safe_count if row["safe_next_min"] is None
+                                else min(row["safe_next_min"], safe_count))
+        row["off_border_safe_next_min"] = (
+            escape_count if row["off_border_safe_next_min"] is None
+            else min(row["off_border_safe_next_min"], escape_count))
+        if on_border:
+            inward = {name: point for name, point in next_moves.items()
+                      if not is_border_point(ng, point)}
+            contested = False
+            for target in inward.values():
+                for opponent in ng.others:
+                    if opponent.length < ng.me.length:
+                        continue
+                    if target in dict(legal_moves(ng, opponent) or
+                                      candidate_moves(ng, opponent)).values():
+                        contested = True
+                        break
+                if contested:
+                    break
+            row["inward_contested_replies"] += contested
+    for name, row in actions.items():
+        row["root_destination"] = destinations[name]
+        row["root_off_border"] = not is_border_point(g, destinations[name])
+        row["survival_fraction"] = Fraction(row["survives"], row["replies"])
+        if row["survives"] == 0:
+            row["safe_next_min"] = row["off_border_safe_next_min"] = 0
+    recommendation = None
+    if is_border_point(g, g.me.head) and actions:
+        order = [name for name, _ in DIRECTIONS if name in actions]
+        def key(name):
+            row = actions[name]
+            return (row["survival_fraction"], row["root_off_border"],
+                    row["off_border_safe_next_min"], row["safe_next_min"],
+                    -row["inward_contested_replies"])
+        recommendation = max(order, key=key)
+    return {"turn": g.turn, "on_border": is_border_point(g, g.me.head),
+            "actions": actions, "recommendation": recommendation}
+
+
+def run_border_escape_tests():
+    """Turn-91 border-suppress regression; offline only."""
+    record = BORDER_ESCAPE_HISTORY[-1]
+    g = init_game(init_from_log(record))
+    result = border_escape_diagnostic(g)
+    assert result["turn"] == 91 and result["on_border"]
+    assert result["actions"]["right"]["survival_fraction"] == 1
+    assert result["actions"]["up"]["survival_fraction"] == 1
+    assert not result["actions"]["right"]["root_off_border"]
+    assert result["actions"]["up"]["root_off_border"]
+    assert result["recommendation"] == "up"
+    print("Border escape assertions passed")
+
+
+def run_border_escape_history():
+    """OFFLINE turns 82-91 diagnostic; reports first live disagreement."""
+    rows = []
+    for record in BORDER_ESCAPE_HISTORY:
+        g = init_game(init_from_log(record))
+        result = border_escape_diagnostic(g)
+        live = record.get("next_move")
+        row = {"turn": g.turn, "live": live,
+               "recommendation": result["recommendation"],
+               "on_border": result["on_border"],
+               "disagrees": result["recommendation"] is not None and
+                            result["recommendation"] != live,
+               "actions": result["actions"]}
+        rows.append(row)
+        print("BORDER ESCAPE", row)
+    first = next((row for row in rows if row["disagrees"]), None)
+    print("FIRST BORDER ESCAPE DISAGREEMENT", first)
+    return {"rows": rows, "first_disagreement": first}
 
 
 def evaluate_continuations(g):
@@ -2238,6 +2430,1036 @@ def focused_uniform_forced_loss(g, direction, depth=9, time_limit=0.35,
             "elapsed_seconds": time.perf_counter() - start}
 
 
+def focused_uniform_forced_loss_ordered(
+        g, direction, depth=9, time_limit=0.35, node_limit=1000000,
+        branch_ids=None, capture_certificate=False):
+    """Uniform-loss proof with generic adversarial reply ordering.
+
+    Ordering is not a border rule. It tries replies first when simulation shows
+    more immediate RED eliminations, fewer remaining RED moves, and closer
+    equal-or-longer opponents. Every RED action is still verified before a
+    uniform forced loss is returned.
+    """
+    if not isinstance(depth, int) or depth < 1:
+        raise ValueError("depth must be a positive integer")
+    if time_limit < 0 or node_limit < 0:
+        raise ValueError("Budgets must be nonnegative")
+    branch_ids = frozenset(branch_ids or ())
+    ids = {s.id for s in g.snakes}
+    if not branch_ids <= ids - {g.me_id}:
+        raise ValueError("Focus IDs must identify live opponents")
+    if g.me is None:
+        raise ValueError("Uniform-loss proof requires live RED")
+    if direction not in dict(legal_moves(g, g.me) or candidate_moves(g, g.me)):
+        raise ValueError("Root direction is not modeled")
+    start = time.perf_counter()
+    deadline = start + time_limit
+    memo = {}
+    policy = {}
+    root_reply = None
+    work = 0
+    ordering_evaluations = 0
+    ordering_transitions = 0
+
+    def checkpoint():
+        if time.perf_counter() >= deadline:
+            raise SearchBudgetExceeded("time limit exhausted")
+        if work >= node_limit:
+            raise SearchBudgetExceeded("node limit exhausted")
+
+    def ordered_replies(board, red_actions):
+        nonlocal ordering_evaluations, ordering_transitions
+        opponents = [s for s in board.snakes if s.id != board.me_id]
+        choices = [search_opponent_choices(board, s, branch_ids)
+                   for s in opponents]
+        scored = []
+        for reply in product(*choices):
+            checkpoint()
+            ordering_evaluations += 1
+            reply_moves = {s.id: move[0] for s, move in zip(opponents, reply)}
+            survivors = total_moves = max_moves = pressure_distance = 0
+            for red, _ in red_actions:
+                moves = dict(reply_moves)
+                moves[board.me_id] = red
+                ng = next_game_turn(board, moves)
+                ordering_transitions += 1
+                if ng.me is None:
+                    continue
+                survivors += 1
+                count = len(legal_moves(ng, ng.me) or candidate_moves(ng, ng.me))
+                total_moves += count
+                max_moves = max(max_moves, count)
+                threats = [s for s in ng.others if s.length >= ng.me.length]
+                if threats:
+                    pressure_distance += min(
+                        abs(s.head[0] - ng.me.head[0]) +
+                        abs(s.head[1] - ng.me.head[1]) for s in threats)
+                else:
+                    pressure_distance += ng.width + ng.height
+            scored.append(((survivors, total_moves, max_moves, pressure_distance),
+                           reply, reply_moves))
+        scored.sort(key=lambda row: row[0])
+        return [(reply, reply_moves) for _, reply, reply_moves in scored]
+
+    def state_key(board, remaining):
+        return (remaining, tuple((s.id, s.health, tuple(s.body))
+                                 for s in board.snakes),
+                tuple(sorted(set(board.food))))
+
+    def build_certificate(board, remaining, red_actions, reply_moves):
+        node = {"turn": board.turn, "remaining": remaining,
+                "heads": {s.id: s.head for s in board.snakes},
+                "lengths": {s.id: s.length for s in board.snakes},
+                "opponent_moves": dict(reply_moves), "red_responses": {}}
+        for red, _ in red_actions:
+            moves = dict(reply_moves)
+            moves[board.me_id] = red
+            ng = next_game_turn(board, moves)
+            edge = {"moves": moves, "red_survives": ng.me is not None}
+            if ng.me is None:
+                edge["terminal"] = "RED eliminated"
+                edge["eliminated"] = ng.eliminated
+            elif remaining - 1 == 0:
+                edge["terminal"] = "horizon reached"
+            else:
+                key = state_key(ng, remaining - 1)
+                chosen = policy.get(key)
+                if chosen is None:
+                    raise AssertionError("Verified policy missing a child state")
+                actions = legal_moves(ng, ng.me) or candidate_moves(ng, ng.me)
+                edge["child"] = build_certificate(
+                    ng, remaining - 1, actions, chosen)
+            node["red_responses"][red] = edge
+        return node
+
+    def forced(board, remaining):
+        nonlocal work
+        checkpoint()
+        work += 1
+        if board.me is None:
+            return True
+        if remaining == 0:
+            return False
+        key = state_key(board, remaining)
+        if key in memo:
+            return memo[key]
+        red_actions = legal_moves(board, board.me) or candidate_moves(board, board.me)
+        for _, reply_moves in ordered_replies(board, red_actions):
+            checkpoint()
+            defeats_all = True
+            for red, _ in red_actions:
+                moves = dict(reply_moves)
+                moves[board.me_id] = red
+                if not forced(next_game_turn(board, moves), remaining - 1):
+                    defeats_all = False
+                    break
+            if defeats_all:
+                policy[key] = dict(reply_moves)
+                memo[key] = True
+                return True
+        memo[key] = False
+        return False
+
+    try:
+        root_actions = [(direction, dict(legal_moves(g, g.me) or
+                                          candidate_moves(g, g.me))[direction])]
+        value = False
+        root_reply = None
+        for _, reply_moves in ordered_replies(g, root_actions):
+            checkpoint()
+            moves = dict(reply_moves)
+            moves[g.me_id] = direction
+            if forced(next_game_turn(g, moves), depth - 1):
+                value = True
+                root_reply = dict(reply_moves)
+                break
+    except SearchBudgetExceeded as exc:
+        return {"status": "UNKNOWN", "reason": str(exc), "work": work,
+                "ordering_evaluations": ordering_evaluations,
+                "ordering_transitions": ordering_transitions,
+                "elapsed_seconds": time.perf_counter() - start}
+    certificate = None
+    if capture_certificate and value:
+        certificate = build_certificate(g, depth, root_actions, root_reply)
+
+    return {"status": ("APPROX_UNIFORM_FORCED_LOSS" if value
+                       else "APPROX_NO_UNIFORM_LOSS_PROOF"),
+            "work": work, "memo_entries": len(memo),
+            "certificate": certificate, "policy_states": len(policy),
+            "ordering_evaluations": ordering_evaluations,
+            "ordering_transitions": ordering_transitions,
+            "elapsed_seconds": time.perf_counter() - start}
+
+
+TURN58_ORDERING_CONTROL = {
+    "id": "turn58-ordering-control", "turn": 58, "width": 11, "height": 11,
+    "me": {"id": "RED", "name": "RED", "health": 42, "length": 3,
+           "body": [(7, 1), (6, 1), (6, 2)]},
+    "others": [
+        {"id": "BLUE", "name": "BLUE", "health": 97, "length": 11,
+         "body": [(1, 9), (0, 9), (0, 8), (0, 7), (1, 7), (2, 7),
+                  (3, 7), (4, 7), (4, 8), (4, 9), (5, 9)]},
+        {"id": "GREEN", "name": "GREEN", "health": 89, "length": 8,
+         "body": [(7, 3), (7, 4), (6, 4), (6, 5), (6, 6), (7, 6),
+                  (7, 7), (8, 7)]},
+        {"id": "YELLOW", "name": "YELLOW", "health": 100, "length": 12,
+         "body": [(0, 6), (0, 5), (1, 5), (2, 5), (3, 5), (4, 5),
+                  (4, 4), (4, 3), (4, 2), (3, 2), (3, 1), (3, 1)]}],
+    "food": [(6, 9), (2, 1)]}
+
+
+def summarize_uniform_certificate(certificate):
+    """Flatten a verified opponent policy certificate for readable logging."""
+    rows = []
+    def visit(node, branch):
+        row = {"branch": branch, "turn": node["turn"],
+               "heads": node["heads"], "lengths": node["lengths"],
+               "opponent_moves": node["opponent_moves"],
+               "red_responses": list(node["red_responses"])}
+        rows.append(row)
+        for red, edge in node["red_responses"].items():
+            if "child" in edge:
+                visit(edge["child"], branch + [red])
+            else:
+                rows.append({"branch": branch + [red],
+                             "turn": node["turn"] + 1,
+                             "terminal": edge.get("terminal"),
+                             "red_survives": edge["red_survives"],
+                             "eliminated": edge.get("eliminated")})
+    if certificate is not None:
+        visit(certificate, [])
+    return rows
+
+
+def ordered_validation_cases():
+    """Fixed offline cases: one known forced loss plus established controls."""
+    records = {r["turn"]: r for r in BORDER_ESCAPE_HISTORY
+               if r["turn"] in (89, 90, 91)}
+    cases = []
+    # Derive candidate actions from the diagnostic instead of naming a border rule.
+    for turn in (89, 90, 91):
+        g = init_game(init_from_log(records[turn]))
+        diagnostic = border_escape_diagnostic(g)
+        for direction, row in diagnostic["actions"].items():
+            flagged = (diagnostic["on_border"] and
+                       row["inward_contested_replies"] > 0 and
+                       not row["root_off_border"])
+            if flagged:
+                cases.append({"name": f"turn{turn}-{direction}-candidate",
+                              "record": records[turn],
+                              "direction": direction,
+                              "expected_forced_loss": True,
+                              "source": "border diagnostic candidate"})
+    controls = [(89, "left"), (89, "down"), (90, "right"),
+                (90, "left"), (91, "up")]
+    for turn, direction in controls:
+        cases.append({"name": f"turn{turn}-{direction}-control",
+                      "record": records[turn], "direction": direction,
+                      "expected_forced_loss": False,
+                      "source": "ordinary border/gamble control"})
+    for direction in ("right", "down"):
+        cases.append({"name": f"turn58-{direction}-control",
+                      "record": TURN58_ORDERING_CONTROL,
+                      "direction": direction,
+                      "expected_forced_loss": False,
+                      "source": "turn 58 gamble/control"})
+    return cases
+
+
+def ordered_validation_summary(rows, label):
+    """Precision, recall, coverage, accuracy, work, and timing."""
+    completed = [r for r in rows if r["status"] != "UNKNOWN"]
+    positives = [r for r in rows if r["expected_forced_loss"]]
+    predicted = [r for r in completed if r["predicted_forced_loss"]]
+    tp = sum(r["expected_forced_loss"] and r["predicted_forced_loss"]
+             for r in completed)
+    fp = sum(not r["expected_forced_loss"] and r["predicted_forced_loss"]
+             for r in completed)
+    fn = sum(r["expected_forced_loss"] and not r["predicted_forced_loss"]
+             for r in completed)
+    correct = sum(r["expected_forced_loss"] == r["predicted_forced_loss"]
+                  for r in completed)
+    times = [r["elapsed_seconds"] for r in rows]
+    works = [r["work"] for r in rows if r["work"] is not None]
+    return {"budget": label, "cases": len(rows),
+            "expected_positive": len(positives),
+            "completed": len(completed), "unknown": len(rows) - len(completed),
+            "coverage": len(completed) / len(rows),
+            "true_positive": tp, "false_positive": fp, "false_negative": fn,
+            "precision": None if not predicted else tp / len(predicted),
+            "recall": None if not positives else tp / len(positives),
+            "accuracy_completed": None if not completed else correct / len(completed),
+            "seconds_min": min(times), "seconds_mean": sum(times) / len(times),
+            "seconds_max": max(times),
+            "work_min": min(works), "work_mean": sum(works) / len(works),
+            "work_max": max(works),
+            "false_positive_cases": [r["name"] for r in rows
+                                     if r["predicted_forced_loss"] and
+                                     not r["expected_forced_loss"]],
+            "unknown_cases": [r["name"] for r in rows
+                              if r["status"] == "UNKNOWN"]}
+
+
+# Independent bottom-border BLUE suppress found in the 2026-11-08 batch.
+TURN126_BLUE_SUPPRESS = {'id': '808361a7-e6b7-4c1a-b927-df1b29ddccac', 'turn': 126, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 49, 'length': 5, 'body': [(4, 0), (3, 0), (3, 1), (3, 2), (4, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 100, 'length': 16, 'body': [(5, 3), (5, 4), (5, 5), (6, 5), (7, 5), (7, 6), (8, 6), (9, 6), (9, 5), (9, 4), (9, 3), (9, 2), (8, 2), (7, 2), (7, 3), (7, 3)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 58, 'length': 10, 'body': [(5, 9), (6, 9), (7, 9), (8, 9), (9, 9), (10, 9), (10, 8), (9, 8), (8, 8), (7, 8)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 97, 'length': 10, 'body': [(1, 3), (1, 2), (1, 1), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7)]}], 'food': [(10, 1)]}
+
+TURN66_YELLOW_SUPPRESS = {'id': '2b3c4e04-ba25-4ec6-a71c-d34998c95d6d', 'turn': 66, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 34, 'length': 3, 'body': [(1, 9), (1, 8), (2, 8)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 97, 'length': 12, 'body': [(3, 5), (3, 4), (2, 4), (1, 4), (1, 3), (1, 2), (1, 1), (1, 0), (2, 0), (3, 0), (4, 0), (4, 1)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 36, 'length': 4, 'body': [(4, 2), (4, 3), (4, 4), (5, 4)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 15, 'body': [(3, 9), (4, 9), (4, 8), (4, 7), (4, 6), (5, 6), (6, 6), (6, 7), (5, 7), (5, 8), (6, 8), (6, 9), (7, 9), (8, 9), (8, 8)]}], 'food': [(10, 8)]}
+
+
+def turn66_selected_yellow_boards():
+    """Select focus on the full board, then isolate that selected opponent."""
+    full = init_game(init_from_log(TURN66_YELLOW_SUPPRESS))
+    focus = select_focused_opponent(full)
+    if focus is None:
+        raise AssertionError("Turn 66 requires a focused opponent")
+    record = dict(TURN66_YELLOW_SUPPRESS)
+    record["others"] = [s for s in record["others"] if s["id"] == focus.id]
+    isolated = init_game(init_from_log(record))
+    return full, focus, isolated
+
+
+def run_turn66_yellow_suppress_tests():
+    """Test selection with BLUE present, then verify YELLOW isolation."""
+    full, focus, isolated = turn66_selected_yellow_boards()
+    assert len(full.others) == 3
+    assert focus.name.endswith("YELLOW")
+    assert focus.id == "mark_snake_test YELLOW"
+    assert len(isolated.others) == 1
+    assert isolated.others[0].id == focus.id
+    assert "up" in dict(legal_moves(isolated, isolated.me) or
+                        candidate_moves(isolated, isolated.me))
+    print("Turn 66 YELLOW two-stage assertions passed")
+
+
+def focused_bounded_setup_forced_loss(
+        g, direction, depth=13, setup_turns=1, time_limit=0.35,
+        node_limit=1000000, branch_ids=None, use_ordering=True,
+        capture_certificate=False):
+    """Conservative forced-loss proof with a bounded choice setup window.
+
+    setup_turns is a budget of RED choice states, not elapsed turns. A
+    forced state has exactly one action in the strongest immediate safety
+    class: all-reply-safe actions when any exist, otherwise the highest
+    positive surviving-reply fraction. Forced states do not consume budget.
+    Another multi-choice state after budget exhaustion ends the attempt.
+    """
+    if not isinstance(depth, int) or depth < 1:
+        raise ValueError("depth must be a positive integer")
+    if not isinstance(setup_turns, int) or setup_turns < 0:
+        raise ValueError("setup_turns must be a nonnegative integer")
+    if time_limit < 0 or node_limit < 0:
+        raise ValueError("Budgets must be nonnegative")
+    branch_ids = frozenset(branch_ids or ())
+    ids = {s.id for s in g.snakes}
+    if not branch_ids <= ids - {g.me_id}:
+        raise ValueError("Focus IDs must identify live opponents")
+    if g.me is None:
+        raise ValueError("Bounded setup proof requires live RED")
+    root = dict(legal_moves(g, g.me) or candidate_moves(g, g.me))
+    if direction not in root:
+        raise ValueError("Root direction is not modeled")
+    start = time.perf_counter()
+    deadline = start + time_limit
+    memo, policy = {}, {}
+    work = viability_evaluations = viability_transitions = 0
+    ordering_evaluations = ordering_transitions = setup_rejections = 0
+    root_reply = None
+
+    def checkpoint():
+        if time.perf_counter() >= deadline:
+            raise SearchBudgetExceeded("time limit exhausted")
+        if work >= node_limit:
+            raise SearchBudgetExceeded("node limit exhausted")
+
+    def key(board, remaining, setup_remaining):
+        return (remaining, setup_remaining,
+                tuple((s.id, s.health, tuple(s.body)) for s in board.snakes),
+                tuple(sorted(set(board.food))))
+
+    def reply_rows(board):
+        opponents = [s for s in board.snakes if s.id != board.me_id]
+        choices = [search_opponent_choices(board, s, branch_ids)
+                   for s in opponents]
+        return opponents, list(product(*choices))
+
+    def strongest_safety_actions(board, actions, opponents, replies):
+        """All-reply-safe actions, else the best positive survival fraction."""
+        nonlocal viability_evaluations, viability_transitions
+        rows = []
+        for red, point in actions:
+            survives = total = 0
+            for reply in replies:
+                checkpoint()
+                viability_evaluations += 1
+                moves = {s.id: move[0] for s, move in zip(opponents, reply)}
+                moves[board.me_id] = red
+                ng = next_game_turn(board, moves)
+                viability_transitions += 1
+                total += 1
+                survives += ng.me is not None
+            rows.append((red, point, survives, total))
+        safe = [(red, point) for red, point, survives, total in rows
+                if survives > 0 and survives == total]
+        if safe:
+            return safe
+        positive = [row for row in rows if row[2] > 0]
+        if not positive:
+            return []
+        best = max(Fraction(survives, total)
+                   for _, _, survives, total in positive)
+        return [(red, point) for red, point, survives, total in positive
+                if Fraction(survives, total) == best]
+
+
+    def ordered_replies(board, actions, opponents, replies):
+        nonlocal ordering_evaluations, ordering_transitions
+        if not use_ordering:
+            return [(reply, {s.id: move[0] for s, move in zip(opponents, reply)})
+                    for reply in replies]
+        scored = []
+        for reply in replies:
+            checkpoint()
+            ordering_evaluations += 1
+            reply_moves = {s.id: move[0] for s, move in zip(opponents, reply)}
+            survivors = total_moves = max_moves = pressure_distance = 0
+            for red, _ in actions:
+                moves = dict(reply_moves)
+                moves[board.me_id] = red
+                ng = next_game_turn(board, moves)
+                ordering_transitions += 1
+                if ng.me is None:
+                    continue
+                survivors += 1
+                count = len(legal_moves(ng, ng.me) or candidate_moves(ng, ng.me))
+                total_moves += count
+                max_moves = max(max_moves, count)
+                threats = [s for s in ng.others if s.length >= ng.me.length]
+                pressure_distance += (
+                    min(abs(s.head[0] - ng.me.head[0]) +
+                        abs(s.head[1] - ng.me.head[1]) for s in threats)
+                    if threats else ng.width + ng.height)
+            scored.append(((survivors, total_moves, max_moves, pressure_distance),
+                           reply, reply_moves))
+        scored.sort(key=lambda row: row[0])
+        return [(reply, reply_moves) for _, reply, reply_moves in scored]
+
+    def forced(board, remaining, setup_remaining):
+        nonlocal work, setup_rejections
+        checkpoint()
+        work += 1
+        if board.me is None:
+            return True
+        if remaining == 0:
+            return False
+        state = key(board, remaining, setup_remaining)
+        if state in memo:
+            return memo[state]
+        all_actions = legal_moves(board, board.me) or candidate_moves(board, board.me)
+        opponents, replies = reply_rows(board)
+        actions = strongest_safety_actions(board, all_actions, opponents, replies)
+        if len(actions) > 1 and setup_remaining == 0:
+            setup_rejections += 1
+            memo[state] = False
+            return False
+        candidates = ordered_replies(board, actions or all_actions,
+                                     opponents, replies)
+        if not actions:
+            if not candidates:
+                memo[state] = False
+                return False
+            policy[state] = {"opponent_moves": dict(candidates[0][1]),
+                             "all_actions": list(all_actions),
+                             "searched_actions": []}
+            memo[state] = True
+            return True
+        next_setup = (setup_remaining - 1
+                      if len(actions) > 1 else setup_remaining)
+        for _, reply_moves in candidates:
+            checkpoint()
+            defeats_all = True
+            for red, _ in actions:
+                moves = dict(reply_moves)
+                moves[board.me_id] = red
+                if not forced(next_game_turn(board, moves), remaining - 1,
+                              next_setup):
+                    defeats_all = False
+                    break
+            if defeats_all:
+                policy[state] = {"opponent_moves": dict(reply_moves),
+                                 "all_actions": list(all_actions),
+                                 "searched_actions": list(actions)}
+                memo[state] = True
+                return True
+        memo[state] = False
+        return False
+
+    def build(board, remaining, setup_remaining, actions, reply_moves):
+        node = {"turn": board.turn, "remaining": remaining,
+                "setup_remaining": setup_remaining,
+                "heads": {s.id: s.head for s in board.snakes},
+                "lengths": {s.id: s.length for s in board.snakes},
+                "opponent_moves": dict(reply_moves), "red_responses": {}}
+        next_setup = (setup_remaining - 1
+                      if len(actions) > 1 else setup_remaining)
+        for red, _ in actions:
+            moves = dict(reply_moves)
+            moves[board.me_id] = red
+            ng = next_game_turn(board, moves)
+            edge = {"moves": moves, "red_survives": ng.me is not None}
+            if ng.me is None:
+                edge["terminal"] = "RED eliminated"
+                edge["eliminated"] = ng.eliminated
+            elif remaining - 1 == 0:
+                edge["terminal"] = "horizon reached"
+            else:
+                state = key(ng, remaining - 1, next_setup)
+                chosen = policy.get(state)
+                if chosen is None:
+                    raise AssertionError("Bounded setup policy missing child state")
+                edge["child"] = build(ng, remaining - 1, next_setup,
+                                      chosen["searched_actions"],
+                                      chosen["opponent_moves"])
+            node["red_responses"][red] = edge
+        return node
+
+    try:
+        root_actions = [(direction, root[direction])]
+        opponents, replies = reply_rows(g)
+        value = False
+        for _, reply_moves in ordered_replies(g, root_actions, opponents, replies):
+            checkpoint()
+            moves = dict(reply_moves)
+            moves[g.me_id] = direction
+            if forced(next_game_turn(g, moves), depth - 1, setup_turns):
+                value = True
+                root_reply = dict(reply_moves)
+                break
+    except SearchBudgetExceeded as exc:
+        return {"status": "UNKNOWN", "reason": str(exc), "work": work,
+                "setup_rejections": setup_rejections,
+                "viability_evaluations": viability_evaluations,
+                "viability_transitions": viability_transitions,
+                "ordering_evaluations": ordering_evaluations,
+                "ordering_transitions": ordering_transitions,
+                "elapsed_seconds": time.perf_counter() - start}
+    certificate = (build(g, depth, setup_turns, root_actions, root_reply)
+                   if capture_certificate and value else None)
+    return {"status": ("APPROX_BOUNDED_SETUP_FORCED_LOSS" if value
+                       else "APPROX_NO_BOUNDED_SETUP_PROOF"),
+            "work": work, "memo_entries": len(memo),
+            "policy_states": len(policy), "certificate": certificate,
+            "setup_rejections": setup_rejections,
+            "viability_evaluations": viability_evaluations,
+            "viability_transitions": viability_transitions,
+            "ordering_evaluations": ordering_evaluations,
+            "ordering_transitions": ordering_transitions,
+            "elapsed_seconds": time.perf_counter() - start}
+
+
+def future_threat_candidates(g, forced_steps, adjacency=1):
+    """Conservative geometric candidates during a forced RED prefix.
+
+    Both heads may move one cell per turn, so distance can close by at most
+    two per turn. Obstacles are ignored intentionally: this is a broad candidate
+    selector, not a proof. Length is not filtered: shorter leaders may suppress.
+    """
+    if not isinstance(forced_steps, int) or forced_steps < 0:
+        raise ValueError("forced_steps must be a nonnegative integer")
+    if g.me is None:
+        return []
+    mx, my = g.me.head
+    reach = 2 * forced_steps + adjacency
+    return sorted([s for s in g.others
+                   if abs(s.head[0] - mx) + abs(s.head[1] - my) <= reach],
+                  key=lambda s: (abs(s.head[0] - mx) +
+                                 abs(s.head[1] - my), -s.length, s.id))
+
+
+# FUTURE_THREAT_TEST_VERSION = 2
+def run_future_threat_candidate_tests():
+    """Turn-66 and synthetic shorter-leader candidate checks."""
+    full, selected, _ = turn66_selected_yellow_boards()
+    candidates = future_threat_candidates(full, 4)
+    ids = {s.id for s in candidates}
+    assert selected.id in ids
+    assert "mark_snake_test BLUE" in ids
+    assert "mark_snake_test GREEN" not in ids  # distance 10; reach bound is 9
+    assert "mark_snake_test YELLOW" in ids
+    snakes = [
+        {"id": "RED", "name": "RED", "health": 100,
+         "body": [(0, 0), (0, 1), (0, 2), (0, 3)]},
+        {"id": "SHORT", "name": "SHORT", "health": 100,
+         "body": [(4, 4), (4, 5)]},
+        {"id": "FAR", "name": "FAR", "health": 100,
+         "body": [(10, 10), (10, 9)]}]
+    g = init_game({"game": {"id": "future-threat-test"}, "turn": 0,
+                   "you": snakes[0], "board": {"width": 11, "height": 11,
+                   "snakes": snakes, "food": []}})
+    assert [s.id for s in future_threat_candidates(g, 4)] == ["SHORT"]
+    print("Future threat candidate assertions passed")
+
+
+def run_turn66_bounded_setup_tests():
+    """Verify setup limits and RED/YELLOW isolation."""
+    full, selected, g = turn66_selected_yellow_boards()
+    assert len(full.others) == 3 and selected.name.endswith("YELLOW")
+    assert len(g.others) == 1 and g.others[0].id == selected.id
+    result = focused_bounded_setup_forced_loss(
+        g, "up", depth=2, setup_turns=0, time_limit=float("inf"),
+        branch_ids={selected.id})
+    assert result["status"] == "APPROX_NO_BOUNDED_SETUP_PROOF"
+    print("Turn 66 bounded setup assertions passed")
+
+
+def run_turn66_multi_threat_comparison(forced_steps=4, depth=13,
+                                       choice_budget=2, time_limit=10.0,
+                                       node_limit=5000000):
+    """OFFLINE separate proof per reachable threat candidate."""
+    full, _, _ = turn66_selected_yellow_boards()
+    candidates = future_threat_candidates(full, forced_steps)
+    rows = []
+    print("TURN 66 MULTI-THREAT CANDIDATES", {
+        "forced_steps": forced_steps,
+        "candidates": [{"id": s.id, "length": s.length, "head": s.head}
+                       for s in candidates]})
+    for threat in candidates:
+        record = dict(TURN66_YELLOW_SUPPRESS)
+        record["others"] = [s for s in record["others"]
+                            if s["id"] == threat.id]
+        g = init_game(init_from_log(record))
+        result = focused_bounded_setup_forced_loss(
+            g, "up", depth, choice_budget, time_limit, node_limit,
+            {threat.id}, False)
+        row = {"threat": threat.id, "length": threat.length,
+               "depth": depth, "choice_budget": choice_budget,
+               "status": result["status"], "work": result.get("work"),
+               "setup_rejections": result.get("setup_rejections"),
+               "viability_transitions": result.get("viability_transitions"),
+               "elapsed_seconds": result.get("elapsed_seconds")}
+        rows.append(row)
+        print("TURN 66 THREAT PROOF", row)
+    return rows
+
+
+def run_turn66_bounded_setup_comparison(depths=(12, 13),
+                                        setup_limits=(1, 2),
+                                        time_limit=10.0,
+                                        node_limit=5000000):
+    """OFFLINE conservative RED/YELLOW forced-route comparison."""
+    full, selected, g = turn66_selected_yellow_boards()
+    print("TURN 66 BOUNDED SETUP COMPARISON", {
+        "selected_from_full": selected.id,
+        "isolated_snakes": [s.id for s in g.snakes],
+        "depths": depths, "setup_limits": setup_limits})
+    rows = []
+    for setup in setup_limits:
+        for depth in depths:
+            for ordered in (False, True):
+                result = focused_bounded_setup_forced_loss(
+                    g, "up", depth, setup, time_limit, node_limit,
+                    {selected.id}, ordered)
+                row = {"choice_budget": setup, "depth": depth,
+                       "ordered": ordered, "status": result["status"],
+                       "work": result.get("work"),
+                       "setup_rejections": result.get("setup_rejections"),
+                       "viability_transitions": result.get("viability_transitions"),
+                       "ordering_transitions": result.get("ordering_transitions"),
+                       "elapsed_seconds": result.get("elapsed_seconds")}
+                rows.append(row)
+                print("TURN 66 BOUNDED SETUP", row)
+    proof_case = next((r for r in rows if r["status"] ==
+                       "APPROX_BOUNDED_SETUP_FORCED_LOSS"), None)
+    proof = None
+    if proof_case is not None:
+        proof = focused_bounded_setup_forced_loss(
+            g, "up", proof_case["depth"], proof_case["choice_budget"],
+            time_limit, node_limit, {selected.id}, proof_case["ordered"], True)
+        flat = summarize_uniform_certificate(proof["certificate"])
+        print("TURN 66 BOUNDED SETUP CERTIFICATE SUMMARY", {
+            "choice_budget": proof_case["choice_budget"],
+            "depth": proof_case["depth"], "ordered": proof_case["ordered"],
+            "status": proof["status"], "work": proof["work"],
+            "policy_states": proof["policy_states"],
+            "certificate_rows": len(flat),
+            "elapsed_seconds": proof["elapsed_seconds"]})
+        for row in flat:
+            print("TURN 66 BOUNDED SETUP POLICY NODE", row)
+    return {"rows": rows, "proof": proof}
+
+
+def run_turn66_yellow_suppress_comparison(depths=(11, 12, 13),
+                                           time_limit=10.0,
+                                           node_limit=5000000):
+    """OFFLINE two-stage YELLOW-only proof search after RED-up.
+
+    Stage 1 selects YELLOW while BLUE and GREEN remain on the full board.
+    Stage 2 removes all non-selected opponents and searches only RED/YELLOW.
+    No suppression route is encoded; generic ordering must discover one.
+    """
+    full, selected, g = turn66_selected_yellow_boards()
+    print("TURN 66 FULL-BOARD AUTO FOCUS", {
+        "focus": selected.id, "head": selected.head,
+        "length": selected.length,
+        "other_heads": {s.id: s.head for s in full.others}})
+    print("TURN 66 ISOLATED SEARCH", {
+        "snakes": [s.id for s in g.snakes], "direction": "up",
+        "depths": depths, "time_limit": time_limit,
+        "node_limit": node_limit, "no_new_food": True})
+    rows = []
+    for depth in depths:
+        baseline = focused_uniform_forced_loss(
+            g, "up", depth, time_limit, node_limit, {selected.id})
+        ordered = focused_uniform_forced_loss_ordered(
+            g, "up", depth, time_limit, node_limit, {selected.id})
+        row = {"depth": depth, "direction": "up", "focus": selected.id,
+               "baseline_status": baseline["status"],
+               "baseline_work": baseline.get("work"),
+               "baseline_seconds": baseline.get("elapsed_seconds"),
+               "ordered_status": ordered["status"],
+               "ordered_work": ordered.get("work"),
+               "ordered_seconds": ordered.get("elapsed_seconds"),
+               "ordering_evaluations": ordered.get("ordering_evaluations"),
+               "ordering_transitions": ordered.get("ordering_transitions")}
+        rows.append(row)
+        print("TURN 66 YELLOW-ONLY SEARCH", row)
+
+    proof_depth = next((row["depth"] for row in rows
+                        if row["ordered_status"] ==
+                        "APPROX_UNIFORM_FORCED_LOSS"), None)
+    proof = None
+    if proof_depth is None:
+        print("TURN 66 YELLOW-ONLY CERTIFICATE",
+              {"status": "NO_ORDERED_PROOF", "depths": depths})
+    else:
+        proof = focused_uniform_forced_loss_ordered(
+            g, "up", proof_depth, time_limit, node_limit, {selected.id}, True)
+        flat = summarize_uniform_certificate(proof["certificate"])
+        print("TURN 66 YELLOW-ONLY CERTIFICATE SUMMARY", {
+            "depth": proof_depth, "status": proof["status"],
+            "work": proof["work"], "policy_states": proof["policy_states"],
+            "certificate_rows": len(flat),
+            "elapsed_seconds": proof["elapsed_seconds"]})
+        for row in flat:
+            print("TURN 66 YELLOW-ONLY POLICY NODE", row)
+    return {"selected_focus": selected.id, "rows": rows, "proof": proof}
+
+
+def run_live_suppress_veto_tests():
+    """Live wrapper regression: new positive/control plus old controls."""
+    g = init_game(init_from_log(TURN126_BLUE_SUPPRESS))
+    veto, rows = live_suppress_forced_losses(
+        g, ["right", "up"], time.perf_counter() + MOVE_TIME_LIMIT)
+    assert veto == {"right"}
+    assert any(r["direction"] == "right" and r["status"] ==
+               "APPROX_BOUNDED_SETUP_FORCED_LOSS" for r in rows)
+    g = init_game(init_from_log(TURN58_ORDERING_CONTROL))
+    veto, _ = live_suppress_forced_losses(
+        g, ["right", "down"], time.perf_counter() + MOVE_TIME_LIMIT)
+    assert not veto
+    opening = init_game(init_from_log({
+        "id": "center-skip", "turn": 0,
+        "me": {"id": "RED", "name": "RED", "health": 100,
+               "body": [(5, 5), (5, 4), (5, 3)]},
+        "others": [{"id": "BLUE", "name": "BLUE", "health": 100,
+                    "body": [(9, 5), (9, 4), (9, 3)]}], "food": []}))
+    veto, rows = live_suppress_forced_losses(
+        opening, ["right", "left", "up"],
+        time.perf_counter() + MOVE_TIME_LIMIT)
+    assert not veto and not rows  # turn 0 must skip suppress
+    opening.turn = 1
+    _, rows = live_suppress_forced_losses(
+        opening, ["right", "left", "up"],
+        time.perf_counter() + MOVE_TIME_LIMIT)
+    assert rows  # interior non-opening positions must remain eligible
+    print("Live suppress veto assertions passed")
+
+
+def bounded_setup_validation_cases():
+    """Two known suppress losses plus established non-loss controls."""
+    cases = ordered_validation_cases()
+    # Remove the old turn-90-right control: it is a depth-9 gamble and not
+    # needed for the fixed bounded-setup precision check.
+    cases = [c for c in cases if c["name"] != "turn90-right-control"]
+    cases.append({"name": "turn66-up-candidate",
+                  "record": TURN66_YELLOW_SUPPRESS, "direction": "up",
+                  "expected_forced_loss": True,
+                  "source": "YELLOW suppress positive"})
+    cases.extend([
+        {"name": "turn126-right-candidate",
+         "record": TURN126_BLUE_SUPPRESS, "direction": "right",
+         "expected_forced_loss": True,
+         "source": "independent BLUE bottom-border suppress positive"},
+        {"name": "turn126-up-control",
+         "record": TURN126_BLUE_SUPPRESS, "direction": "up",
+         "expected_forced_loss": False,
+         "source": "same-position alternative control"},
+    ])
+    return cases
+
+
+def bounded_setup_validation_summary(rows, label, choice_budget):
+    completed = [r for r in rows if r["status"] != "UNKNOWN"]
+    predicted = [r for r in completed if r["predicted_forced_loss"]]
+    positives = [r for r in rows if r["expected_forced_loss"]]
+    tp = sum(r["expected_forced_loss"] and r["predicted_forced_loss"]
+             for r in completed)
+    fp = sum(not r["expected_forced_loss"] and r["predicted_forced_loss"]
+             for r in completed)
+    fn = sum(r["expected_forced_loss"] and not r["predicted_forced_loss"]
+             for r in completed)
+    correct = sum(r["expected_forced_loss"] == r["predicted_forced_loss"]
+                  for r in completed)
+    times = [r["elapsed_seconds"] for r in rows]
+    works = [r["work"] for r in rows if r["work"] is not None]
+    return {"budget": label, "choice_budget": choice_budget,
+            "cases": len(rows), "expected_positive": len(positives),
+            "completed": len(completed), "unknown": len(rows)-len(completed),
+            "coverage": len(completed)/len(rows),
+            "true_positive": tp, "false_positive": fp, "false_negative": fn,
+            "precision": None if not predicted else tp/len(predicted),
+            "recall": None if not positives else tp/len(positives),
+            "accuracy_completed": None if not completed else correct/len(completed),
+            "seconds_min": min(times), "seconds_mean": sum(times)/len(times),
+            "seconds_max": max(times),
+            "work_min": min(works), "work_mean": sum(works)/len(works),
+            "work_max": max(works),
+            "false_positive_cases": [r["name"] for r in rows
+                                     if r["predicted_forced_loss"] and
+                                     not r["expected_forced_loss"]],
+            "false_negative_cases": [r["name"] for r in completed
+                                     if r["expected_forced_loss"] and
+                                     not r["predicted_forced_loss"]],
+            "unknown_cases": [r["name"] for r in rows
+                              if r["status"] == "UNKNOWN"]}
+
+
+def run_bounded_setup_historical_validation(depth=13, choice_budgets=(1, 2),
+                                            reference_time=2.0, live_time=0.35,
+                                            node_limit=5000000):
+    """OFFLINE bounded-choice validation on fixed positives and controls."""
+    cases = bounded_setup_validation_cases()
+    output = {}
+    print("BOUNDED SETUP HISTORICAL VALIDATION; no new food")
+    for choice_budget in choice_budgets:
+        for label, budget in (("reference", reference_time),
+                              ("live_budget", live_time)):
+            rows = []
+            for case in cases:
+                full = init_game(init_from_log(case["record"]))
+                candidates = future_threat_candidates(full, 4)
+                threat_rows = []
+                for threat in candidates:
+                    record = dict(case["record"])
+                    record["others"] = [s for s in record["others"]
+                                        if s["id"] == threat.id]
+                    g = init_game(init_from_log(record))
+                    result = focused_bounded_setup_forced_loss(
+                        g, case["direction"], depth, choice_budget, budget,
+                        node_limit, {threat.id}, True)
+                    threat_rows.append({"threat": threat.id,
+                                        "status": result["status"],
+                                        "work": result.get("work"),
+                                        "seconds": result.get("elapsed_seconds")})
+                completed_loss = next((r for r in threat_rows if r["status"] ==
+                                       "APPROX_BOUNDED_SETUP_FORCED_LOSS"), None)
+                unknown = any(r["status"] == "UNKNOWN" for r in threat_rows)
+                status = ("APPROX_BOUNDED_SETUP_FORCED_LOSS" if completed_loss
+                          else "UNKNOWN" if unknown
+                          else "APPROX_NO_BOUNDED_SETUP_PROOF")
+                row = {"budget": label, "choice_budget": choice_budget,
+                       "name": case["name"], "turn": full.turn,
+                       "direction": case["direction"],
+                       "expected_forced_loss": case["expected_forced_loss"],
+                       "status": status,
+                       "predicted_forced_loss": completed_loss is not None,
+                       "winning_threat": (None if completed_loss is None else
+                                          completed_loss["threat"]),
+                       "threat_results": threat_rows,
+                       "work": sum(r["work"] or 0 for r in threat_rows),
+                       "elapsed_seconds": sum(r["seconds"] or 0
+                                              for r in threat_rows)}
+                rows.append(row)
+                print("BOUNDED VALIDATION CASE", row)
+            summary = bounded_setup_validation_summary(rows, label, choice_budget)
+            print("BOUNDED VALIDATION SUMMARY", summary)
+            output[(choice_budget, label)] = {"rows": rows, "summary": summary}
+    return output
+
+
+def run_bounded_setup_historical_validation_tests():
+    cases = bounded_setup_validation_cases()
+    positives = {c["name"] for c in cases if c["expected_forced_loss"]}
+    assert positives == {"turn91-right-candidate", "turn66-up-candidate",
+                         "turn126-right-candidate"}
+    assert len(cases) == 10
+    print("Bounded setup historical validation assertions passed")
+
+
+def run_ordered_historical_validation(depth=8, reference_time=2.0,
+                                      live_time=0.35, node_limit=1000000):
+    """OFFLINE automatic-focus validation; never called by live chooser."""
+    cases = ordered_validation_cases()
+    all_rows = {}
+    print("ORDERED HISTORICAL VALIDATION; approximate reduced model")
+    print("Depth", depth, "automatic focus; no new food")
+    for label, budget in (("reference", reference_time),
+                          ("live_budget", live_time)):
+        rows = []
+        for case in cases:
+            g = init_game(init_from_log(case["record"]))
+            focus = select_focused_opponent(g)
+            result = focused_uniform_forced_loss_ordered(
+                g, case["direction"], depth, budget, node_limit,
+                set() if focus is None else {focus.id})
+            row = {"budget": label, "name": case["name"],
+                   "turn": g.turn, "direction": case["direction"],
+                   "source": case["source"],
+                   "focus": None if focus is None else focus.id,
+                   "expected_forced_loss": case["expected_forced_loss"],
+                   "status": result["status"],
+                   "predicted_forced_loss": (
+                       result["status"] == "APPROX_UNIFORM_FORCED_LOSS"),
+                   "work": result.get("work"),
+                   "ordering_evaluations": result.get("ordering_evaluations"),
+                   "ordering_transitions": result.get("ordering_transitions"),
+                   "elapsed_seconds": result.get("elapsed_seconds")}
+            rows.append(row)
+            print("ORDERED VALIDATION CASE", row)
+        summary = ordered_validation_summary(rows, label)
+        print("ORDERED VALIDATION SUMMARY", summary)
+        all_rows[label] = {"rows": rows, "summary": summary}
+    return all_rows
+
+
+def run_ordered_historical_validation_tests():
+    """Verify fixed labels, automatic focus, and candidate derivation."""
+    cases = ordered_validation_cases()
+    positives = [c for c in cases if c["expected_forced_loss"]]
+    assert len(cases) == 8 and len(positives) == 1
+    assert positives[0]["name"] == "turn91-right-candidate"
+    focus = select_focused_opponent(init_game(init_from_log(positives[0]["record"])))
+    assert focus.name.endswith("BLUE")
+    summary = ordered_validation_summary([
+        {"name": "positive", "expected_forced_loss": True,
+         "status": "APPROX_UNIFORM_FORCED_LOSS",
+         "predicted_forced_loss": True, "work": 1, "elapsed_seconds": 0.001},
+        {"name": "negative", "expected_forced_loss": False,
+         "status": "APPROX_NO_UNIFORM_LOSS_PROOF",
+         "predicted_forced_loss": False, "work": 2, "elapsed_seconds": 0.002}],
+        "test")
+    assert summary["precision"] == summary["recall"] == 1
+    assert summary["coverage"] == summary["accuracy_completed"] == 1
+    print("Ordered historical validation assertions passed")
+
+
+def run_ordered_policy_certificate_and_controls(depth=8, time_limit=2.0,
+                                                node_limit=1000000):
+    """OFFLINE certificate plus turn-58 and good-action controls."""
+    record = next(r for r in BORDER_ESCAPE_HISTORY if r["turn"] == 91)
+    g = init_game(init_from_log(record))
+    blue = next(s for s in g.others if s.name.endswith("BLUE"))
+    proof = focused_uniform_forced_loss_ordered(
+        g, "right", depth, time_limit, node_limit, {blue.id}, True)
+    if proof["status"] != "APPROX_UNIFORM_FORCED_LOSS":
+        raise AssertionError("Turn 91 right must reproduce the ordered proof")
+    certificate_rows = summarize_uniform_certificate(proof["certificate"])
+    print("ORDERED POLICY SUMMARY", {
+        "turn": 91, "direction": "right", "depth": depth,
+        "status": proof["status"], "work": proof["work"],
+        "policy_states": proof["policy_states"],
+        "certificate_rows": len(certificate_rows),
+        "elapsed_seconds": proof["elapsed_seconds"]})
+    for row in certificate_rows:
+        print("ORDERED POLICY NODE", row)
+
+    controls = []
+    for turn, direction in ((89, "left"), (89, "down"), (90, "left"),
+                            (91, "up")):
+        board = init_game(init_from_log(
+            next(r for r in BORDER_ESCAPE_HISTORY if r["turn"] == turn)))
+        focus = next(s for s in board.others if s.name.endswith("BLUE"))
+        result = focused_uniform_forced_loss_ordered(
+            board, direction, depth, time_limit, node_limit, {focus.id})
+        row = {"case": "good_or_gamble_control", "turn": turn,
+               "direction": direction, "focus": focus.id,
+               "status": result["status"], "work": result.get("work"),
+               "elapsed_seconds": result.get("elapsed_seconds")}
+        controls.append(row)
+        print("ORDERED CONTROL", row)
+
+    board = init_game(init_from_log(TURN58_ORDERING_CONTROL))
+    focus = next(s for s in board.others if s.id == "GREEN")
+    for direction in ("right", "down"):
+        result = focused_uniform_forced_loss_ordered(
+            board, direction, 9, time_limit, node_limit, {focus.id})
+        row = {"case": "turn58_control", "turn": 58,
+               "direction": direction, "focus": focus.id,
+               "status": result["status"], "work": result.get("work"),
+               "elapsed_seconds": result.get("elapsed_seconds")}
+        controls.append(row)
+        print("ORDERED CONTROL", row)
+    return {"proof": proof, "certificate_rows": certificate_rows,
+            "controls": controls}
+
+
+def run_ordered_policy_certificate_tests():
+    """Small structural tests without the full validation run."""
+    record = next(r for r in BORDER_ESCAPE_HISTORY if r["turn"] == 91)
+    g = init_game(init_from_log(record))
+    blue = next(s for s in g.others if s.name.endswith("BLUE"))
+    proof = focused_uniform_forced_loss_ordered(
+        g, "right", 8, float("inf"), 1000000, {blue.id}, True)
+    rows = summarize_uniform_certificate(proof["certificate"])
+    assert proof["status"] == "APPROX_UNIFORM_FORCED_LOSS"
+    assert proof["work"] == 14 and proof["policy_states"] > 0
+    assert rows and rows[0]["heads"][g.me_id] == (3, 0)
+    assert any(row.get("terminal") == "RED eliminated" for row in rows)
+    print("Ordered policy certificate assertions passed")
+
+
+def run_turn91_uniform_ordering_comparison(depths=(7, 8, 9), trials=3,
+                                           time_limit=2.0,
+                                           node_limit=1000000):
+    """OFFLINE ordered-versus-baseline uniform proof at turn 91."""
+    record = next(r for r in BORDER_ESCAPE_HISTORY if r["turn"] == 91)
+    g = init_game(init_from_log(record))
+    blue = next(s for s in g.others if s.name.endswith("BLUE"))
+    rows = []
+    print("TURN 91 UNIFORM ORDERING COMPARISON; BLUE-focused reduced model")
+    for depth in depths:
+        for direction in ("right", "up"):
+            for trial in range(1, trials + 1):
+                baseline = focused_uniform_forced_loss(
+                    g, direction, depth, time_limit, node_limit, {blue.id})
+                ordered = focused_uniform_forced_loss_ordered(
+                    g, direction, depth, time_limit, node_limit, {blue.id})
+                row = {"depth": depth, "direction": direction, "trial": trial,
+                       "baseline_status": baseline["status"],
+                       "baseline_work": baseline.get("work"),
+                       "baseline_seconds": baseline.get("elapsed_seconds"),
+                       "ordered_status": ordered["status"],
+                       "ordered_work": ordered.get("work"),
+                       "ordered_seconds": ordered.get("elapsed_seconds"),
+                       "ordering_evaluations": ordered.get("ordering_evaluations"),
+                       "ordering_transitions": ordered.get("ordering_transitions")}
+                rows.append(row)
+                print("UNIFORM ORDERING", row)
+    return rows
+
+
+def run_turn91_uniform_ordering_tests():
+    """Small generic ordering checks; no border-specific assumptions."""
+    record = next(r for r in BORDER_ESCAPE_HISTORY if r["turn"] == 91)
+    g = init_game(init_from_log(record))
+    blue = next(s for s in g.others if s.name.endswith("BLUE"))
+    result = focused_uniform_forced_loss_ordered(
+        g, "right", depth=1, time_limit=float("inf"), branch_ids={blue.id})
+    assert result["status"] == "APPROX_NO_UNIFORM_LOSS_PROOF"
+    assert result["ordering_evaluations"] > 0
+    assert result["ordering_transitions"] > 0
+    print("Turn 91 uniform ordering assertions passed")
+
+
 def classify_focused_action(g, direction, depth=9, time_limit=0.35,
                             node_limit=1000000, branch_ids=None):
     """Classify robust survival, uniform loss, gamble, or unknown."""
@@ -2520,6 +3742,69 @@ def run_focused_search_benchmark(max_depth=10, time_limit=10.0,
         max_depth=max_depth, time_limit=time_limit, node_limit=node_limit,
         use_ordering=True, use_depth_bounds=False,
         branch_opponent_ids={"mark_snake_test GREEN"})
+
+
+def run_turn91_focused_comparison(depths=(3, 5, 7, 9), time_limit=2.0,
+                                  node_limit=1000000, explanation_time=10.0):
+    """OFFLINE BLUE-focused comparison for turns 89-91.
+
+    Reuses the established reduced-model classifier. Other opponents follow
+    deterministic first-basic moves. No new food spawns. Results are modeled
+    classifications, not probabilities or full-game optimal-play proofs.
+    """
+    records = [r for r in BORDER_ESCAPE_HISTORY if r["turn"] in (89, 90, 91)]
+    rows = []
+    print("TURN 89-91 BLUE-FOCUSED COMPARISON; approximate reduced model")
+    print("Depths", depths, "independent budget", time_limit,
+          "seconds per action; no new food")
+    for record in records:
+        g = init_game(init_from_log(record))
+        blue = next(s for s in g.others if s.name.endswith("BLUE"))
+        directions = [name for name, _ in
+                      (legal_moves(g, g.me) or candidate_moves(g, g.me))]
+        for depth in depths:
+            for direction in directions:
+                result = classify_focused_action(
+                    g, direction, depth, time_limit, node_limit, {blue.id})
+                robust = result["robust"] or {}
+                uniform = result["uniform"] or {}
+                row = {"turn": g.turn, "live": record.get("next_move"),
+                       "focus": blue.id, "direction": direction,
+                       "depth": depth,
+                       "classification": result["classification"],
+                       "robust_status": robust.get("status"),
+                       "robust_work": robust.get("work"),
+                       "uniform_status": uniform.get("status"),
+                       "uniform_work": uniform.get("work"),
+                       "elapsed_seconds": result["elapsed_seconds"]}
+                rows.append(row)
+                print("FOCUSED CLASSIFICATION", row)
+    turn91 = init_game(init_from_log(records[-1]))
+    blue = next(s for s in turn91.others if s.name.endswith("BLUE"))
+    explanations = {}
+    for direction in ("right", "up"):
+        result = explain_focused_move(
+            turn91, direction, max(depths), explanation_time, node_limit, {blue.id})
+        explanations[direction] = result
+        summary = {"direction": direction, "status": result["status"],
+                   "work": result.get("work"),
+                   "elapsed_seconds": result.get("elapsed_seconds"),
+                   "certificate_nodes": len(result.get("certificate", {}))}
+        print("TURN 91 EXPLANATION SUMMARY", summary)
+        path = result.get("representative_path", [])
+        print("TURN 91 REPRESENTATIVE PATH", direction, path)
+    return {"rows": rows, "explanations": explanations}
+
+
+def run_turn91_focused_comparison_tests():
+    """Validate experiment scoping without running deep search."""
+    records = [r for r in BORDER_ESCAPE_HISTORY if r["turn"] in (89, 90, 91)]
+    assert [r["turn"] for r in records] == [89, 90, 91]
+    g = init_game(init_from_log(records[-1]))
+    blue = next(s for s in g.others if s.name.endswith("BLUE"))
+    assert blue.id == "mark_snake_test BLUE"
+    assert {name for name, _ in legal_moves(g, g.me)} == {"right", "up"}
+    print("Turn 91 focused comparison assertions passed")
 
 
 def explain_focused_move(g, direction, depth=9, time_limit=10.0,
@@ -2945,6 +4230,16 @@ if __name__ == "__main__":
     # run_evaluation_tests()
     # run_chooser_tests()
     # run_continuation_tests()
+    # run_border_escape_tests()  # turn-91 offline regression
+    # run_turn91_focused_comparison_tests()  # scope only; no deep search
+    # run_turn91_uniform_ordering_tests()  # generic ordering checks
+    # run_ordered_policy_certificate_tests()  # capture verified policy
+    # run_ordered_historical_validation_tests()  # fixed-case harness
+    # run_turn66_yellow_suppress_tests()  # automatic focus and board modes
+    # run_turn66_bounded_setup_tests()  # conservative forced-route semantics
+    # run_future_threat_candidate_tests()  # forced-prefix threat reach
+    # run_bounded_setup_historical_validation_tests()  # fixed labels
+    # run_live_suppress_veto_tests()  # live wrapper regression
     # run_deadline_tests()
     # run_search_tests()
     # run_focused_search_tests()
@@ -2967,6 +4262,15 @@ if __name__ == "__main__":
     # run_full_history_all_actions_hint_validation()  # every RED action
     # run_search_benchmark()  # OFFLINE ONLY; not the 350 ms live chooser
     # run_search_profile()  # Run INSTEAD of benchmark when collecting a profile
+    # run_border_escape_history()  # offline turns 82-91 diagnostic
+    # run_turn91_focused_comparison()  # offline BLUE-focused depths 3/5/7/9
+    # run_turn91_uniform_ordering_comparison()  # ordered vs baseline proof
+    # run_ordered_policy_certificate_and_controls()  # certificate + controls
+    # run_ordered_historical_validation()  # automatic-focus reference/live budgets
+    # run_turn66_yellow_suppress_comparison()  # full/no-BLUE/YELLOW-only
+    # run_turn66_bounded_setup_comparison()  # setup limits 1/2
+    # run_turn66_multi_threat_comparison()  # each reachable opponent separately
+    # run_bounded_setup_historical_validation()  # turn66/91/126 + controls
     # Replace this dictionary with one turn from our me/others log.
     turn_log = {'id': '1f7b6e6f-1ad1-4fd7-9a7f-29d7425408a7', 'turn': 0, 'me': {'name': 'mark_snake_test RED', 'health': 100, 'length': 3, 'body': [(5, 1), (5, 1), (5, 1)]}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 100, 'length': 3, 'body': [(9, 5), (9, 5), (9, 5)]}, {'name': 'mark_snake_test GREEN', 'health': 100, 'length': 3, 'body': [(5, 9), (5, 9), (5, 9)]}, {'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 3, 'body': [(1, 5), (1, 5), (1, 5)]}], 'food': [(4, 0), (10, 4), (6, 10), (0, 6), (5, 5)], 'module': 'territory new', 'decision_path': ['1vn', 'allowed moves: [(6, 1), (4, 1), (5, 2), (5, 0)]', "opponent probability mark_snake_test BLUE: [((10, 5), 22, '-', '-', 0.88, 0.23), ((8, 5), 24, '-', '-', 0.96, 0.253), ((9, 6), 25, '-', '-', 1.0, 0.265), ((9, 4), 24, '-', '-', 0.96, 0.253)]; cutoff 1.5; LIVE SHARED TOP1", "opponent probability mark_snake_test GREEN: [((6, 9), 21, '-', '-', 1.0, 0.264), ((4, 9), 21, '-', '-', 1.0, 0.264), ((5, 10), 19, '-', '-', 0.9, 0.236), ((5, 8), 19, '-', '-', 0.9, 0.236)]; cutoff 1.5; LIVE SHARED TOP1", "opponent probability mark_snake_test YELLOW: [((2, 5), 24, '-', '-', 0.96, 0.253), ((0, 5), 22, '-', '-', 0.88, 0.23), ((1, 6), 25, '-', '-', 1.0, 0.265), ((1, 4), 24, '-', '-', 0.96, 0.253)]; cutoff 1.5; LIVE SHARED TOP1"], 'next_coord': (5, 0), 'next_move': 'down', 'time': '0.019s'}
     game_state = init_from_log(turn_log)
