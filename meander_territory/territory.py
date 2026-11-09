@@ -1,10 +1,11 @@
-# BS v3 - one-turn survival-first chooser with static territory.
+# BS v3 - one-turn survival-first chooser with dynamic territory.
 import time
 from itertools import product
 from collections import deque
+from heapq import heappush, heappop
 from fractions import Fraction
 
-MODULE = "BS v3 one-turn + bounded suppress"
+MODULE = "BS v3 one-turn dynamic + bounded suppress"
 MOVE_TIME_LIMIT = 0.35  # Cooperative computation budget; not a wall-clock guarantee.
 FOOD_SAFETY_MARGIN = 25  # Start preferring reachable food before health becomes critical.
 SUPPRESS_DEPTH = 13
@@ -174,13 +175,14 @@ def urgent_food_distances(g, candidates, deadline=None):
             for name, point in candidates}
 
 
-def select_evaluated_move(evaluation, food_distances=None):
+def select_evaluated_move(evaluation, food_distances=None, danger_penalties=None):
     """Return (direction, policy reason), or (None, reason) if all die.
 
     Survival fraction always ranks first. When food_distances is supplied,
     shorter reachable food distance ranks before territory. Fixed DIRECTIONS
     order breaks exact ties, not dictionary insertion order.
     """
+    danger_penalties = set(danger_penalties or ())
     ordered = [name for name, _ in DIRECTIONS if name in evaluation]
     safe = [name for name in ordered if evaluation[name]["dies"] == 0
             and evaluation[name]["survives"] > 0]
@@ -201,8 +203,9 @@ def select_evaluated_move(evaluation, food_distances=None):
         distance = (None if food_distances is None else food_distances.get(name))
         food_rank = 0 if food_distances is None else (
             -distance if distance is not None else float("-inf"))
-        return (Fraction(row["survives"], row["replies"]), food_rank,
-                row["territory_mean"], row["territory_min"])
+        danger_rank = 0 if name in danger_penalties else 1
+        return (Fraction(row["survives"], row["replies"]), danger_rank,
+                food_rank, row["territory_mean"], row["territory_min"])
     return max(pool, key=key), reason
 
 
@@ -216,41 +219,218 @@ def isolated_threat_game(g, threat):
     return init_game(state)
 
 
-def live_suppress_forced_losses(g, directions, deadline):
-    """Return proven-loss directions and compact diagnostics.
+def double_suppress_trigger(g, direction, deadline):
+    """Cheap one-ply trigger for two longer opponents controlling different exits."""
+    root = dict(legal_moves(g, g.me) or candidate_moves(g, g.me))
+    if direction not in root:
+        return {"triggered": False, "reason": "root direction not modeled",
+                "replies_checked": 0}
+    opponents = list(g.others)
+    choices = [legal_moves(g, s) or candidate_moves(g, s)
+               for s in opponents]
+    checked = 0
+    for reply in product(*choices):
+        if time.perf_counter() >= deadline:
+            return {"triggered": False, "reason": "shared move deadline exhausted",
+                    "replies_checked": checked, "unknown": True}
+        moves = {s.id: move[0] for s, move in zip(opponents, reply)}
+        moves[g.me_id] = direction
+        ng = next_game_turn(g, moves)
+        checked += 1
+        if ng.me is None:
+            continue
+        actions = legal_moves(ng, ng.me)
+        controls = {}
+        for red, point in actions:
+            ids = []
+            for snake in ng.others:
+                if snake.length <= ng.me.length:
+                    continue
+                if any(dst == point for _, dst in legal_moves(ng, snake)):
+                    ids.append(snake.id)
+            if ids:
+                controls[red] = ids
+        uncontrolled = [red for red, _ in actions if red not in controls]
+        controlled = list(controls)
+        for i, left in enumerate(controlled):
+            for right in controlled[i + 1:]:
+                for first in controls[left]:
+                    for second in controls[right]:
+                        if first == second:
+                            continue
+                        return {
+                            "triggered": True,
+                            "reason": "two opponents control different exits",
+                            "replies_checked": checked,
+                            "witness_reply": moves,
+                            "pair": tuple(sorted((first, second))),
+                            "controlled_exits": {left: first, right: second},
+                            "uncontrolled_exits": uncontrolled,
+                            "next_head": ng.me.head}
+    return {"triggered": False, "reason": "no double suppress found",
+            "replies_checked": checked}
 
-    Uses the validated isolated-opponent reduced model. UNKNOWN and incomplete
-    searches never veto. If every supplied safe direction is proven, none is
-    vetoed: live integration requires a remaining one-turn-safe alternative.
+
+def forced_next_move_trigger(g, direction, deadline):
+    """Cheap one-ply trigger: can a reply force RED to one basic next move?"""
+    root = dict(legal_moves(g, g.me) or candidate_moves(g, g.me))
+    if direction not in root:
+        return {"triggered": False, "reason": "root direction not modeled",
+                "replies_checked": 0}
+    opponents = list(g.others)
+    choices = [legal_moves(g, s) or candidate_moves(g, s)
+               for s in opponents]
+    checked = 0
+    for reply in product(*choices):
+        if time.perf_counter() >= deadline:
+            return {"triggered": False, "reason": "shared move deadline exhausted",
+                    "replies_checked": checked, "unknown": True}
+        moves = {s.id: move[0] for s, move in zip(opponents, reply)}
+        moves[g.me_id] = direction
+        ng = next_game_turn(g, moves)
+        checked += 1
+        if ng.me is None:
+            continue
+        actions = legal_moves(ng, ng.me)
+        if len(actions) == 1:
+            return {"triggered": True, "reason": "one basic legal next move",
+                    "replies_checked": checked,
+                    "witness_reply": moves,
+                    "forced_direction": actions[0][0],
+                    "next_head": ng.me.head}
+    return {"triggered": False, "reason": "no forced next move found",
+            "replies_checked": checked}
+
+
+def live_suppress_forced_losses(g, directions, deadline, allow_all_veto=False):
+    """Return proven-loss directions and deadline-monitoring diagnostics.
+
+    Stage 1 uses the validated isolated-opponent model. A separate one-turn
+    pair-control trigger launches pair search. The final full-board stage
+    branches every opponent and uses support-preserving ordering.
+    UNKNOWN and incomplete searches never veto. If every supplied safe
+    direction is proven, none is vetoed: no safe alternative remains.
     """
     if g.turn == 0:
-        return set(), []
+        return set(), set(), []
     ordered = [name for name, _ in DIRECTIONS if name in directions]
     threats = future_threat_candidates(g, SUPPRESS_FORCED_STEPS)
-    proven, rows = set(), []
+    proven, penalty, rows = set(), set(), []
+
+    def monitor(stage, direction, threat, before, result):
+        after = max(0.0, deadline - time.perf_counter())
+        status = result["status"]
+        rows.append({"stage": stage, "direction": direction,
+                     "threat": threat, "status": status,
+                     "reason": result.get("reason"),
+                     "work": result.get("work"),
+                     "seconds": result.get("elapsed_seconds"),
+                     "budget_before": before, "budget_after": after,
+                     "deadline_exhausted": after <= 0.0})
+        return status
+
+    # Cheap first pass: one isolated candidate threat at a time.
     for direction in ordered:
         for threat in threats:
             remaining = deadline - time.perf_counter()
             if remaining <= 0:
-                rows.append({"direction": direction, "threat": threat.id,
-                             "status": "UNKNOWN", "work": None})
+                rows.append({"stage": "isolated", "direction": direction,
+                             "threat": threat.id, "status": "UNKNOWN",
+                             "reason": "shared move deadline exhausted",
+                             "work": None, "seconds": 0.0,
+                             "budget_before": 0.0, "budget_after": 0.0,
+                             "deadline_exhausted": True})
                 break
             isolated = isolated_threat_game(g, threat)
             result = focused_bounded_setup_forced_loss(
                 isolated, direction, SUPPRESS_DEPTH,
                 SUPPRESS_CHOICE_BUDGET, remaining, SUPPRESS_NODE_LIMIT,
                 {threat.id}, True)
-            status = result["status"]
-            rows.append({"direction": direction, "threat": threat.id,
-                         "status": status, "work": result.get("work"),
-                         "seconds": result.get("elapsed_seconds")})
+            status = monitor("isolated", direction, threat.id, remaining, result)
             if status == "APPROX_BOUNDED_SETUP_FORCED_LOSS":
                 proven.add(direction)
                 break
         if time.perf_counter() >= deadline:
             break
-    veto = proven if set(ordered) - proven else set()
-    return veto, rows
+
+    # One-turn pair control is only the trigger; search must prove persistence/loss.
+    for direction in ordered:
+        if direction in proven:
+            continue
+        trigger_before = max(0.0, deadline - time.perf_counter())
+        trigger = double_suppress_trigger(g, direction, deadline)
+        rows.append({"stage": "double_suppress_trigger",
+                     "direction": direction, "threat": trigger.get("pair"),
+                     "status": "POTENTIAL" if trigger["triggered"] else "SKIPPED",
+                     "reason": trigger.get("reason"),
+                     "replies_checked": trigger.get("replies_checked"),
+                     "witness_reply": trigger.get("witness_reply"),
+                     "controlled_exits": trigger.get("controlled_exits"),
+                     "uncontrolled_exits": trigger.get("uncontrolled_exits"),
+                     "budget_before": trigger_before,
+                     "budget_after": max(0.0, deadline - time.perf_counter()),
+                     "deadline_exhausted": time.perf_counter() >= deadline})
+        if not trigger["triggered"]:
+            if trigger.get("unknown"):
+                break
+            continue
+        remaining = deadline - time.perf_counter()
+        if remaining <= 0:
+            break
+        pair = set(trigger["pair"])
+        result = focused_bounded_setup_forced_loss(
+            g, direction, SUPPRESS_DEPTH, SUPPRESS_CHOICE_BUDGET,
+            remaining, SUPPRESS_NODE_LIMIT, pair, True, False, True)
+        status = monitor("double_suppress_pair", direction,
+                         tuple(sorted(pair)), remaining, result)
+        if status == "APPROX_BOUNDED_SETUP_FORCED_LOSS":
+            if allow_all_veto:
+                penalty.add(direction)
+            else:
+                proven.add(direction)
+        if time.perf_counter() >= deadline:
+            break
+
+    # General confinement pass: retain the board and branch every opponent.
+    all_ids = {s.id for s in g.others}
+    for direction in ordered:
+        if direction in proven:
+            continue
+        trigger_before = max(0.0, deadline - time.perf_counter())
+        trigger = forced_next_move_trigger(g, direction, deadline)
+        rows.append({"stage": "full_branch_trigger",
+                     "direction": direction, "threat": "ALL",
+                     "status": "TRIGGERED" if trigger["triggered"] else "SKIPPED",
+                     "reason": trigger.get("reason"),
+                     "replies_checked": trigger.get("replies_checked"),
+                     "witness_reply": trigger.get("witness_reply"),
+                     "forced_direction": trigger.get("forced_direction"),
+                     "budget_before": trigger_before,
+                     "budget_after": max(0.0, deadline - time.perf_counter()),
+                     "deadline_exhausted": time.perf_counter() >= deadline})
+        if not trigger["triggered"]:
+            if trigger.get("unknown"):
+                break
+            continue
+        remaining = deadline - time.perf_counter()
+        if remaining <= 0:
+            rows.append({"stage": "full_branch", "direction": direction,
+                         "threat": "ALL", "status": "UNKNOWN",
+                         "reason": "shared move deadline exhausted",
+                         "work": None, "seconds": 0.0,
+                         "budget_before": 0.0, "budget_after": 0.0,
+                         "deadline_exhausted": True})
+            break
+        result = focused_bounded_setup_forced_loss(
+            g, direction, SUPPRESS_DEPTH, SUPPRESS_CHOICE_BUDGET,
+            remaining, SUPPRESS_NODE_LIMIT, all_ids, True, False, True)
+        status = monitor("full_branch", direction, "ALL", remaining, result)
+        if status == "APPROX_BOUNDED_SETUP_FORCED_LOSS":
+            proven.add(direction)
+        if time.perf_counter() >= deadline:
+            break
+    veto = proven if allow_all_veto or set(ordered) - proven else set()
+    return veto, penalty, rows
 
 
 def choose_move(g, deadline=None):
@@ -278,8 +458,16 @@ def choose_move(g, deadline=None):
         safe_ordered = [name for name, _ in DIRECTIONS
                         if name in safety and safety[name]["dies"] == 0
                         and safety[name]["survives"] > 0]
-        suppress_veto, suppress_rows = (live_suppress_forced_losses(
-            g, safe_ordered, deadline) if len(safe_ordered) > 1 else (set(), []))
+        positive_ordered = [name for name, _ in DIRECTIONS
+                            if name in safety and safety[name]["survives"] > 0]
+        sole_safe_gamble = (len(safe_ordered) == 1 and
+                            any(name not in safe_ordered
+                                for name in positive_ordered))
+        run_suppress = len(safe_ordered) > 1 or sole_safe_gamble
+        suppress_veto, suppress_penalty, suppress_rows = (
+            live_suppress_forced_losses(
+                g, safe_ordered, deadline, allow_all_veto=sole_safe_gamble)
+            if run_suppress else (set(), set(), []))
         if suppress_rows:
             g.decision_path.append(
                 f"bounded suppress checks: {suppress_rows}; veto: {sorted(suppress_veto)}")
@@ -292,8 +480,9 @@ def choose_move(g, deadline=None):
                             food_distances.get(name))
                 food_rank = 0 if food_distances is None else (
                     -distance if distance is not None else float("-inf"))
+                danger_rank = 0 if name in suppress_penalty else 1
                 return (Fraction(safety[name]["survives"],
-                                 safety[name]["replies"]), food_rank)
+                                 safety[name]["replies"]), danger_rank, food_rank)
             direction = max(ordered, key=fallback_key)
             fallback = next(move for move in candidates if move[0] == direction)
         phase = "territory"
@@ -302,7 +491,8 @@ def choose_move(g, deadline=None):
             evaluation = {name: row for name, row in evaluation.items()
                           if name not in suppress_veto}
         check_deadline(deadline)
-        direction, reason = select_evaluated_move(evaluation, food_distances)
+        direction, reason = select_evaluated_move(
+            evaluation, food_distances, suppress_penalty)
         if suppress_veto:
             reason += "; completed bounded suppress forced-loss veto"
     except MoveDeadlineExceeded:
@@ -840,6 +1030,229 @@ def static_territory(g, deadline=None):
             "contested": contested}
 
 
+def body_release_times(g):
+    """Earliest turn each occupied cell becomes free under normal erosion.
+
+    Body index zero is the head. For length L, index i releases at L-i.
+    Overlapping/duplicated segments use the latest release time. This
+    assumes no future food or growth.
+    """
+    release = {}
+    for snake in g.snakes:
+        length = len(snake.body)
+        for index, point in enumerate(snake.body):
+            release[point] = max(release.get(point, 0), length - index)
+    return release
+
+
+def dynamic_territory(g, deadline=None):
+    """Time-aware territory using normal body release times.
+
+    Each snake gets an independent earliest-arrival flood. Entering a
+    currently occupied cell is delayed until its latest body segment
+    releases. The delay represents waiting/meandering and is therefore an
+    optimistic reachability approximation, not a legal route certificate.
+    Current body cells are excluded from territory counts, matching static
+    territory, but released cells may be crossed to reach space beyond them.
+    """
+    ids = [s.id for s in g.snakes]
+    if any(sid is None for sid in ids) or len(set(ids)) != len(ids):
+        raise ValueError("Territory requires unique non-null snake IDs")
+    check_deadline(deadline)
+    release = body_release_times(g)
+    occupied_now = set(release)
+    distances = {}
+    for snake in g.snakes:
+        dist = {snake.head: 0}
+        heap = [(0, snake.head)]
+        while heap:
+            check_deadline(deadline)
+            turn, point = heappop(heap)
+            if turn != dist.get(point):
+                continue
+            x, y = point
+            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                nxt = (x + dx, y + dy)
+                if not on_board(g, nxt):
+                    continue
+                arrival = max(turn + 1, release.get(nxt, 0))
+                if arrival < dist.get(nxt, float("inf")):
+                    dist[nxt] = arrival
+                    heappush(heap, (arrival, nxt))
+        distances[snake.id] = dist
+    territories = {sid: set() for sid in ids}
+    contested = set()
+    for x in range(g.width):
+        for y in range(g.height):
+            point = (x, y)
+            if point in occupied_now:
+                continue
+            arrivals = [(dist[point], sid) for sid, dist in distances.items()
+                        if point in dist]
+            if not arrivals:
+                continue
+            earliest = min(turn for turn, _ in arrivals)
+            winners = [sid for turn, sid in arrivals if turn == earliest]
+            if len(winners) == 1:
+                territories[winners[0]].add(point)
+            else:
+                contested.add(point)
+    check_deadline(deadline)
+    return {"distances": distances, "territories": territories,
+            "contested": contested, "release_times": release}
+
+
+def dynamic_red_territory_count(g, deadline=None):
+    """RED territory using one RED flood and one multi-source opponent flood.
+
+    This is equivalent to dynamic_territory for RED ownership: only the
+    earliest opponent arrival matters, not which opponent achieved it.
+    """
+    if g.me is None:
+        return 0
+    check_deadline(deadline)
+    release = body_release_times(g)
+    occupied_now = set(release)
+
+    def flood(starts):
+        dist = {}
+        heap = []
+        for start in starts:
+            if 0 < dist.get(start, float("inf")):
+                dist[start] = 0
+                heappush(heap, (0, start))
+        while heap:
+            check_deadline(deadline)
+            turn, point = heappop(heap)
+            if turn != dist.get(point):
+                continue
+            x, y = point
+            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                nxt = (x + dx, y + dy)
+                if not on_board(g, nxt):
+                    continue
+                arrival = max(turn + 1, release.get(nxt, 0))
+                if arrival < dist.get(nxt, float("inf")):
+                    dist[nxt] = arrival
+                    heappush(heap, (arrival, nxt))
+        return dist
+
+    red = flood([g.me.head])
+    opponent = flood([snake.head for snake in g.others])
+    count = 0
+    for x in range(g.width):
+        for y in range(g.height):
+            point = (x, y)
+            if point in occupied_now or point not in red:
+                continue
+            if red[point] < opponent.get(point, float("inf")):
+                count += 1
+    check_deadline(deadline)
+    return count
+
+
+def evaluate_moves_with_dynamic(g, deadline=None):
+    """OFFLINE one-turn evaluation with static and dynamic territory."""
+    summary = {}
+    for moves, ng in enumerate_turns(g):
+        check_deadline(deadline)
+        direction = moves[g.me_id]
+        row = summary.setdefault(direction, {
+            "replies": 0, "survives": 0, "dies": 0,
+            "static_values": [], "dynamic_values": []})
+        row["replies"] += 1
+        if ng.me is None:
+            row["dies"] += 1
+            continue
+        row["survives"] += 1
+        row["static_values"].append(len(
+            static_territory(ng, deadline)["territories"][g.me_id]))
+        row["dynamic_values"].append(
+            dynamic_red_territory_count(ng, deadline))
+    for row in summary.values():
+        for label in ("static", "dynamic"):
+            values = row.pop(label + "_values")
+            row[label + "_min"] = min(values) if values else None
+            row[label + "_mean"] = (sum(values) / len(values)
+                                     if values else None)
+            row[label + "_max"] = max(values) if values else None
+    return summary
+
+
+def evaluate_moves_dynamic_live(g, deadline=None):
+    """One-turn survival counts plus dynamic territory for live-shape tests.
+
+    Returns the same schema as evaluate_moves so choose_move can consume it.
+    Research only until the end-to-end benchmark is accepted.
+    """
+    summary = {}
+    for moves, ng in enumerate_turns(g):
+        check_deadline(deadline)
+        direction = moves[g.me_id]
+        row = summary.setdefault(direction, {
+            "replies": 0, "survives": 0, "dies": 0,
+            "death_reasons": {}, "territory_min": None,
+            "territory_mean": None, "territory_max": None,
+            "territory_sum": 0})
+        row["replies"] += 1
+        if ng.me is None:
+            row["dies"] += 1
+            reason = next(s["reason"] for s in ng.eliminated
+                          if s["id"] == g.me_id)
+            reasons = row["death_reasons"]
+            reasons[reason] = reasons.get(reason, 0) + 1
+            continue
+        row["survives"] += 1
+        cells = dynamic_red_territory_count(ng, deadline)
+        row["territory_sum"] += cells
+        row["territory_min"] = (cells if row["territory_min"] is None
+                                else min(row["territory_min"], cells))
+        row["territory_max"] = (cells if row["territory_max"] is None
+                                else max(row["territory_max"], cells))
+    check_deadline(deadline)
+    for row in summary.values():
+        total = row.pop("territory_sum")
+        if row["survives"]:
+            row["territory_mean"] = total / row["survives"]
+        if row["dies"] == 0:
+            row["classification"] = "survives all modeled replies"
+        elif row["survives"] == 0:
+            row["classification"] = "dies in all modeled replies"
+        else:
+            row["classification"] = "mixed"
+    return summary
+
+
+def run_dynamic_territory_tests():
+    snakes = [{"id": "RED", "name": "RED", "health": 100,
+               "body": [(0, 0), (0, 1), (1, 1), (1, 0), (1, 0)]}]
+    g = init_game({"game": {"id": "dynamic-territory-test"},
+                   "turn": 1, "you": snakes[0],
+                   "board": {"width": 3, "height": 3,
+                             "snakes": snakes, "food": []}})
+    release = body_release_times(g)
+    assert release[(1, 0)] == 2  # duplicated tail uses latest release
+    static = len(static_territory(g)["territories"]["RED"])
+    dynamic = len(dynamic_territory(g)["territories"]["RED"])
+    assert dynamic > static
+    assert dynamic_red_territory_count(g) == dynamic
+    turn203 = init_game(init_from_log(TURN203_DYNAMIC_TERRITORY))
+    checked = 0
+    for _, ng in enumerate_turns(turn203):
+        if ng.me is None:
+            continue
+        reference = len(dynamic_territory(ng)["territories"][ng.me_id])
+        assert dynamic_red_territory_count(ng) == reference
+        checked += 1
+    assert checked > 0
+    live = init_game(init_from_log(TURN203_DYNAMIC_TERRITORY))
+    move = choose_move(live, time.perf_counter() + MOVE_TIME_LIMIT)
+    assert move[0] == "left"  # live dynamic selection fixes turn 203
+    assert not any(msg.startswith("deadline:")
+                   for msg in live.decision_path)
+    print("Dynamic territory assertions passed")
+
+
 def run_territory_tests():
     """Call manually; tests static geometry, not survival guarantees."""
     def state(bodies, width=5, height=5):
@@ -910,8 +1323,8 @@ def run_territory_tests():
     print("Territory assertions passed")
 
 
-def evaluate_moves(g, deadline=None):
-    """One-turn survival counts plus static territory on surviving replies.
+def evaluate_moves_static(g, deadline=None):
+    """Research one-turn survival counts plus static territory on surviving replies.
 
     Returns the same direction-keyed structure as summarize_moves, with
     territory_min, territory_mean, territory_max added to each row.
@@ -921,6 +1334,11 @@ def evaluate_moves(g, deadline=None):
     Does not choose a move or retain the simulated boards.
     """
     return summarize_moves(g, include_territory=True, deadline=deadline)
+
+
+def evaluate_moves(g, deadline=None):
+    """Live one-turn survival counts plus optimized dynamic territory."""
+    return evaluate_moves_dynamic_live(g, deadline=deadline)
 
 
 def run_evaluation_tests():
@@ -935,7 +1353,7 @@ def run_evaluation_tests():
     # Lone length-two snake leaves 23 empty reachable cells after each move.
     g = state([[(2, 2), (2, 1)]])
     before = repr(g.__dict__) + repr([s.__dict__ for s in g.snakes])
-    result = evaluate_moves(g)
+    result = evaluate_moves_static(g)
     assert set(result) == {"right", "left", "up"}
     for row in result.values():
         assert row["survives"] == row["replies"] == 1 and row["dies"] == 0
@@ -944,7 +1362,7 @@ def run_evaluation_tests():
     assert before == repr(g.__dict__) + repr([s.__dict__ for s in g.snakes])
     # Mixed replies: territory excludes the fatal equal-head clash entirely.
     g = state([[(1, 2), (1, 1)], [(3, 2), (3, 1)]])
-    result = evaluate_moves(g)
+    result = evaluate_moves_static(g)
     basic = summarize_moves(g)
     samples = {direction: [] for direction in result}
     for moves, ng in enumerate_turns(g):
@@ -962,25 +1380,25 @@ def run_evaluation_tests():
     assert result["right"]["survives"] == 2 and result["right"]["dies"] == 1
     # No survivors: do not invent zero territory or divide by zero.
     g = state([[(2, 2), (2, 1)]], health=1)
-    result = evaluate_moves(g)
+    result = evaluate_moves_static(g)
     for row in result.values():
         assert row["survives"] == 0 and row["dies"] == 1
         assert all(row[key] is None for key in
                    ("territory_min", "territory_mean", "territory_max"))
     # Independent result dictionaries on repeated calls.
     result["right"]["territory_min"] = 999
-    assert evaluate_moves(g)["right"]["territory_min"] is None
+    assert evaluate_moves_static(g)["right"]["territory_min"] is None
     # Blocked fallback directions are preserved and have no territory stats.
     g = state([[(0, 0), (0, 1), (1, 1), (1, 0), (1, 0)]])
-    result = evaluate_moves(g)
+    result = evaluate_moves_static(g)
     assert len(result) == 4
     assert all(row["survives"] == 0 and row["territory_mean"] is None
                for row in result.values())
     # RED already dead: no move evaluations, even while an opponent survives.
     g = state([[(0, 0), (0, 1)], [(3, 3), (3, 2)]])
     ng = next_game_turn(g, {"0": "left", "1": "up"})
-    assert evaluate_moves(ng) == {}
-    assert evaluate_moves(GameTurn.from_snakes(g, [], [], [])) == {}
+    assert evaluate_moves_static(ng) == {}
+    assert evaluate_moves_static(GameTurn.from_snakes(g, [], [], [])) == {}
     print("Evaluation assertions passed")
 
 
@@ -1177,26 +1595,6 @@ def run_border_escape_tests():
     assert result["actions"]["up"]["root_off_border"]
     assert result["recommendation"] == "up"
     print("Border escape assertions passed")
-
-
-def run_border_escape_history():
-    """OFFLINE turns 82-91 diagnostic; reports first live disagreement."""
-    rows = []
-    for record in BORDER_ESCAPE_HISTORY:
-        g = init_game(init_from_log(record))
-        result = border_escape_diagnostic(g)
-        live = record.get("next_move")
-        row = {"turn": g.turn, "live": live,
-               "recommendation": result["recommendation"],
-               "on_border": result["on_border"],
-               "disagrees": result["recommendation"] is not None and
-                            result["recommendation"] != live,
-               "actions": result["actions"]}
-        rows.append(row)
-        print("BORDER ESCAPE", row)
-    first = next((row for row in rows if row["disagrees"]), None)
-    print("FIRST BORDER ESCAPE DISAGREEMENT", first)
-    return {"rows": rows, "first_disagreement": first}
 
 
 def evaluate_continuations(g):
@@ -1646,28 +2044,6 @@ def run_search_tests():
     print("Deep search assertions passed")
 
 
-def run_search_benchmark(max_depth=10, time_limit=10.0, node_limit=100000,
-                         use_cache=True, short_circuit=True, use_ordering=True,
-                         use_depth_bounds=True, branch_opponent_ids=None):
-    """Offline saved turn-58 replay; prints depths, work counts, and timing.
-
-    Toggle use_cache / short_circuit / use_ordering / use_depth_bounds separately.
-    Start with bounded defaults; raising limits is an explicit local choice.
-    """
-    record = {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 58, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 42, 'length': 3, 'body': [(7, 1), (6, 1), (6, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 97, 'length': 11, 'body': [(1, 9), (0, 9), (0, 8), (0, 7), (1, 7), (2, 7), (3, 7), (4, 7), (4, 8), (4, 9), (5, 9)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 89, 'length': 8, 'body': [(7, 3), (7, 4), (6, 4), (6, 5), (6, 6), (7, 6), (7, 7), (8, 7)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 12, 'body': [(0, 6), (0, 5), (1, 5), (2, 5), (3, 5), (4, 5), (4, 4), (4, 3), (4, 2), (3, 2), (3, 1), (3, 1)]}], 'food': [(6, 9), (2, 1)]}
-    g = init_game(init_from_log(record))
-    result = deep_survival_search(g, max_depth, time_limit, node_limit,
-                                  use_cache, short_circuit, use_ordering,
-                                  use_depth_bounds, branch_opponent_ids)
-    print("Search model:", result["model"])
-    print("OFFLINE search: turn", g.turn, "depth counts simultaneous turns")
-    print("Worst case over BRANCHED opponents only; no new food; not probabilities")
-    for report in result["reports"]:
-        print(report)
-    print({k: v for k, v in result.items() if k != "reports"})
-    return result
-
-
 def run_focused_search_tests():
     """Reduced mode never masquerades as a full-model proof."""
     snakes = [{"id": "RED", "name": "RED", "health": 100,
@@ -1742,57 +2118,6 @@ def run_focused_live_budget_tests():
     assert not result["reports"][0]["complete"]
     assert all(v == "UNKNOWN" for v in result["reports"][0]["moves"].values())
     print("Focused live-budget assertions passed")
-
-
-def run_focused_live_budget_feasibility(max_depth=10, time_limit=0.35,
-                                         node_limit=1000000):
-    """OFFLINE feasibility only; one independent budget per saved position.
-
-    Branches one dynamically selected opponent. Other opponents follow the
-    deterministic first-basic-move policy. Only the last fully completed depth
-    is evidence; an interrupted depth is printed and discarded.
-    """
-    records = [
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 0, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 100, 'length': 3, 'body': [(5, 1), (5, 1), (5, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 100, 'length': 3, 'body': [(9, 5), (9, 5), (9, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 100, 'length': 3, 'body': [(5, 9), (5, 9), (5, 9)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 3, 'body': [(1, 5), (1, 5), (1, 5)]}], 'food': [(4, 0), (10, 4), (6, 10), (0, 6), (5, 5)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(6, 1), (4, 1), (5, 2), (5, 0)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 64, 'survives': 64, 'dies': 0, 'death_reasons': {}, 'territory_min': 15, 'territory_mean': 21.796875, 'territory_max': 29, 'classification': 'survives all modeled replies'}, 'left': {'replies': 64, 'survives': 64, 'dies': 0, 'death_reasons': {}, 'territory_min': 15, 'territory_mean': 21.796875, 'territory_max': 29, 'classification': 'survives all modeled replies'}, 'up': {'replies': 64, 'survives': 64, 'dies': 0, 'death_reasons': {}, 'territory_min': 17, 'territory_mean': 24.171875, 'territory_max': 34, 'classification': 'survives all modeled replies'}, 'down': {'replies': 64, 'survives': 64, 'dies': 0, 'death_reasons': {}, 'territory_min': 13, 'territory_mean': 19.1875, 'territory_max': 26, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 2), 'next_move': 'up', 'time': '0.307s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 1, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 99, 'length': 3, 'body': [(5, 2), (5, 1), (5, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 99, 'length': 3, 'body': [(10, 5), (9, 5), (9, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 99, 'length': 3, 'body': [(5, 10), (5, 9), (5, 9)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 3, 'body': [(0, 5), (1, 5), (1, 5)]}], 'food': [(4, 0), (10, 4), (6, 10), (0, 6), (5, 5)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(6, 2), (4, 2), (5, 3)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 21, 'territory_mean': 29.75, 'territory_max': 38, 'classification': 'survives all modeled replies'}, 'left': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 21, 'territory_mean': 29.75, 'territory_max': 38, 'classification': 'survives all modeled replies'}, 'up': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 25, 'territory_mean': 37.5, 'territory_max': 50, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 3), 'next_move': 'up', 'time': '0.098s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 2, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 98, 'length': 3, 'body': [(5, 3), (5, 2), (5, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 100, 'length': 4, 'body': [(10, 4), (10, 5), (9, 5), (9, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 100, 'length': 4, 'body': [(6, 10), (5, 10), (5, 9), (5, 9)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 4, 'body': [(0, 6), (0, 5), (1, 5), (1, 5)]}], 'food': [(4, 0), (5, 5)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(6, 3), (4, 3), (5, 4)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 20, 'territory_mean': 26.75, 'territory_max': 34, 'classification': 'survives all modeled replies'}, 'left': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 28, 'territory_mean': 31.5, 'territory_max': 36, 'classification': 'survives all modeled replies'}, 'up': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 21, 'territory_mean': 31.5, 'territory_max': 42, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (4, 3), 'next_move': 'left', 'time': '0.040s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 58, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 42, 'length': 3, 'body': [(7, 1), (6, 1), (6, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 97, 'length': 11, 'body': [(1, 9), (0, 9), (0, 8), (0, 7), (1, 7), (2, 7), (3, 7), (4, 7), (4, 8), (4, 9), (5, 9)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 89, 'length': 8, 'body': [(7, 3), (7, 4), (6, 4), (6, 5), (6, 6), (7, 6), (7, 7), (8, 7)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 12, 'body': [(0, 6), (0, 5), (1, 5), (2, 5), (3, 5), (4, 5), (4, 4), (4, 3), (4, 2), (3, 2), (3, 1), (3, 1)]}], 'food': [(6, 9), (2, 1)]}
-    ]
-    results = []
-    print("FOCUSED LIVE-BUDGET FEASIBILITY; approximate reduced model")
-    print("One independent", time_limit, "second budget per position")
-    for record in records:
-        g = init_game(init_from_log(record))
-        focus = select_focused_opponent(g)
-        if focus is None:
-            row = {"turn": g.turn, "status": "NO_LIVE_OPPONENT"}
-            results.append(row)
-            print("FEASIBILITY", row)
-            continue
-        result = deep_survival_search(
-            g, max_depth=max_depth, time_limit=time_limit,
-            node_limit=node_limit, use_ordering=True, use_depth_bounds=False,
-            branch_opponent_ids={focus.id})
-        complete = [r for r in result["reports"] if r["complete"]]
-        last = complete[-1] if complete else None
-        interrupted = next((r for r in result["reports"] if not r["complete"]), None)
-        completed_moves = None if last is None else last["moves"]
-        distinct = (completed_moves is not None and
-                    len(set(completed_moves.values())) > 1)
-        row = {"turn": g.turn, "focus": focus.id,
-               "focus_head_distance": abs(focus.head[0] - g.me.head[0]) +
-                                      abs(focus.head[1] - g.me.head[1]),
-               "last_complete_depth": result["last_complete_depth"],
-               "completed_moves": completed_moves,
-               "distinguishes_root_moves": distinct,
-               "interrupted_depth": (None if interrupted is None
-                                       else interrupted["depth"]),
-               "interrupted_depth_discarded": interrupted is not None,
-               "elapsed_seconds": result["elapsed_seconds"],
-               "stop_reason": result["stop_reason"]}
-        results.append(row)
-        print("FEASIBILITY", row)
-    return results
 
 
 def focused_action_survives_direct(g, direction, depth=9, time_limit=0.35,
@@ -1944,21 +2269,6 @@ def run_split_counter_hint_tests():
     print("Split-counter hint assertions passed")
 
 
-def run_turn58_split_counter_diagnostic(depth=9, time_limit=1.0,
-                                        node_limit=1000000):
-    """OFFLINE cheap witness diagnostic for turn-58 down."""
-    record = {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 58, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 42, 'length': 3, 'body': [(7, 1), (6, 1), (6, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 97, 'length': 11, 'body': [(1, 9), (0, 9), (0, 8), (0, 7), (1, 7), (2, 7), (3, 7), (4, 7), (4, 8), (4, 9), (5, 9)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 89, 'length': 8, 'body': [(7, 3), (7, 4), (6, 4), (6, 5), (6, 6), (7, 6), (7, 7), (8, 7)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 12, 'body': [(0, 6), (0, 5), (1, 5), (2, 5), (3, 5), (4, 5), (4, 4), (4, 3), (4, 2), (3, 2), (3, 1), (3, 1)]}], 'food': [(6, 9), (2, 1)]}
-    g = init_game(init_from_log(record))
-    focus = select_focused_opponent(g)
-    result = explain_focused_move(g, "down", depth, time_limit,
-                                  node_limit, {focus.id})
-    hint = extract_split_counter_hint(result, focus.id)
-    summary = {"root_status": result["status"], "work": result.get("work"),
-               "elapsed_seconds": result.get("elapsed_seconds"), **hint}
-    print("TURN 58 SPLIT COUNTER", summary)
-    return summary
-
-
 def cheap_split_counter_for_action(g, direction, focus_id, depth=9,
                                    time_limit=0.05, node_limit=1000):
     """Capped certificate witness hint; UNKNOWN and nonfailure are retained."""
@@ -1988,361 +2298,6 @@ def run_historical_split_hint_tests():
     assert bucket("SPLIT_STORED_COUNTERS_GAMBLE_INDICATION") == "SPLIT"
     assert bucket("UNKNOWN") == "OTHER"
     print("Historical split-hint assertions passed")
-
-
-def run_historical_split_hint_validation(depth=9, cheap_time=0.05,
-                                          cheap_nodes=1000,
-                                          truth_time=2.0,
-                                          truth_nodes=1000000):
-    """OFFLINE hint-versus-exhaustive comparison; no live policy changes."""
-    records = [
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 0, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 100, 'length': 3, 'body': [(5, 1), (5, 1), (5, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 100, 'length': 3, 'body': [(9, 5), (9, 5), (9, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 100, 'length': 3, 'body': [(5, 9), (5, 9), (5, 9)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 3, 'body': [(1, 5), (1, 5), (1, 5)]}], 'food': [(4, 0), (10, 4), (6, 10), (0, 6), (5, 5)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(6, 1), (4, 1), (5, 2), (5, 0)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 64, 'survives': 64, 'dies': 0, 'death_reasons': {}, 'territory_min': 15, 'territory_mean': 21.796875, 'territory_max': 29, 'classification': 'survives all modeled replies'}, 'left': {'replies': 64, 'survives': 64, 'dies': 0, 'death_reasons': {}, 'territory_min': 15, 'territory_mean': 21.796875, 'territory_max': 29, 'classification': 'survives all modeled replies'}, 'up': {'replies': 64, 'survives': 64, 'dies': 0, 'death_reasons': {}, 'territory_min': 17, 'territory_mean': 24.171875, 'territory_max': 34, 'classification': 'survives all modeled replies'}, 'down': {'replies': 64, 'survives': 64, 'dies': 0, 'death_reasons': {}, 'territory_min': 13, 'territory_mean': 19.1875, 'territory_max': 26, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 2), 'next_move': 'up', 'time': '0.307s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 6, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 94, 'length': 3, 'body': [(4, 2), (3, 2), (3, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 96, 'length': 4, 'body': [(9, 3), (9, 2), (10, 2), (10, 3)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 96, 'length': 4, 'body': [(5, 7), (5, 8), (5, 9), (6, 9)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 96, 'length': 4, 'body': [(1, 3), (1, 4), (1, 5), (1, 6)]}], 'food': [(4, 0), (5, 5), (9, 6)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(5, 2), (4, 3), (4, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 8, 'territory_mean': 16.11111111111111, 'territory_max': 27, 'classification': 'survives all modeled replies'}, 'up': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 5, 'territory_mean': 13.11111111111111, 'territory_max': 23, 'classification': 'survives all modeled replies'}, 'down': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 8, 'territory_mean': 13.444444444444445, 'territory_max': 22, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 2), 'next_move': 'right', 'time': '0.094s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 12, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 88, 'length': 3, 'body': [(4, 2), (5, 2), (6, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 97, 'length': 5, 'body': [(8, 6), (8, 7), (9, 7), (9, 6), (9, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 96, 'length': 5, 'body': [(3, 5), (3, 6), (4, 6), (4, 5), (5, 5)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 90, 'length': 4, 'body': [(2, 8), (2, 7), (2, 6), (2, 5)]}], 'food': [(4, 0), (10, 6)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(3, 2), (4, 3), (4, 1)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 17, 'territory_mean': 18.5, 'territory_max': 20, 'classification': 'survives all modeled replies'}, 'up': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 5, 'territory_mean': 10.0, 'territory_max': 15, 'classification': 'survives all modeled replies'}, 'down': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 16, 'territory_mean': 19.5, 'territory_max': 23, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (4, 1), 'next_move': 'down', 'time': '0.067s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 18, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 82, 'length': 3, 'body': [(7, 3), (7, 2), (6, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 98, 'length': 6, 'body': [(9, 7), (10, 7), (10, 6), (9, 6), (9, 5), (8, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 100, 'length': 6, 'body': [(4, 0), (4, 1), (4, 2), (4, 3), (4, 4), (4, 4)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 98, 'length': 5, 'body': [(4, 8), (5, 8), (5, 7), (4, 7), (3, 7)]}], 'food': [(4, 9), (10, 0)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(8, 3), (6, 3), (7, 4)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 14, 'territory_mean': 22.625, 'territory_max': 32, 'classification': 'survives all modeled replies'}, 'left': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 7, 'territory_mean': 19.5, 'territory_max': 34, 'classification': 'survives all modeled replies'}, 'up': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 16, 'territory_mean': 25.75, 'territory_max': 36, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (7, 4), 'next_move': 'up', 'time': '0.026s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 24, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 76, 'length': 3, 'body': [(3, 3), (4, 3), (5, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 92, 'length': 6, 'body': [(7, 5), (6, 5), (6, 6), (7, 6), (7, 7), (8, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 100, 'length': 7, 'body': [(10, 0), (9, 0), (8, 0), (7, 0), (6, 0), (5, 0), (5, 0)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 98, 'length': 7, 'body': [(2, 8), (1, 8), (1, 9), (2, 9), (3, 9), (4, 9), (4, 8)]}], 'food': [(9, 5)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(2, 3), (3, 4), (3, 2)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 4, 'survives': 4, 'dies': 0, 'death_reasons': {}, 'territory_min': 21, 'territory_mean': 23.5, 'territory_max': 26, 'classification': 'survives all modeled replies'}, 'up': {'replies': 4, 'survives': 4, 'dies': 0, 'death_reasons': {}, 'territory_min': 21, 'territory_mean': 25.0, 'territory_max': 29, 'classification': 'survives all modeled replies'}, 'down': {'replies': 4, 'survives': 4, 'dies': 0, 'death_reasons': {}, 'territory_min': 19, 'territory_mean': 21.5, 'territory_max': 24, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (3, 4), 'next_move': 'up', 'time': '0.011s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 30, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 70, 'length': 3, 'body': [(3, 3), (4, 3), (5, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 96, 'length': 7, 'body': [(8, 8), (8, 7), (8, 6), (9, 6), (9, 5), (8, 5), (7, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 94, 'length': 7, 'body': [(7, 3), (7, 2), (8, 2), (9, 2), (10, 2), (10, 1), (10, 0)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 92, 'length': 7, 'body': [(3, 9), (3, 8), (3, 7), (3, 6), (2, 6), (2, 7), (2, 8)]}], 'food': [(8, 9), (1, 10), (6, 10)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(2, 3), (3, 4), (3, 2)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 22, 'territory_mean': 27.62962962962963, 'territory_max': 33, 'classification': 'survives all modeled replies'}, 'up': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 22, 'territory_mean': 29.074074074074073, 'territory_max': 37, 'classification': 'survives all modeled replies'}, 'down': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 21, 'territory_mean': 29.22222222222222, 'territory_max': 40, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (3, 2), 'next_move': 'down', 'time': '0.168s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 36, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 64, 'length': 3, 'body': [(4, 2), (4, 3), (3, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 98, 'length': 9, 'body': [(5, 9), (6, 9), (6, 10), (7, 10), (8, 10), (8, 9), (8, 8), (8, 7), (8, 6)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 88, 'length': 7, 'body': [(6, 6), (6, 7), (7, 7), (7, 6), (7, 5), (7, 4), (7, 3)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 97, 'length': 8, 'body': [(1, 7), (1, 8), (1, 9), (1, 10), (2, 10), (3, 10), (3, 9), (3, 8)]}], 'food': [(0, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(5, 2), (3, 2), (4, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 25, 'territory_mean': 38.333333333333336, 'territory_max': 51, 'classification': 'survives all modeled replies'}, 'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 18, 'territory_mean': 24.333333333333332, 'territory_max': 30, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 25, 'territory_mean': 28.833333333333332, 'territory_max': 32, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 2), 'next_move': 'right', 'time': '0.053s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 42, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 58, 'length': 3, 'body': [(6, 2), (6, 1), (7, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 92, 'length': 9, 'body': [(5, 7), (5, 6), (4, 6), (4, 7), (4, 8), (4, 9), (5, 9), (6, 9), (6, 10)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 82, 'length': 7, 'body': [(7, 7), (7, 6), (7, 5), (7, 4), (6, 4), (6, 5), (6, 6)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 91, 'length': 8, 'body': [(0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (1, 6), (1, 7), (1, 8)]}], 'food': [(0, 1), (1, 2), (5, 8)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(7, 2), (5, 2), (6, 3)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 21, 'territory_mean': 25.166666666666668, 'territory_max': 31, 'classification': 'survives all modeled replies'}, 'left': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 20, 'territory_mean': 29.166666666666668, 'territory_max': 39, 'classification': 'survives all modeled replies'}, 'up': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 26, 'territory_mean': 31.5, 'territory_max': 39, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 3), 'next_move': 'up', 'time': '0.036s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 48, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 52, 'length': 3, 'body': [(6, 2), (5, 2), (4, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 95, 'length': 10, 'body': [(5, 9), (5, 10), (6, 10), (6, 9), (6, 8), (5, 8), (5, 7), (5, 6), (4, 6), (4, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 99, 'length': 8, 'body': [(10, 8), (10, 9), (9, 9), (8, 9), (7, 9), (7, 8), (7, 7), (7, 6)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 11, 'body': [(3, 1), (2, 1), (2, 2), (1, 2), (1, 1), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6)]}], 'food': [(0, 7)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(7, 2), (6, 3), (6, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 6, 'survives': 6, 'dies': 0, 'death_reasons': {}, 'territory_min': 20, 'territory_mean': 22.5, 'territory_max': 25, 'classification': 'survives all modeled replies'}, 'up': {'replies': 6, 'survives': 6, 'dies': 0, 'death_reasons': {}, 'territory_min': 16, 'territory_mean': 23.5, 'territory_max': 31, 'classification': 'survives all modeled replies'}, 'down': {'replies': 6, 'survives': 6, 'dies': 0, 'death_reasons': {}, 'territory_min': 15, 'territory_mean': 17.166666666666668, 'territory_max': 19, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 3), 'next_move': 'up', 'time': '0.021s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 54, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 46, 'length': 3, 'body': [(7, 3), (7, 2), (8, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 89, 'length': 10, 'body': [(1, 7), (2, 7), (3, 7), (4, 7), (4, 8), (4, 9), (5, 9), (5, 10), (6, 10), (6, 9)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 93, 'length': 8, 'body': [(6, 6), (7, 6), (7, 7), (8, 7), (9, 7), (9, 8), (10, 8), (10, 9)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 93, 'length': 11, 'body': [(3, 5), (4, 5), (4, 4), (4, 3), (4, 2), (3, 2), (3, 1), (2, 1), (2, 2), (1, 2), (1, 1)]}], 'food': [(0, 7), (0, 6)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(8, 3), (6, 3), (7, 4)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 16, 'territory_mean': 25.703703703703702, 'territory_max': 36, 'classification': 'survives all modeled replies'}, 'left': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 19, 'territory_mean': 29.77777777777778, 'territory_max': 41, 'classification': 'survives all modeled replies'}, 'up': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 15, 'territory_mean': 28.037037037037038, 'territory_max': 40, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 3), 'next_move': 'left', 'time': '0.081s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 58, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 42, 'length': 3, 'body': [(7, 1), (6, 1), (6, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 97, 'length': 11, 'body': [(1, 9), (0, 9), (0, 8), (0, 7), (1, 7), (2, 7), (3, 7), (4, 7), (4, 8), (4, 9), (5, 9)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 89, 'length': 8, 'body': [(7, 3), (7, 4), (6, 4), (6, 5), (6, 6), (7, 6), (7, 7), (8, 7)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 12, 'body': [(0, 6), (0, 5), (1, 5), (2, 5), (3, 5), (4, 5), (4, 4), (4, 3), (4, 2), (3, 2), (3, 1), (3, 1)]}], 'food': [(6, 9), (2, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(8, 1), (7, 2), (7, 0)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 9, 'survives': 9, 'dies': 0, 'death_reasons': {}, 'territory_min': 7, 'territory_mean': 21.333333333333332, 'territory_max': 32, 'classification': 'survives all modeled replies'}, 'up': {'replies': 9, 'survives': 6, 'dies': 3, 'death_reasons': {'head-to-head collision': 3}, 'territory_min': 27, 'territory_mean': 28.5, 'territory_max': 32, 'classification': 'mixed'}, 'down': {'replies': 9, 'survives': 9, 'dies': 0, 'death_reasons': {}, 'territory_min': 24, 'territory_mean': 25.666666666666668, 'territory_max': 27, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (7, 0), 'next_move': 'down', 'time': '0.026s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 66, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 34, 'length': 3, 'body': [(0, 0), (1, 0), (2, 0)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 97, 'length': 12, 'body': [(7, 9), (7, 8), (6, 8), (6, 9), (5, 9), (4, 9), (3, 9), (2, 9), (1, 9), (0, 9), (0, 8), (0, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 99, 'length': 9, 'body': [(1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (6, 1), (6, 2), (7, 2), (7, 3)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 92, 'length': 12, 'body': [(4, 8), (4, 7), (5, 7), (5, 6), (4, 6), (3, 6), (2, 6), (1, 6), (0, 6), (0, 5), (1, 5), (2, 5)]}], 'food': [(8, 9)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(0, 1)]', "one-turn evaluation (counts, not probabilities): {'up': {'replies': 8, 'survives': 4, 'dies': 4, 'death_reasons': {'head-to-head collision': 4}, 'territory_min': 0, 'territory_mean': 0.0, 'territory_max': 0, 'classification': 'mixed'}}", 'one-turn choose up: no all-reply survivor; unweighted surviving-reply fraction, mean territory, minimum, direction order; evaluation complete'], 'next_coord': (0, 1), 'next_move': 'up', 'time': '0.004s'}
-    ]
-    rows = []
-    confusion = {}
-    print("HISTORICAL SPLIT-HINT VALIDATION; approximate reduced model")
-    print("Cheap cap", cheap_nodes, "states", cheap_time,
-          "seconds; truth cap", truth_nodes, "states", truth_time, "seconds")
-    for record in records:
-        g = init_game(init_from_log(record))
-        evaluation = evaluate_moves(g)
-        baseline, reason = select_evaluated_move(evaluation)
-        focus = select_focused_opponent(g)
-        if baseline is None or focus is None:
-            row = {"turn": g.turn, "baseline": baseline,
-                   "hint_bucket": "NOT_APPLICABLE",
-                   "truth_bucket": "NOT_APPLICABLE"}
-            rows.append(row)
-            print("HINT VALIDATION", row)
-            continue
-        cheap = cheap_split_counter_for_action(
-            g, baseline, focus.id, depth, cheap_time, cheap_nodes)
-        hint = cheap["hint"]
-        if hint.startswith("COMMON_STORED_COUNTER"):
-            hint_bucket = "COMMON"
-        elif hint.startswith("SPLIT_STORED_COUNTERS"):
-            hint_bucket = "SPLIT"
-        elif hint == "NO_QUICK_REFUTATION":
-            hint_bucket = "NO_QUICK_REFUTATION"
-        else:
-            hint_bucket = "UNKNOWN_OR_OTHER"
-        truth = classify_focused_action(
-            g, baseline, depth, truth_time, truth_nodes, {focus.id})
-        truth_bucket = truth["classification"]
-        key = (hint_bucket, truth_bucket)
-        confusion[key] = confusion.get(key, 0) + 1
-        row = {"turn": g.turn, "baseline": baseline,
-               "baseline_reason": reason, "focus": focus.id,
-               "hint": hint, "hint_bucket": hint_bucket,
-               "cheap_work": cheap.get("work"),
-               "cheap_seconds": cheap.get("elapsed_seconds"),
-               "truth_bucket": truth_bucket,
-               "truth_robust_work": truth["robust"].get("work"),
-               "truth_uniform_work": (None if truth["uniform"] is None else
-                                      truth["uniform"].get("work")),
-               "truth_seconds": truth["elapsed_seconds"]}
-        rows.append(row)
-        print("HINT VALIDATION", row)
-    table = [{"hint_bucket": h, "truth_bucket": t, "count": n}
-             for (h, t), n in sorted(confusion.items())]
-    common_total = sum(n for (h, _), n in confusion.items() if h == "COMMON")
-    common_correct = confusion.get(("COMMON", "APPROX_UNIFORM_FORCED_LOSS"), 0)
-    split_total = sum(n for (h, _), n in confusion.items() if h == "SPLIT")
-    split_correct = confusion.get(("SPLIT", "APPROX_MATCHING_RESPONSE_GAMBLE"), 0)
-    summary = {"positions": len(rows), "confusion": table,
-               "common_total": common_total, "common_correct": common_correct,
-               "split_total": split_total, "split_correct": split_correct,
-               "cheap_unknown_or_other": sum(n for (h, _), n in confusion.items()
-                                             if h == "UNKNOWN_OR_OTHER")}
-    print("HINT CONFUSION", table)
-    print("HINT VALIDATION SUMMARY", summary)
-    return {"rows": rows, "summary": summary}
-
-
-def run_full_history_split_hint_validation(depth=9, cheap_time=0.05,
-                                           cheap_nodes=1000,
-                                           truth_time=2.0,
-                                           truth_nodes=1000000):
-    """OFFLINE all 67 saved turns; full hint-versus-truth confusion table."""
-    records = [
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 0, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 100, 'length': 3, 'body': [(5, 1), (5, 1), (5, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 100, 'length': 3, 'body': [(9, 5), (9, 5), (9, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 100, 'length': 3, 'body': [(5, 9), (5, 9), (5, 9)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 3, 'body': [(1, 5), (1, 5), (1, 5)]}], 'food': [(4, 0), (10, 4), (6, 10), (0, 6), (5, 5)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(6, 1), (4, 1), (5, 2), (5, 0)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 64, 'survives': 64, 'dies': 0, 'death_reasons': {}, 'territory_min': 15, 'territory_mean': 21.796875, 'territory_max': 29, 'classification': 'survives all modeled replies'}, 'left': {'replies': 64, 'survives': 64, 'dies': 0, 'death_reasons': {}, 'territory_min': 15, 'territory_mean': 21.796875, 'territory_max': 29, 'classification': 'survives all modeled replies'}, 'up': {'replies': 64, 'survives': 64, 'dies': 0, 'death_reasons': {}, 'territory_min': 17, 'territory_mean': 24.171875, 'territory_max': 34, 'classification': 'survives all modeled replies'}, 'down': {'replies': 64, 'survives': 64, 'dies': 0, 'death_reasons': {}, 'territory_min': 13, 'territory_mean': 19.1875, 'territory_max': 26, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 2), 'next_move': 'up', 'time': '0.307s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 1, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 99, 'length': 3, 'body': [(5, 2), (5, 1), (5, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 99, 'length': 3, 'body': [(10, 5), (9, 5), (9, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 99, 'length': 3, 'body': [(5, 10), (5, 9), (5, 9)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 3, 'body': [(0, 5), (1, 5), (1, 5)]}], 'food': [(4, 0), (10, 4), (6, 10), (0, 6), (5, 5)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(6, 2), (4, 2), (5, 3)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 21, 'territory_mean': 29.75, 'territory_max': 38, 'classification': 'survives all modeled replies'}, 'left': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 21, 'territory_mean': 29.75, 'territory_max': 38, 'classification': 'survives all modeled replies'}, 'up': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 25, 'territory_mean': 37.5, 'territory_max': 50, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 3), 'next_move': 'up', 'time': '0.098s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 2, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 98, 'length': 3, 'body': [(5, 3), (5, 2), (5, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 100, 'length': 4, 'body': [(10, 4), (10, 5), (9, 5), (9, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 100, 'length': 4, 'body': [(6, 10), (5, 10), (5, 9), (5, 9)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 4, 'body': [(0, 6), (0, 5), (1, 5), (1, 5)]}], 'food': [(4, 0), (5, 5)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(6, 3), (4, 3), (5, 4)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 20, 'territory_mean': 26.75, 'territory_max': 34, 'classification': 'survives all modeled replies'}, 'left': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 28, 'territory_mean': 31.5, 'territory_max': 36, 'classification': 'survives all modeled replies'}, 'up': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 21, 'territory_mean': 31.5, 'territory_max': 42, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (4, 3), 'next_move': 'left', 'time': '0.040s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 3, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 97, 'length': 3, 'body': [(4, 3), (5, 3), (5, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 99, 'length': 4, 'body': [(10, 3), (10, 4), (10, 5), (9, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 99, 'length': 4, 'body': [(6, 9), (6, 10), (5, 10), (5, 9)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 4, 'body': [(1, 6), (0, 6), (0, 5), (1, 5)]}], 'food': [(4, 0), (5, 5)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(3, 3), (4, 4), (4, 2)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 16, 'territory_mean': 23.444444444444443, 'territory_max': 31, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 12, 'territory_mean': 20.166666666666668, 'territory_max': 33, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 15, 'territory_mean': 21.555555555555557, 'territory_max': 29, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (3, 3), 'next_move': 'left', 'time': '0.082s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 4, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 96, 'length': 3, 'body': [(3, 3), (4, 3), (5, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 98, 'length': 4, 'body': [(10, 2), (10, 3), (10, 4), (10, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 98, 'length': 4, 'body': [(5, 9), (6, 9), (6, 10), (5, 10)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 98, 'length': 4, 'body': [(1, 5), (1, 6), (0, 6), (0, 5)]}], 'food': [(4, 0), (5, 5)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(2, 3), (3, 4), (3, 2)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 9, 'territory_mean': 16.666666666666668, 'territory_max': 30, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 4, 'territory_mean': 13.444444444444445, 'territory_max': 32, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 12, 'territory_mean': 16.833333333333332, 'territory_max': 22, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (3, 2), 'next_move': 'down', 'time': '0.135s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 5, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 95, 'length': 3, 'body': [(3, 2), (3, 3), (4, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 97, 'length': 4, 'body': [(9, 2), (10, 2), (10, 3), (10, 4)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 97, 'length': 4, 'body': [(5, 8), (5, 9), (6, 9), (6, 10)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 97, 'length': 4, 'body': [(1, 4), (1, 5), (1, 6), (0, 6)]}], 'food': [(4, 0), (5, 5)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(4, 2), (2, 2), (3, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 9, 'territory_mean': 13.185185185185185, 'territory_max': 19, 'classification': 'survives all modeled replies'}, 'left': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 6, 'territory_mean': 11.814814814814815, 'territory_max': 19, 'classification': 'survives all modeled replies'}, 'down': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 9, 'territory_mean': 12.592592592592593, 'territory_max': 16, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (4, 2), 'next_move': 'right', 'time': '0.097s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 6, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 94, 'length': 3, 'body': [(4, 2), (3, 2), (3, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 96, 'length': 4, 'body': [(9, 3), (9, 2), (10, 2), (10, 3)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 96, 'length': 4, 'body': [(5, 7), (5, 8), (5, 9), (6, 9)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 96, 'length': 4, 'body': [(1, 3), (1, 4), (1, 5), (1, 6)]}], 'food': [(4, 0), (5, 5), (9, 6)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(5, 2), (4, 3), (4, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 8, 'territory_mean': 16.11111111111111, 'territory_max': 27, 'classification': 'survives all modeled replies'}, 'up': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 5, 'territory_mean': 13.11111111111111, 'territory_max': 23, 'classification': 'survives all modeled replies'}, 'down': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 8, 'territory_mean': 13.444444444444445, 'territory_max': 22, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 2), 'next_move': 'right', 'time': '0.094s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 7, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 93, 'length': 3, 'body': [(5, 2), (4, 2), (3, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 95, 'length': 4, 'body': [(9, 4), (9, 3), (9, 2), (10, 2)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 95, 'length': 4, 'body': [(5, 6), (5, 7), (5, 8), (5, 9)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 95, 'length': 4, 'body': [(2, 3), (1, 3), (1, 4), (1, 5)]}], 'food': [(4, 0), (5, 5), (9, 6)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(6, 2), (5, 3), (5, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 8, 'territory_mean': 13.11111111111111, 'territory_max': 18, 'classification': 'survives all modeled replies'}, 'up': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 4, 'territory_mean': 9.777777777777779, 'territory_max': 16, 'classification': 'survives all modeled replies'}, 'down': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 8, 'territory_mean': 13.88888888888889, 'territory_max': 22, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 1), 'next_move': 'down', 'time': '0.157s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 8, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 92, 'length': 3, 'body': [(5, 1), (5, 2), (4, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 94, 'length': 4, 'body': [(9, 5), (9, 4), (9, 3), (9, 2)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 100, 'length': 5, 'body': [(5, 5), (5, 6), (5, 7), (5, 8), (5, 8)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 94, 'length': 4, 'body': [(2, 4), (2, 3), (1, 3), (1, 4)]}], 'food': [(4, 0), (9, 6)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(6, 1), (4, 1), (5, 0)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 12, 'territory_mean': 16.0, 'territory_max': 20, 'classification': 'survives all modeled replies'}, 'left': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 13, 'territory_mean': 15.88888888888889, 'territory_max': 20, 'classification': 'survives all modeled replies'}, 'down': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 13, 'territory_mean': 15.88888888888889, 'territory_max': 20, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 1), 'next_move': 'right', 'time': '0.174s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 9, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 91, 'length': 3, 'body': [(6, 1), (5, 1), (5, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 100, 'length': 5, 'body': [(9, 6), (9, 5), (9, 4), (9, 3), (9, 3)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 99, 'length': 5, 'body': [(4, 5), (5, 5), (5, 6), (5, 7), (5, 8)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 93, 'length': 4, 'body': [(2, 5), (2, 4), (2, 3), (1, 3)]}], 'food': [(4, 0)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(7, 1), (6, 2), (6, 0)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 15, 'territory_mean': 19.77777777777778, 'territory_max': 28, 'classification': 'survives all modeled replies'}, 'up': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 14, 'territory_mean': 23.0, 'territory_max': 33, 'classification': 'survives all modeled replies'}, 'down': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 13, 'territory_mean': 18.0, 'territory_max': 25, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 2), 'next_move': 'up', 'time': '0.152s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 10, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 90, 'length': 3, 'body': [(6, 2), (6, 1), (5, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 99, 'length': 5, 'body': [(9, 7), (9, 6), (9, 5), (9, 4), (9, 3)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 98, 'length': 5, 'body': [(4, 6), (4, 5), (5, 5), (5, 6), (5, 7)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 92, 'length': 4, 'body': [(2, 6), (2, 5), (2, 4), (2, 3)]}], 'food': [(4, 0)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(7, 2), (5, 2), (6, 3)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 25, 'territory_mean': 28.0, 'territory_max': 32, 'classification': 'survives all modeled replies'}, 'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 24, 'territory_mean': 33.0, 'territory_max': 40, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 28, 'territory_mean': 32.5, 'territory_max': 40, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 2), 'next_move': 'left', 'time': '0.126s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 11, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 89, 'length': 3, 'body': [(5, 2), (6, 2), (6, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 98, 'length': 5, 'body': [(8, 7), (9, 7), (9, 6), (9, 5), (9, 4)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 97, 'length': 5, 'body': [(3, 6), (4, 6), (4, 5), (5, 5), (5, 6)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 91, 'length': 4, 'body': [(2, 7), (2, 6), (2, 5), (2, 4)]}], 'food': [(4, 0), (10, 6)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(4, 2), (5, 3), (5, 1)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 23, 'territory_mean': 32.833333333333336, 'territory_max': 45, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 15, 'territory_mean': 32.5, 'territory_max': 51, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 23, 'territory_mean': 30.5, 'territory_max': 42, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (4, 2), 'next_move': 'left', 'time': '0.088s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 12, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 88, 'length': 3, 'body': [(4, 2), (5, 2), (6, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 97, 'length': 5, 'body': [(8, 6), (8, 7), (9, 7), (9, 6), (9, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 96, 'length': 5, 'body': [(3, 5), (3, 6), (4, 6), (4, 5), (5, 5)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 90, 'length': 4, 'body': [(2, 8), (2, 7), (2, 6), (2, 5)]}], 'food': [(4, 0), (10, 6)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(3, 2), (4, 3), (4, 1)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 17, 'territory_mean': 18.5, 'territory_max': 20, 'classification': 'survives all modeled replies'}, 'up': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 5, 'territory_mean': 10.0, 'territory_max': 15, 'classification': 'survives all modeled replies'}, 'down': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 16, 'territory_mean': 19.5, 'territory_max': 23, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (4, 1), 'next_move': 'down', 'time': '0.067s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 13, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 87, 'length': 3, 'body': [(4, 1), (4, 2), (5, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 96, 'length': 5, 'body': [(8, 5), (8, 6), (8, 7), (9, 7), (9, 6)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 95, 'length': 5, 'body': [(3, 4), (3, 5), (3, 6), (4, 6), (4, 5)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 89, 'length': 4, 'body': [(3, 8), (2, 8), (2, 7), (2, 6)]}], 'food': [(4, 0), (10, 6), (5, 7)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(5, 1), (3, 1), (4, 0)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 8, 'territory_mean': 13.25925925925926, 'territory_max': 18, 'classification': 'survives all modeled replies'}, 'left': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 10, 'territory_mean': 12.444444444444445, 'territory_max': 15, 'classification': 'survives all modeled replies'}, 'down': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 9, 'territory_mean': 12.777777777777779, 'territory_max': 16, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 1), 'next_move': 'right', 'time': '0.263s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 14, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 86, 'length': 3, 'body': [(5, 1), (4, 1), (4, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 95, 'length': 5, 'body': [(9, 5), (8, 5), (8, 6), (8, 7), (9, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 94, 'length': 5, 'body': [(4, 4), (3, 4), (3, 5), (3, 6), (4, 6)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 88, 'length': 4, 'body': [(3, 7), (3, 8), (2, 8), (2, 7)]}], 'food': [(4, 0), (10, 6), (5, 7), (4, 9)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(6, 1), (5, 2), (5, 0)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 9, 'territory_mean': 17.666666666666668, 'territory_max': 32, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 7, 'territory_mean': 22.666666666666668, 'territory_max': 43, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 10, 'territory_mean': 16.166666666666668, 'territory_max': 25, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 2), 'next_move': 'up', 'time': '0.126s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 15, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 85, 'length': 3, 'body': [(5, 2), (5, 1), (4, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 94, 'length': 5, 'body': [(9, 6), (9, 5), (8, 5), (8, 6), (8, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 93, 'length': 5, 'body': [(4, 3), (4, 4), (3, 4), (3, 5), (3, 6)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 87, 'length': 4, 'body': [(4, 7), (3, 7), (3, 8), (2, 8)]}], 'food': [(4, 0), (10, 6), (5, 7), (4, 9)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(6, 2), (4, 2), (5, 3)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 17, 'territory_mean': 22.38888888888889, 'territory_max': 31, 'classification': 'survives all modeled replies'}, 'left': {'replies': 18, 'survives': 12, 'dies': 6, 'death_reasons': {'head-to-head collision': 6}, 'territory_min': 8, 'territory_mean': 15.666666666666666, 'territory_max': 25, 'classification': 'mixed'}, 'up': {'replies': 18, 'survives': 12, 'dies': 6, 'death_reasons': {'head-to-head collision': 6}, 'territory_min': 12, 'territory_mean': 16.916666666666668, 'territory_max': 23, 'classification': 'mixed'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 2), 'next_move': 'right', 'time': '0.047s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 16, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 84, 'length': 3, 'body': [(6, 2), (5, 2), (5, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 100, 'length': 6, 'body': [(10, 6), (9, 6), (9, 5), (8, 5), (8, 6), (8, 6)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 92, 'length': 5, 'body': [(4, 2), (4, 3), (4, 4), (3, 4), (3, 5)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 5, 'body': [(5, 7), (4, 7), (3, 7), (3, 8), (3, 8)]}], 'food': [(4, 0), (4, 9)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(7, 2), (6, 3), (6, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 12, 'territory_mean': 19.166666666666668, 'territory_max': 27, 'classification': 'survives all modeled replies'}, 'up': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 7, 'territory_mean': 16.166666666666668, 'territory_max': 28, 'classification': 'survives all modeled replies'}, 'down': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 10, 'territory_mean': 16.0, 'territory_max': 26, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (7, 2), 'next_move': 'right', 'time': '0.048s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 17, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 83, 'length': 3, 'body': [(7, 2), (6, 2), (5, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 99, 'length': 6, 'body': [(10, 7), (10, 6), (9, 6), (9, 5), (8, 5), (8, 6)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 91, 'length': 5, 'body': [(4, 1), (4, 2), (4, 3), (4, 4), (3, 4)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 5, 'body': [(5, 8), (5, 7), (4, 7), (3, 7), (3, 8)]}], 'food': [(4, 0), (4, 9), (10, 0)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(8, 2), (7, 3), (7, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 17, 'territory_mean': 20.444444444444443, 'territory_max': 26, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 14, 'territory_mean': 20.944444444444443, 'territory_max': 29, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 17, 'territory_mean': 20.38888888888889, 'territory_max': 27, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (7, 3), 'next_move': 'up', 'time': '0.082s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 18, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 82, 'length': 3, 'body': [(7, 3), (7, 2), (6, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 98, 'length': 6, 'body': [(9, 7), (10, 7), (10, 6), (9, 6), (9, 5), (8, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 100, 'length': 6, 'body': [(4, 0), (4, 1), (4, 2), (4, 3), (4, 4), (4, 4)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 98, 'length': 5, 'body': [(4, 8), (5, 8), (5, 7), (4, 7), (3, 7)]}], 'food': [(4, 9), (10, 0)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(8, 3), (6, 3), (7, 4)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 14, 'territory_mean': 22.625, 'territory_max': 32, 'classification': 'survives all modeled replies'}, 'left': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 7, 'territory_mean': 19.5, 'territory_max': 34, 'classification': 'survives all modeled replies'}, 'up': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 16, 'territory_mean': 25.75, 'territory_max': 36, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (7, 4), 'next_move': 'up', 'time': '0.026s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 19, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 81, 'length': 3, 'body': [(7, 4), (7, 3), (7, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 97, 'length': 6, 'body': [(8, 7), (9, 7), (10, 7), (10, 6), (9, 6), (9, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 99, 'length': 6, 'body': [(5, 0), (4, 0), (4, 1), (4, 2), (4, 3), (4, 4)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 6, 'body': [(4, 9), (4, 8), (5, 8), (5, 7), (4, 7), (4, 7)]}], 'food': [(10, 0)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(8, 4), (6, 4), (7, 5)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 8, 'territory_mean': 11.5, 'territory_max': 20, 'classification': 'survives all modeled replies'}, 'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 26, 'territory_mean': 32.833333333333336, 'territory_max': 45, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 4, 'territory_mean': 22.333333333333332, 'territory_max': 48, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 4), 'next_move': 'left', 'time': '0.071s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 20, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 80, 'length': 3, 'body': [(6, 4), (7, 4), (7, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 96, 'length': 6, 'body': [(7, 7), (8, 7), (9, 7), (10, 7), (10, 6), (9, 6)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 98, 'length': 6, 'body': [(6, 0), (5, 0), (4, 0), (4, 1), (4, 2), (4, 3)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 6, 'body': [(3, 9), (4, 9), (4, 8), (5, 8), (5, 7), (4, 7)]}], 'food': [(10, 0), (1, 9)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(5, 4), (6, 5), (6, 3)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 25, 'territory_mean': 30.11111111111111, 'territory_max': 40, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 4, 'territory_mean': 18.444444444444443, 'territory_max': 45, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 24, 'territory_mean': 30.333333333333332, 'territory_max': 39, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 3), 'next_move': 'down', 'time': '0.060s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 21, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 79, 'length': 3, 'body': [(6, 3), (6, 4), (7, 4)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 95, 'length': 6, 'body': [(7, 6), (7, 7), (8, 7), (9, 7), (10, 7), (10, 6)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 97, 'length': 6, 'body': [(7, 0), (6, 0), (5, 0), (4, 0), (4, 1), (4, 2)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 98, 'length': 6, 'body': [(2, 9), (3, 9), (4, 9), (4, 8), (5, 8), (5, 7)]}], 'food': [(10, 0), (1, 9)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(7, 3), (5, 3), (6, 2)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 3, 'territory_mean': 10.666666666666666, 'territory_max': 24, 'classification': 'survives all modeled replies'}, 'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 22, 'territory_mean': 26.333333333333332, 'territory_max': 36, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 17, 'territory_mean': 21.166666666666668, 'territory_max': 28, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 3), 'next_move': 'left', 'time': '0.054s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 22, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 78, 'length': 3, 'body': [(5, 3), (6, 3), (6, 4)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 94, 'length': 6, 'body': [(6, 6), (7, 6), (7, 7), (8, 7), (9, 7), (10, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 96, 'length': 6, 'body': [(8, 0), (7, 0), (6, 0), (5, 0), (4, 0), (4, 1)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 7, 'body': [(1, 9), (2, 9), (3, 9), (4, 9), (4, 8), (5, 8), (5, 8)]}], 'food': [(10, 0), (9, 5)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(4, 3), (5, 4), (5, 2)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 22, 'territory_mean': 25.833333333333332, 'territory_max': 33, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 9, 'territory_mean': 20.333333333333332, 'territory_max': 38, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 19, 'territory_mean': 22.5, 'territory_max': 29, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (4, 3), 'next_move': 'left', 'time': '0.059s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 23, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 77, 'length': 3, 'body': [(4, 3), (5, 3), (6, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 93, 'length': 6, 'body': [(6, 5), (6, 6), (7, 6), (7, 7), (8, 7), (9, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 95, 'length': 6, 'body': [(9, 0), (8, 0), (7, 0), (6, 0), (5, 0), (4, 0)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 7, 'body': [(1, 8), (1, 9), (2, 9), (3, 9), (4, 9), (4, 8), (5, 8)]}], 'food': [(10, 0), (9, 5)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(3, 3), (4, 4), (4, 2)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 21, 'territory_mean': 23.88888888888889, 'territory_max': 29, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 11, 'territory_mean': 20.666666666666668, 'territory_max': 33, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 18, 'territory_mean': 20.72222222222222, 'territory_max': 24, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (3, 3), 'next_move': 'left', 'time': '0.085s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 24, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 76, 'length': 3, 'body': [(3, 3), (4, 3), (5, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 92, 'length': 6, 'body': [(7, 5), (6, 5), (6, 6), (7, 6), (7, 7), (8, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 100, 'length': 7, 'body': [(10, 0), (9, 0), (8, 0), (7, 0), (6, 0), (5, 0), (5, 0)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 98, 'length': 7, 'body': [(2, 8), (1, 8), (1, 9), (2, 9), (3, 9), (4, 9), (4, 8)]}], 'food': [(9, 5)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(2, 3), (3, 4), (3, 2)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 4, 'survives': 4, 'dies': 0, 'death_reasons': {}, 'territory_min': 21, 'territory_mean': 23.5, 'territory_max': 26, 'classification': 'survives all modeled replies'}, 'up': {'replies': 4, 'survives': 4, 'dies': 0, 'death_reasons': {}, 'territory_min': 21, 'territory_mean': 25.0, 'territory_max': 29, 'classification': 'survives all modeled replies'}, 'down': {'replies': 4, 'survives': 4, 'dies': 0, 'death_reasons': {}, 'territory_min': 19, 'territory_mean': 21.5, 'territory_max': 24, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (3, 4), 'next_move': 'up', 'time': '0.011s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 25, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 75, 'length': 3, 'body': [(3, 4), (3, 3), (4, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 91, 'length': 6, 'body': [(8, 5), (7, 5), (6, 5), (6, 6), (7, 6), (7, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 99, 'length': 7, 'body': [(10, 1), (10, 0), (9, 0), (8, 0), (7, 0), (6, 0), (5, 0)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 97, 'length': 7, 'body': [(2, 7), (2, 8), (1, 8), (1, 9), (2, 9), (3, 9), (4, 9)]}], 'food': [(9, 5), (8, 9)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(4, 4), (2, 4), (3, 5)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 12, 'territory_mean': 22.333333333333332, 'territory_max': 32, 'classification': 'survives all modeled replies'}, 'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 18, 'territory_mean': 21.77777777777778, 'territory_max': 27, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 5, 'territory_mean': 21.333333333333332, 'territory_max': 33, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (4, 4), 'next_move': 'right', 'time': '0.050s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 26, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 74, 'length': 3, 'body': [(4, 4), (3, 4), (3, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 100, 'length': 7, 'body': [(9, 5), (8, 5), (7, 5), (6, 5), (6, 6), (7, 6), (7, 6)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 98, 'length': 7, 'body': [(10, 2), (10, 1), (10, 0), (9, 0), (8, 0), (7, 0), (6, 0)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 96, 'length': 7, 'body': [(2, 6), (2, 7), (2, 8), (1, 8), (1, 9), (2, 9), (3, 9)]}], 'food': [(8, 9), (1, 10)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(5, 4), (4, 5), (4, 3)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 15, 'territory_mean': 23.833333333333332, 'territory_max': 37, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 4, 'territory_mean': 18.166666666666668, 'territory_max': 34, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 13, 'territory_mean': 22.5, 'territory_max': 30, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 4), 'next_move': 'right', 'time': '0.056s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 27, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 73, 'length': 3, 'body': [(5, 4), (4, 4), (3, 4)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 99, 'length': 7, 'body': [(9, 6), (9, 5), (8, 5), (7, 5), (6, 5), (6, 6), (7, 6)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 97, 'length': 7, 'body': [(9, 2), (10, 2), (10, 1), (10, 0), (9, 0), (8, 0), (7, 0)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 95, 'length': 7, 'body': [(3, 6), (2, 6), (2, 7), (2, 8), (1, 8), (1, 9), (2, 9)]}], 'food': [(8, 9), (1, 10)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(6, 4), (5, 5), (5, 3)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 3, 'territory_mean': 11.333333333333334, 'territory_max': 29, 'classification': 'survives all modeled replies'}, 'up': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 0, 'territory_mean': 10.0, 'territory_max': 30, 'classification': 'survives all modeled replies'}, 'down': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 9, 'territory_mean': 23.0, 'territory_max': 32, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 3), 'next_move': 'down', 'time': '0.080s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 28, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 72, 'length': 3, 'body': [(5, 3), (5, 4), (4, 4)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 98, 'length': 7, 'body': [(8, 6), (9, 6), (9, 5), (8, 5), (7, 5), (6, 5), (6, 6)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 96, 'length': 7, 'body': [(8, 2), (9, 2), (10, 2), (10, 1), (10, 0), (9, 0), (8, 0)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 94, 'length': 7, 'body': [(3, 7), (3, 6), (2, 6), (2, 7), (2, 8), (1, 8), (1, 9)]}], 'food': [(8, 9), (1, 10)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(6, 3), (4, 3), (5, 2)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 1, 'territory_mean': 14.5, 'territory_max': 27, 'classification': 'survives all modeled replies'}, 'left': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 24, 'territory_mean': 28.583333333333332, 'territory_max': 34, 'classification': 'survives all modeled replies'}, 'down': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 22, 'territory_mean': 26.5, 'territory_max': 30, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (4, 3), 'next_move': 'left', 'time': '0.046s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 29, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 71, 'length': 3, 'body': [(4, 3), (5, 3), (5, 4)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 97, 'length': 7, 'body': [(8, 7), (8, 6), (9, 6), (9, 5), (8, 5), (7, 5), (6, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 95, 'length': 7, 'body': [(7, 2), (8, 2), (9, 2), (10, 2), (10, 1), (10, 0), (9, 0)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 93, 'length': 7, 'body': [(3, 8), (3, 7), (3, 6), (2, 6), (2, 7), (2, 8), (1, 8)]}], 'food': [(8, 9), (1, 10), (6, 10)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(3, 3), (4, 4), (4, 2)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 25, 'territory_mean': 27.27777777777778, 'territory_max': 29, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 16, 'territory_mean': 23.77777777777778, 'territory_max': 29, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 22, 'territory_mean': 24.5, 'territory_max': 27, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (3, 3), 'next_move': 'left', 'time': '0.054s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 30, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 70, 'length': 3, 'body': [(3, 3), (4, 3), (5, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 96, 'length': 7, 'body': [(8, 8), (8, 7), (8, 6), (9, 6), (9, 5), (8, 5), (7, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 94, 'length': 7, 'body': [(7, 3), (7, 2), (8, 2), (9, 2), (10, 2), (10, 1), (10, 0)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 92, 'length': 7, 'body': [(3, 9), (3, 8), (3, 7), (3, 6), (2, 6), (2, 7), (2, 8)]}], 'food': [(8, 9), (1, 10), (6, 10)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(2, 3), (3, 4), (3, 2)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 22, 'territory_mean': 27.62962962962963, 'territory_max': 33, 'classification': 'survives all modeled replies'}, 'up': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 22, 'territory_mean': 29.074074074074073, 'territory_max': 37, 'classification': 'survives all modeled replies'}, 'down': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 21, 'territory_mean': 29.22222222222222, 'territory_max': 40, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (3, 2), 'next_move': 'down', 'time': '0.168s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 31, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 69, 'length': 3, 'body': [(3, 2), (3, 3), (4, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 100, 'length': 8, 'body': [(8, 9), (8, 8), (8, 7), (8, 6), (9, 6), (9, 5), (8, 5), (8, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 93, 'length': 7, 'body': [(7, 4), (7, 3), (7, 2), (8, 2), (9, 2), (10, 2), (10, 1)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 91, 'length': 7, 'body': [(3, 10), (3, 9), (3, 8), (3, 7), (3, 6), (2, 6), (2, 7)]}], 'food': [(1, 10), (6, 10), (0, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(4, 2), (2, 2), (3, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 17, 'territory_mean': 36.22222222222222, 'territory_max': 62, 'classification': 'survives all modeled replies'}, 'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 21, 'territory_mean': 37.333333333333336, 'territory_max': 58, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 18, 'territory_mean': 33.94444444444444, 'territory_max': 57, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (2, 2), 'next_move': 'left', 'time': '0.053s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 32, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 68, 'length': 3, 'body': [(2, 2), (3, 2), (3, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 99, 'length': 8, 'body': [(8, 10), (8, 9), (8, 8), (8, 7), (8, 6), (9, 6), (9, 5), (8, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 92, 'length': 7, 'body': [(7, 5), (7, 4), (7, 3), (7, 2), (8, 2), (9, 2), (10, 2)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 90, 'length': 7, 'body': [(2, 10), (3, 10), (3, 9), (3, 8), (3, 7), (3, 6), (2, 6)]}], 'food': [(1, 10), (6, 10), (0, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(1, 2), (2, 3), (2, 1)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 20, 'territory_mean': 29.333333333333332, 'territory_max': 61, 'classification': 'survives all modeled replies'}, 'up': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 24, 'territory_mean': 35.5, 'territory_max': 62, 'classification': 'survives all modeled replies'}, 'down': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 19, 'territory_mean': 33.666666666666664, 'territory_max': 59, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (2, 3), 'next_move': 'up', 'time': '0.034s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 33, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 67, 'length': 3, 'body': [(2, 3), (2, 2), (3, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 98, 'length': 8, 'body': [(7, 10), (8, 10), (8, 9), (8, 8), (8, 7), (8, 6), (9, 6), (9, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 91, 'length': 7, 'body': [(7, 6), (7, 5), (7, 4), (7, 3), (7, 2), (8, 2), (9, 2)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 8, 'body': [(1, 10), (2, 10), (3, 10), (3, 9), (3, 8), (3, 7), (3, 6), (3, 6)]}], 'food': [(6, 10), (0, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(3, 3), (1, 3), (2, 4)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 28, 'territory_mean': 46.0, 'territory_max': 64, 'classification': 'survives all modeled replies'}, 'left': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 22, 'territory_mean': 26.0, 'territory_max': 30, 'classification': 'survives all modeled replies'}, 'up': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 27, 'territory_mean': 31.0, 'territory_max': 35, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (3, 3), 'next_move': 'right', 'time': '0.029s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 34, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 66, 'length': 3, 'body': [(3, 3), (2, 3), (2, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 100, 'length': 9, 'body': [(6, 10), (7, 10), (8, 10), (8, 9), (8, 8), (8, 7), (8, 6), (9, 6), (9, 6)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 90, 'length': 7, 'body': [(7, 7), (7, 6), (7, 5), (7, 4), (7, 3), (7, 2), (8, 2)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 8, 'body': [(1, 9), (1, 10), (2, 10), (3, 10), (3, 9), (3, 8), (3, 7), (3, 6)]}], 'food': [(0, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(4, 3), (3, 4), (3, 2)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 58, 'territory_mean': 62.0, 'territory_max': 65, 'classification': 'survives all modeled replies'}, 'up': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 31, 'territory_mean': 50.333333333333336, 'territory_max': 69, 'classification': 'survives all modeled replies'}, 'down': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 55, 'territory_mean': 58.0, 'territory_max': 61, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (4, 3), 'next_move': 'right', 'time': '0.057s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 35, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 65, 'length': 3, 'body': [(4, 3), (3, 3), (2, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 99, 'length': 9, 'body': [(6, 9), (6, 10), (7, 10), (8, 10), (8, 9), (8, 8), (8, 7), (8, 6), (9, 6)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 89, 'length': 7, 'body': [(6, 7), (7, 7), (7, 6), (7, 5), (7, 4), (7, 3), (7, 2)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 98, 'length': 8, 'body': [(1, 8), (1, 9), (1, 10), (2, 10), (3, 10), (3, 9), (3, 8), (3, 7)]}], 'food': [(0, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(5, 3), (4, 4), (4, 2)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 42, 'territory_mean': 54.111111111111114, 'territory_max': 60, 'classification': 'survives all modeled replies'}, 'up': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 19, 'territory_mean': 48.111111111111114, 'territory_max': 68, 'classification': 'survives all modeled replies'}, 'down': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 41, 'territory_mean': 54.333333333333336, 'territory_max': 60, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (4, 2), 'next_move': 'down', 'time': '0.082s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 36, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 64, 'length': 3, 'body': [(4, 2), (4, 3), (3, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 98, 'length': 9, 'body': [(5, 9), (6, 9), (6, 10), (7, 10), (8, 10), (8, 9), (8, 8), (8, 7), (8, 6)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 88, 'length': 7, 'body': [(6, 6), (6, 7), (7, 7), (7, 6), (7, 5), (7, 4), (7, 3)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 97, 'length': 8, 'body': [(1, 7), (1, 8), (1, 9), (1, 10), (2, 10), (3, 10), (3, 9), (3, 8)]}], 'food': [(0, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(5, 2), (3, 2), (4, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 25, 'territory_mean': 38.333333333333336, 'territory_max': 51, 'classification': 'survives all modeled replies'}, 'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 18, 'territory_mean': 24.333333333333332, 'territory_max': 30, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 25, 'territory_mean': 28.833333333333332, 'territory_max': 32, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 2), 'next_move': 'right', 'time': '0.053s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 37, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 63, 'length': 3, 'body': [(5, 2), (4, 2), (4, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 97, 'length': 9, 'body': [(4, 9), (5, 9), (6, 9), (6, 10), (7, 10), (8, 10), (8, 9), (8, 8), (8, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 87, 'length': 7, 'body': [(6, 5), (6, 6), (6, 7), (7, 7), (7, 6), (7, 5), (7, 4)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 96, 'length': 8, 'body': [(1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (2, 10), (3, 10), (3, 9)]}], 'food': [(0, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(6, 2), (5, 3), (5, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 20, 'territory_mean': 23.166666666666668, 'territory_max': 27, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 5, 'territory_mean': 18.333333333333332, 'territory_max': 33, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 18, 'territory_mean': 22.833333333333332, 'territory_max': 27, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 2), 'next_move': 'right', 'time': '0.051s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 38, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 62, 'length': 3, 'body': [(6, 2), (5, 2), (4, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 96, 'length': 9, 'body': [(4, 8), (4, 9), (5, 9), (6, 9), (6, 10), (7, 10), (8, 10), (8, 9), (8, 8)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 86, 'length': 7, 'body': [(6, 4), (6, 5), (6, 6), (6, 7), (7, 7), (7, 6), (7, 5)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 95, 'length': 8, 'body': [(0, 6), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (2, 10), (3, 10)]}], 'food': [(0, 1), (1, 2)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(7, 2), (6, 3), (6, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 15, 'territory_mean': 22.333333333333332, 'territory_max': 33, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 12, 'dies': 6, 'death_reasons': {'head-to-head collision': 6}, 'territory_min': 10, 'territory_mean': 23.333333333333332, 'territory_max': 32, 'classification': 'mixed'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 17, 'territory_mean': 21.5, 'territory_max': 26, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (7, 2), 'next_move': 'right', 'time': '0.039s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 39, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 61, 'length': 3, 'body': [(7, 2), (6, 2), (5, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 95, 'length': 9, 'body': [(4, 7), (4, 8), (4, 9), (5, 9), (6, 9), (6, 10), (7, 10), (8, 10), (8, 9)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 85, 'length': 7, 'body': [(7, 4), (6, 4), (6, 5), (6, 6), (6, 7), (7, 7), (7, 6)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 94, 'length': 8, 'body': [(0, 5), (0, 6), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (2, 10)]}], 'food': [(0, 1), (1, 2)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(8, 2), (7, 3), (7, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 12, 'territory_mean': 16.11111111111111, 'territory_max': 23, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 12, 'dies': 6, 'death_reasons': {'head-to-head collision': 6}, 'territory_min': 5, 'territory_mean': 16.0, 'territory_max': 26, 'classification': 'mixed'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 15, 'territory_mean': 17.22222222222222, 'territory_max': 21, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (7, 1), 'next_move': 'down', 'time': '0.042s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 40, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 60, 'length': 3, 'body': [(7, 1), (7, 2), (6, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 94, 'length': 9, 'body': [(4, 6), (4, 7), (4, 8), (4, 9), (5, 9), (6, 9), (6, 10), (7, 10), (8, 10)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 84, 'length': 7, 'body': [(7, 5), (7, 4), (6, 4), (6, 5), (6, 6), (6, 7), (7, 7)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 93, 'length': 8, 'body': [(0, 4), (0, 5), (0, 6), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10)]}], 'food': [(0, 1), (1, 2)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(8, 1), (6, 1), (7, 0)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 12, 'territory_mean': 15.333333333333334, 'territory_max': 20, 'classification': 'survives all modeled replies'}, 'left': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 14, 'territory_mean': 17.0, 'territory_max': 20, 'classification': 'survives all modeled replies'}, 'down': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 13, 'territory_mean': 15.666666666666666, 'territory_max': 19, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 1), 'next_move': 'left', 'time': '0.045s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 41, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 59, 'length': 3, 'body': [(6, 1), (7, 1), (7, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 93, 'length': 9, 'body': [(5, 6), (4, 6), (4, 7), (4, 8), (4, 9), (5, 9), (6, 9), (6, 10), (7, 10)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 83, 'length': 7, 'body': [(7, 6), (7, 5), (7, 4), (6, 4), (6, 5), (6, 6), (6, 7)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 92, 'length': 8, 'body': [(0, 3), (0, 4), (0, 5), (0, 6), (1, 6), (1, 7), (1, 8), (1, 9)]}], 'food': [(0, 1), (1, 2), (5, 8)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(5, 1), (6, 2), (6, 0)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 14, 'territory_mean': 20.0, 'territory_max': 28, 'classification': 'survives all modeled replies'}, 'up': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 20, 'territory_mean': 23.75, 'territory_max': 29, 'classification': 'survives all modeled replies'}, 'down': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 12, 'territory_mean': 15.625, 'territory_max': 22, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 2), 'next_move': 'up', 'time': '0.032s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 42, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 58, 'length': 3, 'body': [(6, 2), (6, 1), (7, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 92, 'length': 9, 'body': [(5, 7), (5, 6), (4, 6), (4, 7), (4, 8), (4, 9), (5, 9), (6, 9), (6, 10)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 82, 'length': 7, 'body': [(7, 7), (7, 6), (7, 5), (7, 4), (6, 4), (6, 5), (6, 6)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 91, 'length': 8, 'body': [(0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (1, 6), (1, 7), (1, 8)]}], 'food': [(0, 1), (1, 2), (5, 8)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(7, 2), (5, 2), (6, 3)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 21, 'territory_mean': 25.166666666666668, 'territory_max': 31, 'classification': 'survives all modeled replies'}, 'left': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 20, 'territory_mean': 29.166666666666668, 'territory_max': 39, 'classification': 'survives all modeled replies'}, 'up': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 26, 'territory_mean': 31.5, 'territory_max': 39, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 3), 'next_move': 'up', 'time': '0.036s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 43, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 57, 'length': 3, 'body': [(6, 3), (6, 2), (6, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 100, 'length': 10, 'body': [(5, 8), (5, 7), (5, 6), (4, 6), (4, 7), (4, 8), (4, 9), (5, 9), (6, 9), (6, 9)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 81, 'length': 7, 'body': [(7, 8), (7, 7), (7, 6), (7, 5), (7, 4), (6, 4), (6, 5)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 9, 'body': [(0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (1, 6), (1, 7), (1, 7)]}], 'food': [(1, 2), (10, 9)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(7, 3), (5, 3)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 6, 'survives': 6, 'dies': 0, 'death_reasons': {}, 'territory_min': 20, 'territory_mean': 25.333333333333332, 'territory_max': 33, 'classification': 'survives all modeled replies'}, 'left': {'replies': 6, 'survives': 6, 'dies': 0, 'death_reasons': {}, 'territory_min': 26, 'territory_mean': 35.833333333333336, 'territory_max': 49, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 3), 'next_move': 'left', 'time': '0.013s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 44, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 56, 'length': 3, 'body': [(5, 3), (6, 3), (6, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 99, 'length': 10, 'body': [(6, 8), (5, 8), (5, 7), (5, 6), (4, 6), (4, 7), (4, 8), (4, 9), (5, 9), (6, 9)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 80, 'length': 7, 'body': [(7, 9), (7, 8), (7, 7), (7, 6), (7, 5), (7, 4), (6, 4)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 9, 'body': [(1, 1), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (1, 6), (1, 7)]}], 'food': [(1, 2), (10, 9), (2, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(4, 3), (5, 4), (5, 2)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 17, 'territory_mean': 32.333333333333336, 'territory_max': 44, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 9, 'territory_mean': 19.11111111111111, 'territory_max': 43, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 24, 'territory_mean': 32.0, 'territory_max': 40, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (4, 3), 'next_move': 'left', 'time': '0.050s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 45, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 55, 'length': 3, 'body': [(4, 3), (5, 3), (6, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 98, 'length': 10, 'body': [(6, 9), (6, 8), (5, 8), (5, 7), (5, 6), (4, 6), (4, 7), (4, 8), (4, 9), (5, 9)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 79, 'length': 7, 'body': [(8, 9), (7, 9), (7, 8), (7, 7), (7, 6), (7, 5), (7, 4)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 10, 'body': [(1, 2), (1, 1), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (1, 6), (1, 6)]}], 'food': [(10, 9), (2, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(3, 3), (4, 4), (4, 2)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 12, 'territory_mean': 23.5, 'territory_max': 41, 'classification': 'survives all modeled replies'}, 'up': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 14, 'territory_mean': 22.0, 'territory_max': 36, 'classification': 'survives all modeled replies'}, 'down': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 26, 'territory_mean': 29.833333333333332, 'territory_max': 34, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (4, 2), 'next_move': 'down', 'time': '0.049s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 46, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 54, 'length': 3, 'body': [(4, 2), (4, 3), (5, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 97, 'length': 10, 'body': [(6, 10), (6, 9), (6, 8), (5, 8), (5, 7), (5, 6), (4, 6), (4, 7), (4, 8), (4, 9)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 78, 'length': 7, 'body': [(9, 9), (8, 9), (7, 9), (7, 8), (7, 7), (7, 6), (7, 5)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 10, 'body': [(2, 2), (1, 2), (1, 1), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (1, 6)]}], 'food': [(10, 9), (2, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(5, 2), (3, 2), (4, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 28, 'territory_mean': 32.333333333333336, 'territory_max': 36, 'classification': 'survives all modeled replies'}, 'left': {'replies': 18, 'survives': 12, 'dies': 6, 'death_reasons': {'head-to-head collision': 6}, 'territory_min': 17, 'territory_mean': 26.166666666666668, 'territory_max': 43, 'classification': 'mixed'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 20, 'territory_mean': 26.11111111111111, 'territory_max': 33, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 2), 'next_move': 'right', 'time': '0.048s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 47, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 53, 'length': 3, 'body': [(5, 2), (4, 2), (4, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 96, 'length': 10, 'body': [(5, 10), (6, 10), (6, 9), (6, 8), (5, 8), (5, 7), (5, 6), (4, 6), (4, 7), (4, 8)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 100, 'length': 8, 'body': [(10, 9), (9, 9), (8, 9), (7, 9), (7, 8), (7, 7), (7, 6), (7, 6)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 11, 'body': [(2, 1), (2, 2), (1, 2), (1, 1), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 6)]}], 'food': [(0, 7)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(6, 2), (5, 3), (5, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 28, 'territory_mean': 37.5, 'territory_max': 47, 'classification': 'survives all modeled replies'}, 'up': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 20, 'territory_mean': 34.75, 'territory_max': 50, 'classification': 'survives all modeled replies'}, 'down': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 23, 'territory_mean': 34.5, 'territory_max': 46, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 2), 'next_move': 'right', 'time': '0.039s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 48, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 52, 'length': 3, 'body': [(6, 2), (5, 2), (4, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 95, 'length': 10, 'body': [(5, 9), (5, 10), (6, 10), (6, 9), (6, 8), (5, 8), (5, 7), (5, 6), (4, 6), (4, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 99, 'length': 8, 'body': [(10, 8), (10, 9), (9, 9), (8, 9), (7, 9), (7, 8), (7, 7), (7, 6)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 11, 'body': [(3, 1), (2, 1), (2, 2), (1, 2), (1, 1), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6)]}], 'food': [(0, 7)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(7, 2), (6, 3), (6, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 6, 'survives': 6, 'dies': 0, 'death_reasons': {}, 'territory_min': 20, 'territory_mean': 22.5, 'territory_max': 25, 'classification': 'survives all modeled replies'}, 'up': {'replies': 6, 'survives': 6, 'dies': 0, 'death_reasons': {}, 'territory_min': 16, 'territory_mean': 23.5, 'territory_max': 31, 'classification': 'survives all modeled replies'}, 'down': {'replies': 6, 'survives': 6, 'dies': 0, 'death_reasons': {}, 'territory_min': 15, 'territory_mean': 17.166666666666668, 'territory_max': 19, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 3), 'next_move': 'up', 'time': '0.021s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 49, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 51, 'length': 3, 'body': [(6, 3), (6, 2), (5, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 94, 'length': 10, 'body': [(4, 9), (5, 9), (5, 10), (6, 10), (6, 9), (6, 8), (5, 8), (5, 7), (5, 6), (4, 6)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 98, 'length': 8, 'body': [(9, 8), (10, 8), (10, 9), (9, 9), (8, 9), (7, 9), (7, 8), (7, 7)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 98, 'length': 11, 'body': [(3, 2), (3, 1), (2, 1), (2, 2), (1, 2), (1, 1), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5)]}], 'food': [(0, 7)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(7, 3), (5, 3), (6, 4)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 20, 'territory_mean': 22.0, 'territory_max': 24, 'classification': 'survives all modeled replies'}, 'left': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 6, 'territory_mean': 12.0, 'territory_max': 20, 'classification': 'survives all modeled replies'}, 'up': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 11, 'territory_mean': 17.0, 'territory_max': 25, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (7, 3), 'next_move': 'right', 'time': '0.039s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 50, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 50, 'length': 3, 'body': [(7, 3), (6, 3), (6, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 93, 'length': 10, 'body': [(4, 8), (4, 9), (5, 9), (5, 10), (6, 10), (6, 9), (6, 8), (5, 8), (5, 7), (5, 6)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 97, 'length': 8, 'body': [(9, 7), (9, 8), (10, 8), (10, 9), (9, 9), (8, 9), (7, 9), (7, 8)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 97, 'length': 11, 'body': [(4, 2), (3, 2), (3, 1), (2, 1), (2, 2), (1, 2), (1, 1), (0, 1), (0, 2), (0, 3), (0, 4)]}], 'food': [(0, 7), (0, 6)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(8, 3), (7, 4), (7, 2)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 13, 'territory_mean': 16.38888888888889, 'territory_max': 19, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 5, 'territory_mean': 12.0, 'territory_max': 19, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 12, 'territory_mean': 14.777777777777779, 'territory_max': 17, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (8, 3), 'next_move': 'right', 'time': '0.059s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 51, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 49, 'length': 3, 'body': [(8, 3), (7, 3), (6, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 92, 'length': 10, 'body': [(4, 7), (4, 8), (4, 9), (5, 9), (5, 10), (6, 10), (6, 9), (6, 8), (5, 8), (5, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 96, 'length': 8, 'body': [(8, 7), (9, 7), (9, 8), (10, 8), (10, 9), (9, 9), (8, 9), (7, 9)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 96, 'length': 11, 'body': [(4, 3), (4, 2), (3, 2), (3, 1), (2, 1), (2, 2), (1, 2), (1, 1), (0, 1), (0, 2), (0, 3)]}], 'food': [(0, 7), (0, 6)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(9, 3), (8, 4), (8, 2)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 12, 'territory_mean': 18.444444444444443, 'territory_max': 26, 'classification': 'survives all modeled replies'}, 'up': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 11, 'territory_mean': 19.37037037037037, 'territory_max': 31, 'classification': 'survives all modeled replies'}, 'down': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 13, 'territory_mean': 20.444444444444443, 'territory_max': 31, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (8, 2), 'next_move': 'down', 'time': '0.093s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 52, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 48, 'length': 3, 'body': [(8, 2), (8, 3), (7, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 91, 'length': 10, 'body': [(3, 7), (4, 7), (4, 8), (4, 9), (5, 9), (5, 10), (6, 10), (6, 9), (6, 8), (5, 8)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 95, 'length': 8, 'body': [(7, 7), (8, 7), (9, 7), (9, 8), (10, 8), (10, 9), (9, 9), (8, 9)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 95, 'length': 11, 'body': [(4, 4), (4, 3), (4, 2), (3, 2), (3, 1), (2, 1), (2, 2), (1, 2), (1, 1), (0, 1), (0, 2)]}], 'food': [(0, 7), (0, 6)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(9, 2), (7, 2), (8, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 13, 'territory_mean': 20.74074074074074, 'territory_max': 35, 'classification': 'survives all modeled replies'}, 'left': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 14, 'territory_mean': 24.59259259259259, 'territory_max': 41, 'classification': 'survives all modeled replies'}, 'down': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 14, 'territory_mean': 22.444444444444443, 'territory_max': 35, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (7, 2), 'next_move': 'left', 'time': '0.073s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 53, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 47, 'length': 3, 'body': [(7, 2), (8, 2), (8, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 90, 'length': 10, 'body': [(2, 7), (3, 7), (4, 7), (4, 8), (4, 9), (5, 9), (5, 10), (6, 10), (6, 9), (6, 8)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 94, 'length': 8, 'body': [(7, 6), (7, 7), (8, 7), (9, 7), (9, 8), (10, 8), (10, 9), (9, 9)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 94, 'length': 11, 'body': [(4, 5), (4, 4), (4, 3), (4, 2), (3, 2), (3, 1), (2, 1), (2, 2), (1, 2), (1, 1), (0, 1)]}], 'food': [(0, 7), (0, 6)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(6, 2), (7, 3), (7, 1)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 19, 'territory_mean': 22.555555555555557, 'territory_max': 27, 'classification': 'survives all modeled replies'}, 'up': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 17, 'territory_mean': 24.444444444444443, 'territory_max': 30, 'classification': 'survives all modeled replies'}, 'down': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 19, 'territory_mean': 20.88888888888889, 'territory_max': 23, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (7, 3), 'next_move': 'up', 'time': '0.087s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 54, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 46, 'length': 3, 'body': [(7, 3), (7, 2), (8, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 89, 'length': 10, 'body': [(1, 7), (2, 7), (3, 7), (4, 7), (4, 8), (4, 9), (5, 9), (5, 10), (6, 10), (6, 9)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 93, 'length': 8, 'body': [(6, 6), (7, 6), (7, 7), (8, 7), (9, 7), (9, 8), (10, 8), (10, 9)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 93, 'length': 11, 'body': [(3, 5), (4, 5), (4, 4), (4, 3), (4, 2), (3, 2), (3, 1), (2, 1), (2, 2), (1, 2), (1, 1)]}], 'food': [(0, 7), (0, 6)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(8, 3), (6, 3), (7, 4)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 16, 'territory_mean': 25.703703703703702, 'territory_max': 36, 'classification': 'survives all modeled replies'}, 'left': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 19, 'territory_mean': 29.77777777777778, 'territory_max': 41, 'classification': 'survives all modeled replies'}, 'up': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 15, 'territory_mean': 28.037037037037038, 'territory_max': 40, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 3), 'next_move': 'left', 'time': '0.081s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 55, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 45, 'length': 3, 'body': [(6, 3), (7, 3), (7, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 100, 'length': 11, 'body': [(0, 7), (1, 7), (2, 7), (3, 7), (4, 7), (4, 8), (4, 9), (5, 9), (5, 10), (6, 10), (6, 10)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 92, 'length': 8, 'body': [(6, 5), (6, 6), (7, 6), (7, 7), (8, 7), (9, 7), (9, 8), (10, 8)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 92, 'length': 11, 'body': [(2, 5), (3, 5), (4, 5), (4, 4), (4, 3), (4, 2), (3, 2), (3, 1), (2, 1), (2, 2), (1, 2)]}], 'food': [(0, 6)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(5, 3), (6, 4), (6, 2)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 12, 'territory_mean': 18.27777777777778, 'territory_max': 25, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 12, 'dies': 6, 'death_reasons': {'head-to-head collision': 6}, 'territory_min': 12, 'territory_mean': 21.583333333333332, 'territory_max': 25, 'classification': 'mixed'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 20, 'territory_mean': 21.666666666666668, 'territory_max': 24, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 2), 'next_move': 'down', 'time': '0.046s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 56, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 44, 'length': 3, 'body': [(6, 2), (6, 3), (7, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 99, 'length': 11, 'body': [(0, 8), (0, 7), (1, 7), (2, 7), (3, 7), (4, 7), (4, 8), (4, 9), (5, 9), (5, 10), (6, 10)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 91, 'length': 8, 'body': [(6, 4), (6, 5), (6, 6), (7, 6), (7, 7), (8, 7), (9, 7), (9, 8)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 91, 'length': 11, 'body': [(1, 5), (2, 5), (3, 5), (4, 5), (4, 4), (4, 3), (4, 2), (3, 2), (3, 1), (2, 1), (2, 2)]}], 'food': [(0, 6), (6, 9)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(7, 2), (5, 2), (6, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 21, 'territory_mean': 25.0, 'territory_max': 29, 'classification': 'survives all modeled replies'}, 'left': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 12, 'territory_mean': 26.0, 'territory_max': 35, 'classification': 'survives all modeled replies'}, 'down': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 19, 'territory_mean': 27.5, 'territory_max': 35, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 1), 'next_move': 'down', 'time': '0.036s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 57, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 43, 'length': 3, 'body': [(6, 1), (6, 2), (6, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 98, 'length': 11, 'body': [(0, 9), (0, 8), (0, 7), (1, 7), (2, 7), (3, 7), (4, 7), (4, 8), (4, 9), (5, 9), (5, 10)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 90, 'length': 8, 'body': [(7, 4), (6, 4), (6, 5), (6, 6), (7, 6), (7, 7), (8, 7), (9, 7)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 90, 'length': 11, 'body': [(0, 5), (1, 5), (2, 5), (3, 5), (4, 5), (4, 4), (4, 3), (4, 2), (3, 2), (3, 1), (2, 1)]}], 'food': [(0, 6), (6, 9)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(7, 1), (5, 1), (6, 0)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 11, 'territory_mean': 25.5, 'territory_max': 39, 'classification': 'survives all modeled replies'}, 'left': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 7, 'territory_mean': 22.333333333333332, 'territory_max': 32, 'classification': 'survives all modeled replies'}, 'down': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 10, 'territory_mean': 22.666666666666668, 'territory_max': 34, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (7, 1), 'next_move': 'right', 'time': '0.040s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 58, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 42, 'length': 3, 'body': [(7, 1), (6, 1), (6, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 97, 'length': 11, 'body': [(1, 9), (0, 9), (0, 8), (0, 7), (1, 7), (2, 7), (3, 7), (4, 7), (4, 8), (4, 9), (5, 9)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 89, 'length': 8, 'body': [(7, 3), (7, 4), (6, 4), (6, 5), (6, 6), (7, 6), (7, 7), (8, 7)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 12, 'body': [(0, 6), (0, 5), (1, 5), (2, 5), (3, 5), (4, 5), (4, 4), (4, 3), (4, 2), (3, 2), (3, 1), (3, 1)]}], 'food': [(6, 9), (2, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(8, 1), (7, 2), (7, 0)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 9, 'survives': 9, 'dies': 0, 'death_reasons': {}, 'territory_min': 7, 'territory_mean': 21.333333333333332, 'territory_max': 32, 'classification': 'survives all modeled replies'}, 'up': {'replies': 9, 'survives': 6, 'dies': 3, 'death_reasons': {'head-to-head collision': 3}, 'territory_min': 27, 'territory_mean': 28.5, 'territory_max': 32, 'classification': 'mixed'}, 'down': {'replies': 9, 'survives': 9, 'dies': 0, 'death_reasons': {}, 'territory_min': 24, 'territory_mean': 25.666666666666668, 'territory_max': 27, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (7, 0), 'next_move': 'down', 'time': '0.026s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 59, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 41, 'length': 3, 'body': [(7, 0), (7, 1), (6, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 96, 'length': 11, 'body': [(2, 9), (1, 9), (0, 9), (0, 8), (0, 7), (1, 7), (2, 7), (3, 7), (4, 7), (4, 8), (4, 9)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 88, 'length': 8, 'body': [(7, 2), (7, 3), (7, 4), (6, 4), (6, 5), (6, 6), (7, 6), (7, 7)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 12, 'body': [(1, 6), (0, 6), (0, 5), (1, 5), (2, 5), (3, 5), (4, 5), (4, 4), (4, 3), (4, 2), (3, 2), (3, 1)]}], 'food': [(6, 9), (2, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(8, 0), (6, 0)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 6, 'survives': 6, 'dies': 0, 'death_reasons': {}, 'territory_min': 2, 'territory_mean': 11.5, 'territory_max': 21, 'classification': 'survives all modeled replies'}, 'left': {'replies': 6, 'survives': 6, 'dies': 0, 'death_reasons': {}, 'territory_min': 6, 'territory_mean': 17.0, 'territory_max': 28, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 0), 'next_move': 'left', 'time': '0.014s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 60, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 40, 'length': 3, 'body': [(6, 0), (7, 0), (7, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 95, 'length': 11, 'body': [(3, 9), (2, 9), (1, 9), (0, 9), (0, 8), (0, 7), (1, 7), (2, 7), (3, 7), (4, 7), (4, 8)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 87, 'length': 8, 'body': [(6, 2), (7, 2), (7, 3), (7, 4), (6, 4), (6, 5), (6, 6), (7, 6)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 98, 'length': 12, 'body': [(2, 6), (1, 6), (0, 6), (0, 5), (1, 5), (2, 5), (3, 5), (4, 5), (4, 4), (4, 3), (4, 2), (3, 2)]}], 'food': [(6, 9), (2, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(5, 0), (6, 1)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 9, 'survives': 9, 'dies': 0, 'death_reasons': {}, 'territory_min': 5, 'territory_mean': 16.666666666666668, 'territory_max': 40, 'classification': 'survives all modeled replies'}, 'up': {'replies': 9, 'survives': 6, 'dies': 3, 'death_reasons': {'head-to-head collision': 3}, 'territory_min': 19, 'territory_mean': 31.0, 'territory_max': 43, 'classification': 'mixed'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 0), 'next_move': 'left', 'time': '0.014s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 61, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 39, 'length': 3, 'body': [(5, 0), (6, 0), (7, 0)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 94, 'length': 11, 'body': [(4, 9), (3, 9), (2, 9), (1, 9), (0, 9), (0, 8), (0, 7), (1, 7), (2, 7), (3, 7), (4, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 86, 'length': 8, 'body': [(6, 1), (6, 2), (7, 2), (7, 3), (7, 4), (6, 4), (6, 5), (6, 6)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 97, 'length': 12, 'body': [(3, 6), (2, 6), (1, 6), (0, 6), (0, 5), (1, 5), (2, 5), (3, 5), (4, 5), (4, 4), (4, 3), (4, 2)]}], 'food': [(6, 9), (2, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(4, 0), (5, 1)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 6, 'survives': 6, 'dies': 0, 'death_reasons': {}, 'territory_min': 4, 'territory_mean': 14.0, 'territory_max': 24, 'classification': 'survives all modeled replies'}, 'up': {'replies': 6, 'survives': 3, 'dies': 3, 'death_reasons': {'head-to-head collision': 3}, 'territory_min': 26, 'territory_mean': 26.0, 'territory_max': 26, 'classification': 'mixed'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (4, 0), 'next_move': 'left', 'time': '0.012s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 62, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 38, 'length': 3, 'body': [(4, 0), (5, 0), (6, 0)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 93, 'length': 11, 'body': [(5, 9), (4, 9), (3, 9), (2, 9), (1, 9), (0, 9), (0, 8), (0, 7), (1, 7), (2, 7), (3, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 85, 'length': 8, 'body': [(5, 1), (6, 1), (6, 2), (7, 2), (7, 3), (7, 4), (6, 4), (6, 5)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 96, 'length': 12, 'body': [(4, 6), (3, 6), (2, 6), (1, 6), (0, 6), (0, 5), (1, 5), (2, 5), (3, 5), (4, 5), (4, 4), (4, 3)]}], 'food': [(6, 9), (2, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(3, 0), (4, 1)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 3, 'territory_mean': 5.0, 'territory_max': 7, 'classification': 'survives all modeled replies'}, 'up': {'replies': 12, 'survives': 6, 'dies': 6, 'death_reasons': {'head-to-head collision': 6}, 'territory_min': 8, 'territory_mean': 8.0, 'territory_max': 8, 'classification': 'mixed'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (3, 0), 'next_move': 'left', 'time': '0.018s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 63, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 37, 'length': 3, 'body': [(3, 0), (4, 0), (5, 0)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 100, 'length': 12, 'body': [(6, 9), (5, 9), (4, 9), (3, 9), (2, 9), (1, 9), (0, 9), (0, 8), (0, 7), (1, 7), (2, 7), (2, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 84, 'length': 8, 'body': [(4, 1), (5, 1), (6, 1), (6, 2), (7, 2), (7, 3), (7, 4), (6, 4)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 95, 'length': 12, 'body': [(5, 6), (4, 6), (3, 6), (2, 6), (1, 6), (0, 6), (0, 5), (1, 5), (2, 5), (3, 5), (4, 5), (4, 4)]}], 'food': [(2, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(2, 0), (3, 1)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 2, 'territory_mean': 3.5, 'territory_max': 5, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 9, 'dies': 9, 'death_reasons': {'head-to-head collision': 9}, 'territory_min': 6, 'territory_mean': 6.0, 'territory_max': 6, 'classification': 'mixed'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (2, 0), 'next_move': 'left', 'time': '0.039s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 64, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 36, 'length': 3, 'body': [(2, 0), (3, 0), (4, 0)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 99, 'length': 12, 'body': [(6, 8), (6, 9), (5, 9), (4, 9), (3, 9), (2, 9), (1, 9), (0, 9), (0, 8), (0, 7), (1, 7), (2, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 83, 'length': 8, 'body': [(3, 1), (4, 1), (5, 1), (6, 1), (6, 2), (7, 2), (7, 3), (7, 4)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 94, 'length': 12, 'body': [(5, 7), (5, 6), (4, 6), (3, 6), (2, 6), (1, 6), (0, 6), (0, 5), (1, 5), (2, 5), (3, 5), (4, 5)]}], 'food': [(2, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(1, 0), (2, 1)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 1, 'territory_mean': 2.0, 'territory_max': 3, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 9, 'dies': 9, 'death_reasons': {'head-to-head collision': 9}, 'territory_min': 4, 'territory_mean': 4.0, 'territory_max': 4, 'classification': 'mixed'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (1, 0), 'next_move': 'left', 'time': '0.035s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 65, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 35, 'length': 3, 'body': [(1, 0), (2, 0), (3, 0)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 98, 'length': 12, 'body': [(7, 8), (6, 8), (6, 9), (5, 9), (4, 9), (3, 9), (2, 9), (1, 9), (0, 9), (0, 8), (0, 7), (1, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 100, 'length': 9, 'body': [(2, 1), (3, 1), (4, 1), (5, 1), (6, 1), (6, 2), (7, 2), (7, 3), (7, 3)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 93, 'length': 12, 'body': [(4, 7), (5, 7), (5, 6), (4, 6), (3, 6), (2, 6), (1, 6), (0, 6), (0, 5), (1, 5), (2, 5), (3, 5)]}], 'food': [(8, 9)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(0, 0), (1, 1)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 0, 'territory_mean': 0.5, 'territory_max': 1, 'classification': 'survives all modeled replies'}, 'up': {'replies': 12, 'survives': 6, 'dies': 6, 'death_reasons': {'head-to-head collision': 6}, 'territory_min': 2, 'territory_mean': 2.0, 'territory_max': 2, 'classification': 'mixed'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (0, 0), 'next_move': 'left', 'time': '0.015s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 66, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 34, 'length': 3, 'body': [(0, 0), (1, 0), (2, 0)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 97, 'length': 12, 'body': [(7, 9), (7, 8), (6, 8), (6, 9), (5, 9), (4, 9), (3, 9), (2, 9), (1, 9), (0, 9), (0, 8), (0, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 99, 'length': 9, 'body': [(1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (6, 1), (6, 2), (7, 2), (7, 3)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 92, 'length': 12, 'body': [(4, 8), (4, 7), (5, 7), (5, 6), (4, 6), (3, 6), (2, 6), (1, 6), (0, 6), (0, 5), (1, 5), (2, 5)]}], 'food': [(8, 9)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(0, 1)]', "one-turn evaluation (counts, not probabilities): {'up': {'replies': 8, 'survives': 4, 'dies': 4, 'death_reasons': {'head-to-head collision': 4}, 'territory_min': 0, 'territory_mean': 0.0, 'territory_max': 0, 'classification': 'mixed'}}", 'one-turn choose up: no all-reply survivor; unweighted surviving-reply fraction, mean territory, minimum, direction order; evaluation complete'], 'next_coord': (0, 1), 'next_move': 'up', 'time': '0.004s'}
-    ]
-    rows, confusion = [], {}
-    print("FULL HISTORY SPLIT-HINT VALIDATION; approximate reduced model")
-    print("Positions", len(records), "cheap cap", cheap_nodes, cheap_time,
-          "truth cap", truth_nodes, truth_time)
-    for record in records:
-        g = init_game(init_from_log(record))
-        evaluation = evaluate_moves(g)
-        baseline, reason = select_evaluated_move(evaluation)
-        focus = select_focused_opponent(g)
-        if baseline is None or focus is None:
-            row = {"turn": g.turn, "baseline": baseline,
-                   "hint_bucket": "NOT_APPLICABLE",
-                   "truth_bucket": "NOT_APPLICABLE"}
-            rows.append(row)
-            print("FULL HINT", row)
-            continue
-        cheap = cheap_split_counter_for_action(
-            g, baseline, focus.id, depth, cheap_time, cheap_nodes)
-        hint = cheap["hint"]
-        if hint.startswith("COMMON_STORED_COUNTER"):
-            hint_bucket = "COMMON"
-        elif hint.startswith("SPLIT_STORED_COUNTERS"):
-            hint_bucket = "SPLIT"
-        elif hint == "NO_QUICK_REFUTATION":
-            hint_bucket = "NO_QUICK_REFUTATION"
-        else:
-            hint_bucket = "UNKNOWN_OR_OTHER"
-        truth = classify_focused_action(
-            g, baseline, depth, truth_time, truth_nodes, {focus.id})
-        truth_bucket = truth["classification"]
-        key = (hint_bucket, truth_bucket)
-        confusion[key] = confusion.get(key, 0) + 1
-        row = {"turn": g.turn, "baseline": baseline,
-               "baseline_reason": reason, "focus": focus.id,
-               "hint": hint, "hint_bucket": hint_bucket,
-               "cheap_work": cheap.get("work"),
-               "cheap_seconds": cheap.get("elapsed_seconds"),
-               "truth_bucket": truth_bucket,
-               "truth_robust_work": truth["robust"].get("work"),
-               "truth_uniform_work": (None if truth["uniform"] is None else
-                                      truth["uniform"].get("work")),
-               "truth_seconds": truth["elapsed_seconds"]}
-        rows.append(row)
-        print("FULL HINT", row)
-    table = [{"hint_bucket": h, "truth_bucket": t, "count": n}
-             for (h, t), n in sorted(confusion.items())]
-    summary = {"positions": len(rows), "confusion": table,
-               "common_total": sum(n for (h, _), n in confusion.items()
-                                   if h == "COMMON"),
-               "common_correct": confusion.get(
-                   ("COMMON", "APPROX_UNIFORM_FORCED_LOSS"), 0),
-               "split_total": sum(n for (h, _), n in confusion.items()
-                                  if h == "SPLIT"),
-               "split_correct": confusion.get(
-                   ("SPLIT", "APPROX_MATCHING_RESPONSE_GAMBLE"), 0),
-               "cheap_unknown_or_other": sum(n for (h, _), n in confusion.items()
-                                             if h == "UNKNOWN_OR_OTHER"),
-               "truth_unknown": sum(n for (_, t), n in confusion.items()
-                                    if t == "UNKNOWN")}
-    print("FULL HINT CONFUSION", table)
-    print("FULL HINT SUMMARY", summary)
-    return {"rows": rows, "summary": summary}
-
-
-def run_full_history_all_actions_hint_validation(
-        depth=9, cheap_time=0.05, cheap_nodes=1000,
-        truth_time=2.0, truth_nodes=1000000):
-    """OFFLINE every modeled RED action across all 67 saved turns."""
-    records = [
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 0, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 100, 'length': 3, 'body': [(5, 1), (5, 1), (5, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 100, 'length': 3, 'body': [(9, 5), (9, 5), (9, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 100, 'length': 3, 'body': [(5, 9), (5, 9), (5, 9)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 3, 'body': [(1, 5), (1, 5), (1, 5)]}], 'food': [(4, 0), (10, 4), (6, 10), (0, 6), (5, 5)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(6, 1), (4, 1), (5, 2), (5, 0)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 64, 'survives': 64, 'dies': 0, 'death_reasons': {}, 'territory_min': 15, 'territory_mean': 21.796875, 'territory_max': 29, 'classification': 'survives all modeled replies'}, 'left': {'replies': 64, 'survives': 64, 'dies': 0, 'death_reasons': {}, 'territory_min': 15, 'territory_mean': 21.796875, 'territory_max': 29, 'classification': 'survives all modeled replies'}, 'up': {'replies': 64, 'survives': 64, 'dies': 0, 'death_reasons': {}, 'territory_min': 17, 'territory_mean': 24.171875, 'territory_max': 34, 'classification': 'survives all modeled replies'}, 'down': {'replies': 64, 'survives': 64, 'dies': 0, 'death_reasons': {}, 'territory_min': 13, 'territory_mean': 19.1875, 'territory_max': 26, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 2), 'next_move': 'up', 'time': '0.307s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 1, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 99, 'length': 3, 'body': [(5, 2), (5, 1), (5, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 99, 'length': 3, 'body': [(10, 5), (9, 5), (9, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 99, 'length': 3, 'body': [(5, 10), (5, 9), (5, 9)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 3, 'body': [(0, 5), (1, 5), (1, 5)]}], 'food': [(4, 0), (10, 4), (6, 10), (0, 6), (5, 5)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(6, 2), (4, 2), (5, 3)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 21, 'territory_mean': 29.75, 'territory_max': 38, 'classification': 'survives all modeled replies'}, 'left': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 21, 'territory_mean': 29.75, 'territory_max': 38, 'classification': 'survives all modeled replies'}, 'up': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 25, 'territory_mean': 37.5, 'territory_max': 50, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 3), 'next_move': 'up', 'time': '0.098s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 2, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 98, 'length': 3, 'body': [(5, 3), (5, 2), (5, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 100, 'length': 4, 'body': [(10, 4), (10, 5), (9, 5), (9, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 100, 'length': 4, 'body': [(6, 10), (5, 10), (5, 9), (5, 9)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 4, 'body': [(0, 6), (0, 5), (1, 5), (1, 5)]}], 'food': [(4, 0), (5, 5)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(6, 3), (4, 3), (5, 4)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 20, 'territory_mean': 26.75, 'territory_max': 34, 'classification': 'survives all modeled replies'}, 'left': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 28, 'territory_mean': 31.5, 'territory_max': 36, 'classification': 'survives all modeled replies'}, 'up': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 21, 'territory_mean': 31.5, 'territory_max': 42, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (4, 3), 'next_move': 'left', 'time': '0.040s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 3, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 97, 'length': 3, 'body': [(4, 3), (5, 3), (5, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 99, 'length': 4, 'body': [(10, 3), (10, 4), (10, 5), (9, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 99, 'length': 4, 'body': [(6, 9), (6, 10), (5, 10), (5, 9)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 4, 'body': [(1, 6), (0, 6), (0, 5), (1, 5)]}], 'food': [(4, 0), (5, 5)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(3, 3), (4, 4), (4, 2)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 16, 'territory_mean': 23.444444444444443, 'territory_max': 31, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 12, 'territory_mean': 20.166666666666668, 'territory_max': 33, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 15, 'territory_mean': 21.555555555555557, 'territory_max': 29, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (3, 3), 'next_move': 'left', 'time': '0.082s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 4, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 96, 'length': 3, 'body': [(3, 3), (4, 3), (5, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 98, 'length': 4, 'body': [(10, 2), (10, 3), (10, 4), (10, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 98, 'length': 4, 'body': [(5, 9), (6, 9), (6, 10), (5, 10)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 98, 'length': 4, 'body': [(1, 5), (1, 6), (0, 6), (0, 5)]}], 'food': [(4, 0), (5, 5)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(2, 3), (3, 4), (3, 2)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 9, 'territory_mean': 16.666666666666668, 'territory_max': 30, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 4, 'territory_mean': 13.444444444444445, 'territory_max': 32, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 12, 'territory_mean': 16.833333333333332, 'territory_max': 22, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (3, 2), 'next_move': 'down', 'time': '0.135s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 5, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 95, 'length': 3, 'body': [(3, 2), (3, 3), (4, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 97, 'length': 4, 'body': [(9, 2), (10, 2), (10, 3), (10, 4)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 97, 'length': 4, 'body': [(5, 8), (5, 9), (6, 9), (6, 10)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 97, 'length': 4, 'body': [(1, 4), (1, 5), (1, 6), (0, 6)]}], 'food': [(4, 0), (5, 5)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(4, 2), (2, 2), (3, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 9, 'territory_mean': 13.185185185185185, 'territory_max': 19, 'classification': 'survives all modeled replies'}, 'left': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 6, 'territory_mean': 11.814814814814815, 'territory_max': 19, 'classification': 'survives all modeled replies'}, 'down': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 9, 'territory_mean': 12.592592592592593, 'territory_max': 16, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (4, 2), 'next_move': 'right', 'time': '0.097s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 6, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 94, 'length': 3, 'body': [(4, 2), (3, 2), (3, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 96, 'length': 4, 'body': [(9, 3), (9, 2), (10, 2), (10, 3)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 96, 'length': 4, 'body': [(5, 7), (5, 8), (5, 9), (6, 9)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 96, 'length': 4, 'body': [(1, 3), (1, 4), (1, 5), (1, 6)]}], 'food': [(4, 0), (5, 5), (9, 6)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(5, 2), (4, 3), (4, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 8, 'territory_mean': 16.11111111111111, 'territory_max': 27, 'classification': 'survives all modeled replies'}, 'up': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 5, 'territory_mean': 13.11111111111111, 'territory_max': 23, 'classification': 'survives all modeled replies'}, 'down': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 8, 'territory_mean': 13.444444444444445, 'territory_max': 22, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 2), 'next_move': 'right', 'time': '0.094s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 7, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 93, 'length': 3, 'body': [(5, 2), (4, 2), (3, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 95, 'length': 4, 'body': [(9, 4), (9, 3), (9, 2), (10, 2)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 95, 'length': 4, 'body': [(5, 6), (5, 7), (5, 8), (5, 9)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 95, 'length': 4, 'body': [(2, 3), (1, 3), (1, 4), (1, 5)]}], 'food': [(4, 0), (5, 5), (9, 6)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(6, 2), (5, 3), (5, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 8, 'territory_mean': 13.11111111111111, 'territory_max': 18, 'classification': 'survives all modeled replies'}, 'up': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 4, 'territory_mean': 9.777777777777779, 'territory_max': 16, 'classification': 'survives all modeled replies'}, 'down': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 8, 'territory_mean': 13.88888888888889, 'territory_max': 22, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 1), 'next_move': 'down', 'time': '0.157s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 8, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 92, 'length': 3, 'body': [(5, 1), (5, 2), (4, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 94, 'length': 4, 'body': [(9, 5), (9, 4), (9, 3), (9, 2)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 100, 'length': 5, 'body': [(5, 5), (5, 6), (5, 7), (5, 8), (5, 8)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 94, 'length': 4, 'body': [(2, 4), (2, 3), (1, 3), (1, 4)]}], 'food': [(4, 0), (9, 6)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(6, 1), (4, 1), (5, 0)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 12, 'territory_mean': 16.0, 'territory_max': 20, 'classification': 'survives all modeled replies'}, 'left': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 13, 'territory_mean': 15.88888888888889, 'territory_max': 20, 'classification': 'survives all modeled replies'}, 'down': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 13, 'territory_mean': 15.88888888888889, 'territory_max': 20, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 1), 'next_move': 'right', 'time': '0.174s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 9, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 91, 'length': 3, 'body': [(6, 1), (5, 1), (5, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 100, 'length': 5, 'body': [(9, 6), (9, 5), (9, 4), (9, 3), (9, 3)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 99, 'length': 5, 'body': [(4, 5), (5, 5), (5, 6), (5, 7), (5, 8)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 93, 'length': 4, 'body': [(2, 5), (2, 4), (2, 3), (1, 3)]}], 'food': [(4, 0)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(7, 1), (6, 2), (6, 0)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 15, 'territory_mean': 19.77777777777778, 'territory_max': 28, 'classification': 'survives all modeled replies'}, 'up': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 14, 'territory_mean': 23.0, 'territory_max': 33, 'classification': 'survives all modeled replies'}, 'down': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 13, 'territory_mean': 18.0, 'territory_max': 25, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 2), 'next_move': 'up', 'time': '0.152s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 10, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 90, 'length': 3, 'body': [(6, 2), (6, 1), (5, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 99, 'length': 5, 'body': [(9, 7), (9, 6), (9, 5), (9, 4), (9, 3)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 98, 'length': 5, 'body': [(4, 6), (4, 5), (5, 5), (5, 6), (5, 7)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 92, 'length': 4, 'body': [(2, 6), (2, 5), (2, 4), (2, 3)]}], 'food': [(4, 0)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(7, 2), (5, 2), (6, 3)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 25, 'territory_mean': 28.0, 'territory_max': 32, 'classification': 'survives all modeled replies'}, 'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 24, 'territory_mean': 33.0, 'territory_max': 40, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 28, 'territory_mean': 32.5, 'territory_max': 40, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 2), 'next_move': 'left', 'time': '0.126s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 11, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 89, 'length': 3, 'body': [(5, 2), (6, 2), (6, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 98, 'length': 5, 'body': [(8, 7), (9, 7), (9, 6), (9, 5), (9, 4)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 97, 'length': 5, 'body': [(3, 6), (4, 6), (4, 5), (5, 5), (5, 6)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 91, 'length': 4, 'body': [(2, 7), (2, 6), (2, 5), (2, 4)]}], 'food': [(4, 0), (10, 6)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(4, 2), (5, 3), (5, 1)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 23, 'territory_mean': 32.833333333333336, 'territory_max': 45, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 15, 'territory_mean': 32.5, 'territory_max': 51, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 23, 'territory_mean': 30.5, 'territory_max': 42, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (4, 2), 'next_move': 'left', 'time': '0.088s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 12, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 88, 'length': 3, 'body': [(4, 2), (5, 2), (6, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 97, 'length': 5, 'body': [(8, 6), (8, 7), (9, 7), (9, 6), (9, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 96, 'length': 5, 'body': [(3, 5), (3, 6), (4, 6), (4, 5), (5, 5)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 90, 'length': 4, 'body': [(2, 8), (2, 7), (2, 6), (2, 5)]}], 'food': [(4, 0), (10, 6)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(3, 2), (4, 3), (4, 1)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 17, 'territory_mean': 18.5, 'territory_max': 20, 'classification': 'survives all modeled replies'}, 'up': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 5, 'territory_mean': 10.0, 'territory_max': 15, 'classification': 'survives all modeled replies'}, 'down': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 16, 'territory_mean': 19.5, 'territory_max': 23, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (4, 1), 'next_move': 'down', 'time': '0.067s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 13, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 87, 'length': 3, 'body': [(4, 1), (4, 2), (5, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 96, 'length': 5, 'body': [(8, 5), (8, 6), (8, 7), (9, 7), (9, 6)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 95, 'length': 5, 'body': [(3, 4), (3, 5), (3, 6), (4, 6), (4, 5)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 89, 'length': 4, 'body': [(3, 8), (2, 8), (2, 7), (2, 6)]}], 'food': [(4, 0), (10, 6), (5, 7)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(5, 1), (3, 1), (4, 0)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 8, 'territory_mean': 13.25925925925926, 'territory_max': 18, 'classification': 'survives all modeled replies'}, 'left': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 10, 'territory_mean': 12.444444444444445, 'territory_max': 15, 'classification': 'survives all modeled replies'}, 'down': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 9, 'territory_mean': 12.777777777777779, 'territory_max': 16, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 1), 'next_move': 'right', 'time': '0.263s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 14, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 86, 'length': 3, 'body': [(5, 1), (4, 1), (4, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 95, 'length': 5, 'body': [(9, 5), (8, 5), (8, 6), (8, 7), (9, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 94, 'length': 5, 'body': [(4, 4), (3, 4), (3, 5), (3, 6), (4, 6)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 88, 'length': 4, 'body': [(3, 7), (3, 8), (2, 8), (2, 7)]}], 'food': [(4, 0), (10, 6), (5, 7), (4, 9)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(6, 1), (5, 2), (5, 0)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 9, 'territory_mean': 17.666666666666668, 'territory_max': 32, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 7, 'territory_mean': 22.666666666666668, 'territory_max': 43, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 10, 'territory_mean': 16.166666666666668, 'territory_max': 25, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 2), 'next_move': 'up', 'time': '0.126s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 15, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 85, 'length': 3, 'body': [(5, 2), (5, 1), (4, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 94, 'length': 5, 'body': [(9, 6), (9, 5), (8, 5), (8, 6), (8, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 93, 'length': 5, 'body': [(4, 3), (4, 4), (3, 4), (3, 5), (3, 6)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 87, 'length': 4, 'body': [(4, 7), (3, 7), (3, 8), (2, 8)]}], 'food': [(4, 0), (10, 6), (5, 7), (4, 9)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(6, 2), (4, 2), (5, 3)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 17, 'territory_mean': 22.38888888888889, 'territory_max': 31, 'classification': 'survives all modeled replies'}, 'left': {'replies': 18, 'survives': 12, 'dies': 6, 'death_reasons': {'head-to-head collision': 6}, 'territory_min': 8, 'territory_mean': 15.666666666666666, 'territory_max': 25, 'classification': 'mixed'}, 'up': {'replies': 18, 'survives': 12, 'dies': 6, 'death_reasons': {'head-to-head collision': 6}, 'territory_min': 12, 'territory_mean': 16.916666666666668, 'territory_max': 23, 'classification': 'mixed'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 2), 'next_move': 'right', 'time': '0.047s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 16, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 84, 'length': 3, 'body': [(6, 2), (5, 2), (5, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 100, 'length': 6, 'body': [(10, 6), (9, 6), (9, 5), (8, 5), (8, 6), (8, 6)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 92, 'length': 5, 'body': [(4, 2), (4, 3), (4, 4), (3, 4), (3, 5)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 5, 'body': [(5, 7), (4, 7), (3, 7), (3, 8), (3, 8)]}], 'food': [(4, 0), (4, 9)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(7, 2), (6, 3), (6, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 12, 'territory_mean': 19.166666666666668, 'territory_max': 27, 'classification': 'survives all modeled replies'}, 'up': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 7, 'territory_mean': 16.166666666666668, 'territory_max': 28, 'classification': 'survives all modeled replies'}, 'down': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 10, 'territory_mean': 16.0, 'territory_max': 26, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (7, 2), 'next_move': 'right', 'time': '0.048s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 17, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 83, 'length': 3, 'body': [(7, 2), (6, 2), (5, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 99, 'length': 6, 'body': [(10, 7), (10, 6), (9, 6), (9, 5), (8, 5), (8, 6)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 91, 'length': 5, 'body': [(4, 1), (4, 2), (4, 3), (4, 4), (3, 4)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 5, 'body': [(5, 8), (5, 7), (4, 7), (3, 7), (3, 8)]}], 'food': [(4, 0), (4, 9), (10, 0)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(8, 2), (7, 3), (7, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 17, 'territory_mean': 20.444444444444443, 'territory_max': 26, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 14, 'territory_mean': 20.944444444444443, 'territory_max': 29, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 17, 'territory_mean': 20.38888888888889, 'territory_max': 27, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (7, 3), 'next_move': 'up', 'time': '0.082s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 18, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 82, 'length': 3, 'body': [(7, 3), (7, 2), (6, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 98, 'length': 6, 'body': [(9, 7), (10, 7), (10, 6), (9, 6), (9, 5), (8, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 100, 'length': 6, 'body': [(4, 0), (4, 1), (4, 2), (4, 3), (4, 4), (4, 4)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 98, 'length': 5, 'body': [(4, 8), (5, 8), (5, 7), (4, 7), (3, 7)]}], 'food': [(4, 9), (10, 0)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(8, 3), (6, 3), (7, 4)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 14, 'territory_mean': 22.625, 'territory_max': 32, 'classification': 'survives all modeled replies'}, 'left': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 7, 'territory_mean': 19.5, 'territory_max': 34, 'classification': 'survives all modeled replies'}, 'up': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 16, 'territory_mean': 25.75, 'territory_max': 36, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (7, 4), 'next_move': 'up', 'time': '0.026s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 19, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 81, 'length': 3, 'body': [(7, 4), (7, 3), (7, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 97, 'length': 6, 'body': [(8, 7), (9, 7), (10, 7), (10, 6), (9, 6), (9, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 99, 'length': 6, 'body': [(5, 0), (4, 0), (4, 1), (4, 2), (4, 3), (4, 4)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 6, 'body': [(4, 9), (4, 8), (5, 8), (5, 7), (4, 7), (4, 7)]}], 'food': [(10, 0)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(8, 4), (6, 4), (7, 5)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 8, 'territory_mean': 11.5, 'territory_max': 20, 'classification': 'survives all modeled replies'}, 'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 26, 'territory_mean': 32.833333333333336, 'territory_max': 45, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 4, 'territory_mean': 22.333333333333332, 'territory_max': 48, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 4), 'next_move': 'left', 'time': '0.071s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 20, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 80, 'length': 3, 'body': [(6, 4), (7, 4), (7, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 96, 'length': 6, 'body': [(7, 7), (8, 7), (9, 7), (10, 7), (10, 6), (9, 6)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 98, 'length': 6, 'body': [(6, 0), (5, 0), (4, 0), (4, 1), (4, 2), (4, 3)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 6, 'body': [(3, 9), (4, 9), (4, 8), (5, 8), (5, 7), (4, 7)]}], 'food': [(10, 0), (1, 9)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(5, 4), (6, 5), (6, 3)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 25, 'territory_mean': 30.11111111111111, 'territory_max': 40, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 4, 'territory_mean': 18.444444444444443, 'territory_max': 45, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 24, 'territory_mean': 30.333333333333332, 'territory_max': 39, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 3), 'next_move': 'down', 'time': '0.060s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 21, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 79, 'length': 3, 'body': [(6, 3), (6, 4), (7, 4)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 95, 'length': 6, 'body': [(7, 6), (7, 7), (8, 7), (9, 7), (10, 7), (10, 6)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 97, 'length': 6, 'body': [(7, 0), (6, 0), (5, 0), (4, 0), (4, 1), (4, 2)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 98, 'length': 6, 'body': [(2, 9), (3, 9), (4, 9), (4, 8), (5, 8), (5, 7)]}], 'food': [(10, 0), (1, 9)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(7, 3), (5, 3), (6, 2)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 3, 'territory_mean': 10.666666666666666, 'territory_max': 24, 'classification': 'survives all modeled replies'}, 'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 22, 'territory_mean': 26.333333333333332, 'territory_max': 36, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 17, 'territory_mean': 21.166666666666668, 'territory_max': 28, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 3), 'next_move': 'left', 'time': '0.054s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 22, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 78, 'length': 3, 'body': [(5, 3), (6, 3), (6, 4)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 94, 'length': 6, 'body': [(6, 6), (7, 6), (7, 7), (8, 7), (9, 7), (10, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 96, 'length': 6, 'body': [(8, 0), (7, 0), (6, 0), (5, 0), (4, 0), (4, 1)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 7, 'body': [(1, 9), (2, 9), (3, 9), (4, 9), (4, 8), (5, 8), (5, 8)]}], 'food': [(10, 0), (9, 5)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(4, 3), (5, 4), (5, 2)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 22, 'territory_mean': 25.833333333333332, 'territory_max': 33, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 9, 'territory_mean': 20.333333333333332, 'territory_max': 38, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 19, 'territory_mean': 22.5, 'territory_max': 29, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (4, 3), 'next_move': 'left', 'time': '0.059s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 23, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 77, 'length': 3, 'body': [(4, 3), (5, 3), (6, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 93, 'length': 6, 'body': [(6, 5), (6, 6), (7, 6), (7, 7), (8, 7), (9, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 95, 'length': 6, 'body': [(9, 0), (8, 0), (7, 0), (6, 0), (5, 0), (4, 0)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 7, 'body': [(1, 8), (1, 9), (2, 9), (3, 9), (4, 9), (4, 8), (5, 8)]}], 'food': [(10, 0), (9, 5)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(3, 3), (4, 4), (4, 2)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 21, 'territory_mean': 23.88888888888889, 'territory_max': 29, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 11, 'territory_mean': 20.666666666666668, 'territory_max': 33, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 18, 'territory_mean': 20.72222222222222, 'territory_max': 24, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (3, 3), 'next_move': 'left', 'time': '0.085s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 24, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 76, 'length': 3, 'body': [(3, 3), (4, 3), (5, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 92, 'length': 6, 'body': [(7, 5), (6, 5), (6, 6), (7, 6), (7, 7), (8, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 100, 'length': 7, 'body': [(10, 0), (9, 0), (8, 0), (7, 0), (6, 0), (5, 0), (5, 0)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 98, 'length': 7, 'body': [(2, 8), (1, 8), (1, 9), (2, 9), (3, 9), (4, 9), (4, 8)]}], 'food': [(9, 5)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(2, 3), (3, 4), (3, 2)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 4, 'survives': 4, 'dies': 0, 'death_reasons': {}, 'territory_min': 21, 'territory_mean': 23.5, 'territory_max': 26, 'classification': 'survives all modeled replies'}, 'up': {'replies': 4, 'survives': 4, 'dies': 0, 'death_reasons': {}, 'territory_min': 21, 'territory_mean': 25.0, 'territory_max': 29, 'classification': 'survives all modeled replies'}, 'down': {'replies': 4, 'survives': 4, 'dies': 0, 'death_reasons': {}, 'territory_min': 19, 'territory_mean': 21.5, 'territory_max': 24, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (3, 4), 'next_move': 'up', 'time': '0.011s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 25, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 75, 'length': 3, 'body': [(3, 4), (3, 3), (4, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 91, 'length': 6, 'body': [(8, 5), (7, 5), (6, 5), (6, 6), (7, 6), (7, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 99, 'length': 7, 'body': [(10, 1), (10, 0), (9, 0), (8, 0), (7, 0), (6, 0), (5, 0)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 97, 'length': 7, 'body': [(2, 7), (2, 8), (1, 8), (1, 9), (2, 9), (3, 9), (4, 9)]}], 'food': [(9, 5), (8, 9)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(4, 4), (2, 4), (3, 5)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 12, 'territory_mean': 22.333333333333332, 'territory_max': 32, 'classification': 'survives all modeled replies'}, 'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 18, 'territory_mean': 21.77777777777778, 'territory_max': 27, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 5, 'territory_mean': 21.333333333333332, 'territory_max': 33, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (4, 4), 'next_move': 'right', 'time': '0.050s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 26, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 74, 'length': 3, 'body': [(4, 4), (3, 4), (3, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 100, 'length': 7, 'body': [(9, 5), (8, 5), (7, 5), (6, 5), (6, 6), (7, 6), (7, 6)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 98, 'length': 7, 'body': [(10, 2), (10, 1), (10, 0), (9, 0), (8, 0), (7, 0), (6, 0)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 96, 'length': 7, 'body': [(2, 6), (2, 7), (2, 8), (1, 8), (1, 9), (2, 9), (3, 9)]}], 'food': [(8, 9), (1, 10)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(5, 4), (4, 5), (4, 3)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 15, 'territory_mean': 23.833333333333332, 'territory_max': 37, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 4, 'territory_mean': 18.166666666666668, 'territory_max': 34, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 13, 'territory_mean': 22.5, 'territory_max': 30, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 4), 'next_move': 'right', 'time': '0.056s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 27, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 73, 'length': 3, 'body': [(5, 4), (4, 4), (3, 4)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 99, 'length': 7, 'body': [(9, 6), (9, 5), (8, 5), (7, 5), (6, 5), (6, 6), (7, 6)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 97, 'length': 7, 'body': [(9, 2), (10, 2), (10, 1), (10, 0), (9, 0), (8, 0), (7, 0)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 95, 'length': 7, 'body': [(3, 6), (2, 6), (2, 7), (2, 8), (1, 8), (1, 9), (2, 9)]}], 'food': [(8, 9), (1, 10)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(6, 4), (5, 5), (5, 3)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 3, 'territory_mean': 11.333333333333334, 'territory_max': 29, 'classification': 'survives all modeled replies'}, 'up': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 0, 'territory_mean': 10.0, 'territory_max': 30, 'classification': 'survives all modeled replies'}, 'down': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 9, 'territory_mean': 23.0, 'territory_max': 32, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 3), 'next_move': 'down', 'time': '0.080s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 28, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 72, 'length': 3, 'body': [(5, 3), (5, 4), (4, 4)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 98, 'length': 7, 'body': [(8, 6), (9, 6), (9, 5), (8, 5), (7, 5), (6, 5), (6, 6)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 96, 'length': 7, 'body': [(8, 2), (9, 2), (10, 2), (10, 1), (10, 0), (9, 0), (8, 0)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 94, 'length': 7, 'body': [(3, 7), (3, 6), (2, 6), (2, 7), (2, 8), (1, 8), (1, 9)]}], 'food': [(8, 9), (1, 10)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(6, 3), (4, 3), (5, 2)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 1, 'territory_mean': 14.5, 'territory_max': 27, 'classification': 'survives all modeled replies'}, 'left': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 24, 'territory_mean': 28.583333333333332, 'territory_max': 34, 'classification': 'survives all modeled replies'}, 'down': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 22, 'territory_mean': 26.5, 'territory_max': 30, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (4, 3), 'next_move': 'left', 'time': '0.046s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 29, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 71, 'length': 3, 'body': [(4, 3), (5, 3), (5, 4)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 97, 'length': 7, 'body': [(8, 7), (8, 6), (9, 6), (9, 5), (8, 5), (7, 5), (6, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 95, 'length': 7, 'body': [(7, 2), (8, 2), (9, 2), (10, 2), (10, 1), (10, 0), (9, 0)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 93, 'length': 7, 'body': [(3, 8), (3, 7), (3, 6), (2, 6), (2, 7), (2, 8), (1, 8)]}], 'food': [(8, 9), (1, 10), (6, 10)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(3, 3), (4, 4), (4, 2)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 25, 'territory_mean': 27.27777777777778, 'territory_max': 29, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 16, 'territory_mean': 23.77777777777778, 'territory_max': 29, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 22, 'territory_mean': 24.5, 'territory_max': 27, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (3, 3), 'next_move': 'left', 'time': '0.054s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 30, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 70, 'length': 3, 'body': [(3, 3), (4, 3), (5, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 96, 'length': 7, 'body': [(8, 8), (8, 7), (8, 6), (9, 6), (9, 5), (8, 5), (7, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 94, 'length': 7, 'body': [(7, 3), (7, 2), (8, 2), (9, 2), (10, 2), (10, 1), (10, 0)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 92, 'length': 7, 'body': [(3, 9), (3, 8), (3, 7), (3, 6), (2, 6), (2, 7), (2, 8)]}], 'food': [(8, 9), (1, 10), (6, 10)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(2, 3), (3, 4), (3, 2)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 22, 'territory_mean': 27.62962962962963, 'territory_max': 33, 'classification': 'survives all modeled replies'}, 'up': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 22, 'territory_mean': 29.074074074074073, 'territory_max': 37, 'classification': 'survives all modeled replies'}, 'down': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 21, 'territory_mean': 29.22222222222222, 'territory_max': 40, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (3, 2), 'next_move': 'down', 'time': '0.168s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 31, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 69, 'length': 3, 'body': [(3, 2), (3, 3), (4, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 100, 'length': 8, 'body': [(8, 9), (8, 8), (8, 7), (8, 6), (9, 6), (9, 5), (8, 5), (8, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 93, 'length': 7, 'body': [(7, 4), (7, 3), (7, 2), (8, 2), (9, 2), (10, 2), (10, 1)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 91, 'length': 7, 'body': [(3, 10), (3, 9), (3, 8), (3, 7), (3, 6), (2, 6), (2, 7)]}], 'food': [(1, 10), (6, 10), (0, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(4, 2), (2, 2), (3, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 17, 'territory_mean': 36.22222222222222, 'territory_max': 62, 'classification': 'survives all modeled replies'}, 'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 21, 'territory_mean': 37.333333333333336, 'territory_max': 58, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 18, 'territory_mean': 33.94444444444444, 'territory_max': 57, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (2, 2), 'next_move': 'left', 'time': '0.053s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 32, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 68, 'length': 3, 'body': [(2, 2), (3, 2), (3, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 99, 'length': 8, 'body': [(8, 10), (8, 9), (8, 8), (8, 7), (8, 6), (9, 6), (9, 5), (8, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 92, 'length': 7, 'body': [(7, 5), (7, 4), (7, 3), (7, 2), (8, 2), (9, 2), (10, 2)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 90, 'length': 7, 'body': [(2, 10), (3, 10), (3, 9), (3, 8), (3, 7), (3, 6), (2, 6)]}], 'food': [(1, 10), (6, 10), (0, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(1, 2), (2, 3), (2, 1)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 20, 'territory_mean': 29.333333333333332, 'territory_max': 61, 'classification': 'survives all modeled replies'}, 'up': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 24, 'territory_mean': 35.5, 'territory_max': 62, 'classification': 'survives all modeled replies'}, 'down': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 19, 'territory_mean': 33.666666666666664, 'territory_max': 59, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (2, 3), 'next_move': 'up', 'time': '0.034s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 33, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 67, 'length': 3, 'body': [(2, 3), (2, 2), (3, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 98, 'length': 8, 'body': [(7, 10), (8, 10), (8, 9), (8, 8), (8, 7), (8, 6), (9, 6), (9, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 91, 'length': 7, 'body': [(7, 6), (7, 5), (7, 4), (7, 3), (7, 2), (8, 2), (9, 2)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 8, 'body': [(1, 10), (2, 10), (3, 10), (3, 9), (3, 8), (3, 7), (3, 6), (3, 6)]}], 'food': [(6, 10), (0, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(3, 3), (1, 3), (2, 4)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 28, 'territory_mean': 46.0, 'territory_max': 64, 'classification': 'survives all modeled replies'}, 'left': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 22, 'territory_mean': 26.0, 'territory_max': 30, 'classification': 'survives all modeled replies'}, 'up': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 27, 'territory_mean': 31.0, 'territory_max': 35, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (3, 3), 'next_move': 'right', 'time': '0.029s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 34, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 66, 'length': 3, 'body': [(3, 3), (2, 3), (2, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 100, 'length': 9, 'body': [(6, 10), (7, 10), (8, 10), (8, 9), (8, 8), (8, 7), (8, 6), (9, 6), (9, 6)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 90, 'length': 7, 'body': [(7, 7), (7, 6), (7, 5), (7, 4), (7, 3), (7, 2), (8, 2)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 8, 'body': [(1, 9), (1, 10), (2, 10), (3, 10), (3, 9), (3, 8), (3, 7), (3, 6)]}], 'food': [(0, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(4, 3), (3, 4), (3, 2)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 58, 'territory_mean': 62.0, 'territory_max': 65, 'classification': 'survives all modeled replies'}, 'up': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 31, 'territory_mean': 50.333333333333336, 'territory_max': 69, 'classification': 'survives all modeled replies'}, 'down': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 55, 'territory_mean': 58.0, 'territory_max': 61, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (4, 3), 'next_move': 'right', 'time': '0.057s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 35, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 65, 'length': 3, 'body': [(4, 3), (3, 3), (2, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 99, 'length': 9, 'body': [(6, 9), (6, 10), (7, 10), (8, 10), (8, 9), (8, 8), (8, 7), (8, 6), (9, 6)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 89, 'length': 7, 'body': [(6, 7), (7, 7), (7, 6), (7, 5), (7, 4), (7, 3), (7, 2)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 98, 'length': 8, 'body': [(1, 8), (1, 9), (1, 10), (2, 10), (3, 10), (3, 9), (3, 8), (3, 7)]}], 'food': [(0, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(5, 3), (4, 4), (4, 2)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 42, 'territory_mean': 54.111111111111114, 'territory_max': 60, 'classification': 'survives all modeled replies'}, 'up': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 19, 'territory_mean': 48.111111111111114, 'territory_max': 68, 'classification': 'survives all modeled replies'}, 'down': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 41, 'territory_mean': 54.333333333333336, 'territory_max': 60, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (4, 2), 'next_move': 'down', 'time': '0.082s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 36, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 64, 'length': 3, 'body': [(4, 2), (4, 3), (3, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 98, 'length': 9, 'body': [(5, 9), (6, 9), (6, 10), (7, 10), (8, 10), (8, 9), (8, 8), (8, 7), (8, 6)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 88, 'length': 7, 'body': [(6, 6), (6, 7), (7, 7), (7, 6), (7, 5), (7, 4), (7, 3)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 97, 'length': 8, 'body': [(1, 7), (1, 8), (1, 9), (1, 10), (2, 10), (3, 10), (3, 9), (3, 8)]}], 'food': [(0, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(5, 2), (3, 2), (4, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 25, 'territory_mean': 38.333333333333336, 'territory_max': 51, 'classification': 'survives all modeled replies'}, 'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 18, 'territory_mean': 24.333333333333332, 'territory_max': 30, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 25, 'territory_mean': 28.833333333333332, 'territory_max': 32, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 2), 'next_move': 'right', 'time': '0.053s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 37, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 63, 'length': 3, 'body': [(5, 2), (4, 2), (4, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 97, 'length': 9, 'body': [(4, 9), (5, 9), (6, 9), (6, 10), (7, 10), (8, 10), (8, 9), (8, 8), (8, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 87, 'length': 7, 'body': [(6, 5), (6, 6), (6, 7), (7, 7), (7, 6), (7, 5), (7, 4)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 96, 'length': 8, 'body': [(1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (2, 10), (3, 10), (3, 9)]}], 'food': [(0, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(6, 2), (5, 3), (5, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 20, 'territory_mean': 23.166666666666668, 'territory_max': 27, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 5, 'territory_mean': 18.333333333333332, 'territory_max': 33, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 18, 'territory_mean': 22.833333333333332, 'territory_max': 27, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 2), 'next_move': 'right', 'time': '0.051s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 38, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 62, 'length': 3, 'body': [(6, 2), (5, 2), (4, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 96, 'length': 9, 'body': [(4, 8), (4, 9), (5, 9), (6, 9), (6, 10), (7, 10), (8, 10), (8, 9), (8, 8)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 86, 'length': 7, 'body': [(6, 4), (6, 5), (6, 6), (6, 7), (7, 7), (7, 6), (7, 5)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 95, 'length': 8, 'body': [(0, 6), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (2, 10), (3, 10)]}], 'food': [(0, 1), (1, 2)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(7, 2), (6, 3), (6, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 15, 'territory_mean': 22.333333333333332, 'territory_max': 33, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 12, 'dies': 6, 'death_reasons': {'head-to-head collision': 6}, 'territory_min': 10, 'territory_mean': 23.333333333333332, 'territory_max': 32, 'classification': 'mixed'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 17, 'territory_mean': 21.5, 'territory_max': 26, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (7, 2), 'next_move': 'right', 'time': '0.039s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 39, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 61, 'length': 3, 'body': [(7, 2), (6, 2), (5, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 95, 'length': 9, 'body': [(4, 7), (4, 8), (4, 9), (5, 9), (6, 9), (6, 10), (7, 10), (8, 10), (8, 9)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 85, 'length': 7, 'body': [(7, 4), (6, 4), (6, 5), (6, 6), (6, 7), (7, 7), (7, 6)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 94, 'length': 8, 'body': [(0, 5), (0, 6), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (2, 10)]}], 'food': [(0, 1), (1, 2)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(8, 2), (7, 3), (7, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 12, 'territory_mean': 16.11111111111111, 'territory_max': 23, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 12, 'dies': 6, 'death_reasons': {'head-to-head collision': 6}, 'territory_min': 5, 'territory_mean': 16.0, 'territory_max': 26, 'classification': 'mixed'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 15, 'territory_mean': 17.22222222222222, 'territory_max': 21, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (7, 1), 'next_move': 'down', 'time': '0.042s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 40, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 60, 'length': 3, 'body': [(7, 1), (7, 2), (6, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 94, 'length': 9, 'body': [(4, 6), (4, 7), (4, 8), (4, 9), (5, 9), (6, 9), (6, 10), (7, 10), (8, 10)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 84, 'length': 7, 'body': [(7, 5), (7, 4), (6, 4), (6, 5), (6, 6), (6, 7), (7, 7)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 93, 'length': 8, 'body': [(0, 4), (0, 5), (0, 6), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10)]}], 'food': [(0, 1), (1, 2)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(8, 1), (6, 1), (7, 0)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 12, 'territory_mean': 15.333333333333334, 'territory_max': 20, 'classification': 'survives all modeled replies'}, 'left': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 14, 'territory_mean': 17.0, 'territory_max': 20, 'classification': 'survives all modeled replies'}, 'down': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 13, 'territory_mean': 15.666666666666666, 'territory_max': 19, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 1), 'next_move': 'left', 'time': '0.045s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 41, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 59, 'length': 3, 'body': [(6, 1), (7, 1), (7, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 93, 'length': 9, 'body': [(5, 6), (4, 6), (4, 7), (4, 8), (4, 9), (5, 9), (6, 9), (6, 10), (7, 10)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 83, 'length': 7, 'body': [(7, 6), (7, 5), (7, 4), (6, 4), (6, 5), (6, 6), (6, 7)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 92, 'length': 8, 'body': [(0, 3), (0, 4), (0, 5), (0, 6), (1, 6), (1, 7), (1, 8), (1, 9)]}], 'food': [(0, 1), (1, 2), (5, 8)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(5, 1), (6, 2), (6, 0)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 14, 'territory_mean': 20.0, 'territory_max': 28, 'classification': 'survives all modeled replies'}, 'up': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 20, 'territory_mean': 23.75, 'territory_max': 29, 'classification': 'survives all modeled replies'}, 'down': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 12, 'territory_mean': 15.625, 'territory_max': 22, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 2), 'next_move': 'up', 'time': '0.032s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 42, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 58, 'length': 3, 'body': [(6, 2), (6, 1), (7, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 92, 'length': 9, 'body': [(5, 7), (5, 6), (4, 6), (4, 7), (4, 8), (4, 9), (5, 9), (6, 9), (6, 10)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 82, 'length': 7, 'body': [(7, 7), (7, 6), (7, 5), (7, 4), (6, 4), (6, 5), (6, 6)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 91, 'length': 8, 'body': [(0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (1, 6), (1, 7), (1, 8)]}], 'food': [(0, 1), (1, 2), (5, 8)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(7, 2), (5, 2), (6, 3)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 21, 'territory_mean': 25.166666666666668, 'territory_max': 31, 'classification': 'survives all modeled replies'}, 'left': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 20, 'territory_mean': 29.166666666666668, 'territory_max': 39, 'classification': 'survives all modeled replies'}, 'up': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 26, 'territory_mean': 31.5, 'territory_max': 39, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 3), 'next_move': 'up', 'time': '0.036s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 43, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 57, 'length': 3, 'body': [(6, 3), (6, 2), (6, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 100, 'length': 10, 'body': [(5, 8), (5, 7), (5, 6), (4, 6), (4, 7), (4, 8), (4, 9), (5, 9), (6, 9), (6, 9)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 81, 'length': 7, 'body': [(7, 8), (7, 7), (7, 6), (7, 5), (7, 4), (6, 4), (6, 5)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 9, 'body': [(0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (1, 6), (1, 7), (1, 7)]}], 'food': [(1, 2), (10, 9)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(7, 3), (5, 3)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 6, 'survives': 6, 'dies': 0, 'death_reasons': {}, 'territory_min': 20, 'territory_mean': 25.333333333333332, 'territory_max': 33, 'classification': 'survives all modeled replies'}, 'left': {'replies': 6, 'survives': 6, 'dies': 0, 'death_reasons': {}, 'territory_min': 26, 'territory_mean': 35.833333333333336, 'territory_max': 49, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 3), 'next_move': 'left', 'time': '0.013s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 44, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 56, 'length': 3, 'body': [(5, 3), (6, 3), (6, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 99, 'length': 10, 'body': [(6, 8), (5, 8), (5, 7), (5, 6), (4, 6), (4, 7), (4, 8), (4, 9), (5, 9), (6, 9)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 80, 'length': 7, 'body': [(7, 9), (7, 8), (7, 7), (7, 6), (7, 5), (7, 4), (6, 4)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 9, 'body': [(1, 1), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (1, 6), (1, 7)]}], 'food': [(1, 2), (10, 9), (2, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(4, 3), (5, 4), (5, 2)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 17, 'territory_mean': 32.333333333333336, 'territory_max': 44, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 9, 'territory_mean': 19.11111111111111, 'territory_max': 43, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 24, 'territory_mean': 32.0, 'territory_max': 40, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (4, 3), 'next_move': 'left', 'time': '0.050s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 45, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 55, 'length': 3, 'body': [(4, 3), (5, 3), (6, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 98, 'length': 10, 'body': [(6, 9), (6, 8), (5, 8), (5, 7), (5, 6), (4, 6), (4, 7), (4, 8), (4, 9), (5, 9)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 79, 'length': 7, 'body': [(8, 9), (7, 9), (7, 8), (7, 7), (7, 6), (7, 5), (7, 4)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 10, 'body': [(1, 2), (1, 1), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (1, 6), (1, 6)]}], 'food': [(10, 9), (2, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(3, 3), (4, 4), (4, 2)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 12, 'territory_mean': 23.5, 'territory_max': 41, 'classification': 'survives all modeled replies'}, 'up': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 14, 'territory_mean': 22.0, 'territory_max': 36, 'classification': 'survives all modeled replies'}, 'down': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 26, 'territory_mean': 29.833333333333332, 'territory_max': 34, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (4, 2), 'next_move': 'down', 'time': '0.049s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 46, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 54, 'length': 3, 'body': [(4, 2), (4, 3), (5, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 97, 'length': 10, 'body': [(6, 10), (6, 9), (6, 8), (5, 8), (5, 7), (5, 6), (4, 6), (4, 7), (4, 8), (4, 9)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 78, 'length': 7, 'body': [(9, 9), (8, 9), (7, 9), (7, 8), (7, 7), (7, 6), (7, 5)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 10, 'body': [(2, 2), (1, 2), (1, 1), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (1, 6)]}], 'food': [(10, 9), (2, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(5, 2), (3, 2), (4, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 28, 'territory_mean': 32.333333333333336, 'territory_max': 36, 'classification': 'survives all modeled replies'}, 'left': {'replies': 18, 'survives': 12, 'dies': 6, 'death_reasons': {'head-to-head collision': 6}, 'territory_min': 17, 'territory_mean': 26.166666666666668, 'territory_max': 43, 'classification': 'mixed'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 20, 'territory_mean': 26.11111111111111, 'territory_max': 33, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 2), 'next_move': 'right', 'time': '0.048s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 47, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 53, 'length': 3, 'body': [(5, 2), (4, 2), (4, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 96, 'length': 10, 'body': [(5, 10), (6, 10), (6, 9), (6, 8), (5, 8), (5, 7), (5, 6), (4, 6), (4, 7), (4, 8)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 100, 'length': 8, 'body': [(10, 9), (9, 9), (8, 9), (7, 9), (7, 8), (7, 7), (7, 6), (7, 6)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 11, 'body': [(2, 1), (2, 2), (1, 2), (1, 1), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 6)]}], 'food': [(0, 7)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(6, 2), (5, 3), (5, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 28, 'territory_mean': 37.5, 'territory_max': 47, 'classification': 'survives all modeled replies'}, 'up': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 20, 'territory_mean': 34.75, 'territory_max': 50, 'classification': 'survives all modeled replies'}, 'down': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 23, 'territory_mean': 34.5, 'territory_max': 46, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 2), 'next_move': 'right', 'time': '0.039s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 48, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 52, 'length': 3, 'body': [(6, 2), (5, 2), (4, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 95, 'length': 10, 'body': [(5, 9), (5, 10), (6, 10), (6, 9), (6, 8), (5, 8), (5, 7), (5, 6), (4, 6), (4, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 99, 'length': 8, 'body': [(10, 8), (10, 9), (9, 9), (8, 9), (7, 9), (7, 8), (7, 7), (7, 6)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 11, 'body': [(3, 1), (2, 1), (2, 2), (1, 2), (1, 1), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6)]}], 'food': [(0, 7)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(7, 2), (6, 3), (6, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 6, 'survives': 6, 'dies': 0, 'death_reasons': {}, 'territory_min': 20, 'territory_mean': 22.5, 'territory_max': 25, 'classification': 'survives all modeled replies'}, 'up': {'replies': 6, 'survives': 6, 'dies': 0, 'death_reasons': {}, 'territory_min': 16, 'territory_mean': 23.5, 'territory_max': 31, 'classification': 'survives all modeled replies'}, 'down': {'replies': 6, 'survives': 6, 'dies': 0, 'death_reasons': {}, 'territory_min': 15, 'territory_mean': 17.166666666666668, 'territory_max': 19, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 3), 'next_move': 'up', 'time': '0.021s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 49, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 51, 'length': 3, 'body': [(6, 3), (6, 2), (5, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 94, 'length': 10, 'body': [(4, 9), (5, 9), (5, 10), (6, 10), (6, 9), (6, 8), (5, 8), (5, 7), (5, 6), (4, 6)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 98, 'length': 8, 'body': [(9, 8), (10, 8), (10, 9), (9, 9), (8, 9), (7, 9), (7, 8), (7, 7)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 98, 'length': 11, 'body': [(3, 2), (3, 1), (2, 1), (2, 2), (1, 2), (1, 1), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5)]}], 'food': [(0, 7)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(7, 3), (5, 3), (6, 4)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 20, 'territory_mean': 22.0, 'territory_max': 24, 'classification': 'survives all modeled replies'}, 'left': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 6, 'territory_mean': 12.0, 'territory_max': 20, 'classification': 'survives all modeled replies'}, 'up': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 11, 'territory_mean': 17.0, 'territory_max': 25, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (7, 3), 'next_move': 'right', 'time': '0.039s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 50, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 50, 'length': 3, 'body': [(7, 3), (6, 3), (6, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 93, 'length': 10, 'body': [(4, 8), (4, 9), (5, 9), (5, 10), (6, 10), (6, 9), (6, 8), (5, 8), (5, 7), (5, 6)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 97, 'length': 8, 'body': [(9, 7), (9, 8), (10, 8), (10, 9), (9, 9), (8, 9), (7, 9), (7, 8)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 97, 'length': 11, 'body': [(4, 2), (3, 2), (3, 1), (2, 1), (2, 2), (1, 2), (1, 1), (0, 1), (0, 2), (0, 3), (0, 4)]}], 'food': [(0, 7), (0, 6)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(8, 3), (7, 4), (7, 2)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 13, 'territory_mean': 16.38888888888889, 'territory_max': 19, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 5, 'territory_mean': 12.0, 'territory_max': 19, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 12, 'territory_mean': 14.777777777777779, 'territory_max': 17, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (8, 3), 'next_move': 'right', 'time': '0.059s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 51, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 49, 'length': 3, 'body': [(8, 3), (7, 3), (6, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 92, 'length': 10, 'body': [(4, 7), (4, 8), (4, 9), (5, 9), (5, 10), (6, 10), (6, 9), (6, 8), (5, 8), (5, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 96, 'length': 8, 'body': [(8, 7), (9, 7), (9, 8), (10, 8), (10, 9), (9, 9), (8, 9), (7, 9)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 96, 'length': 11, 'body': [(4, 3), (4, 2), (3, 2), (3, 1), (2, 1), (2, 2), (1, 2), (1, 1), (0, 1), (0, 2), (0, 3)]}], 'food': [(0, 7), (0, 6)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(9, 3), (8, 4), (8, 2)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 12, 'territory_mean': 18.444444444444443, 'territory_max': 26, 'classification': 'survives all modeled replies'}, 'up': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 11, 'territory_mean': 19.37037037037037, 'territory_max': 31, 'classification': 'survives all modeled replies'}, 'down': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 13, 'territory_mean': 20.444444444444443, 'territory_max': 31, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (8, 2), 'next_move': 'down', 'time': '0.093s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 52, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 48, 'length': 3, 'body': [(8, 2), (8, 3), (7, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 91, 'length': 10, 'body': [(3, 7), (4, 7), (4, 8), (4, 9), (5, 9), (5, 10), (6, 10), (6, 9), (6, 8), (5, 8)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 95, 'length': 8, 'body': [(7, 7), (8, 7), (9, 7), (9, 8), (10, 8), (10, 9), (9, 9), (8, 9)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 95, 'length': 11, 'body': [(4, 4), (4, 3), (4, 2), (3, 2), (3, 1), (2, 1), (2, 2), (1, 2), (1, 1), (0, 1), (0, 2)]}], 'food': [(0, 7), (0, 6)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(9, 2), (7, 2), (8, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 13, 'territory_mean': 20.74074074074074, 'territory_max': 35, 'classification': 'survives all modeled replies'}, 'left': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 14, 'territory_mean': 24.59259259259259, 'territory_max': 41, 'classification': 'survives all modeled replies'}, 'down': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 14, 'territory_mean': 22.444444444444443, 'territory_max': 35, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (7, 2), 'next_move': 'left', 'time': '0.073s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 53, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 47, 'length': 3, 'body': [(7, 2), (8, 2), (8, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 90, 'length': 10, 'body': [(2, 7), (3, 7), (4, 7), (4, 8), (4, 9), (5, 9), (5, 10), (6, 10), (6, 9), (6, 8)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 94, 'length': 8, 'body': [(7, 6), (7, 7), (8, 7), (9, 7), (9, 8), (10, 8), (10, 9), (9, 9)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 94, 'length': 11, 'body': [(4, 5), (4, 4), (4, 3), (4, 2), (3, 2), (3, 1), (2, 1), (2, 2), (1, 2), (1, 1), (0, 1)]}], 'food': [(0, 7), (0, 6)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(6, 2), (7, 3), (7, 1)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 19, 'territory_mean': 22.555555555555557, 'territory_max': 27, 'classification': 'survives all modeled replies'}, 'up': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 17, 'territory_mean': 24.444444444444443, 'territory_max': 30, 'classification': 'survives all modeled replies'}, 'down': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 19, 'territory_mean': 20.88888888888889, 'territory_max': 23, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (7, 3), 'next_move': 'up', 'time': '0.087s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 54, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 46, 'length': 3, 'body': [(7, 3), (7, 2), (8, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 89, 'length': 10, 'body': [(1, 7), (2, 7), (3, 7), (4, 7), (4, 8), (4, 9), (5, 9), (5, 10), (6, 10), (6, 9)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 93, 'length': 8, 'body': [(6, 6), (7, 6), (7, 7), (8, 7), (9, 7), (9, 8), (10, 8), (10, 9)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 93, 'length': 11, 'body': [(3, 5), (4, 5), (4, 4), (4, 3), (4, 2), (3, 2), (3, 1), (2, 1), (2, 2), (1, 2), (1, 1)]}], 'food': [(0, 7), (0, 6)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(8, 3), (6, 3), (7, 4)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 16, 'territory_mean': 25.703703703703702, 'territory_max': 36, 'classification': 'survives all modeled replies'}, 'left': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 19, 'territory_mean': 29.77777777777778, 'territory_max': 41, 'classification': 'survives all modeled replies'}, 'up': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 15, 'territory_mean': 28.037037037037038, 'territory_max': 40, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 3), 'next_move': 'left', 'time': '0.081s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 55, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 45, 'length': 3, 'body': [(6, 3), (7, 3), (7, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 100, 'length': 11, 'body': [(0, 7), (1, 7), (2, 7), (3, 7), (4, 7), (4, 8), (4, 9), (5, 9), (5, 10), (6, 10), (6, 10)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 92, 'length': 8, 'body': [(6, 5), (6, 6), (7, 6), (7, 7), (8, 7), (9, 7), (9, 8), (10, 8)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 92, 'length': 11, 'body': [(2, 5), (3, 5), (4, 5), (4, 4), (4, 3), (4, 2), (3, 2), (3, 1), (2, 1), (2, 2), (1, 2)]}], 'food': [(0, 6)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(5, 3), (6, 4), (6, 2)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 12, 'territory_mean': 18.27777777777778, 'territory_max': 25, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 12, 'dies': 6, 'death_reasons': {'head-to-head collision': 6}, 'territory_min': 12, 'territory_mean': 21.583333333333332, 'territory_max': 25, 'classification': 'mixed'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 20, 'territory_mean': 21.666666666666668, 'territory_max': 24, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 2), 'next_move': 'down', 'time': '0.046s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 56, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 44, 'length': 3, 'body': [(6, 2), (6, 3), (7, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 99, 'length': 11, 'body': [(0, 8), (0, 7), (1, 7), (2, 7), (3, 7), (4, 7), (4, 8), (4, 9), (5, 9), (5, 10), (6, 10)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 91, 'length': 8, 'body': [(6, 4), (6, 5), (6, 6), (7, 6), (7, 7), (8, 7), (9, 7), (9, 8)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 91, 'length': 11, 'body': [(1, 5), (2, 5), (3, 5), (4, 5), (4, 4), (4, 3), (4, 2), (3, 2), (3, 1), (2, 1), (2, 2)]}], 'food': [(0, 6), (6, 9)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(7, 2), (5, 2), (6, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 21, 'territory_mean': 25.0, 'territory_max': 29, 'classification': 'survives all modeled replies'}, 'left': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 12, 'territory_mean': 26.0, 'territory_max': 35, 'classification': 'survives all modeled replies'}, 'down': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 19, 'territory_mean': 27.5, 'territory_max': 35, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 1), 'next_move': 'down', 'time': '0.036s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 57, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 43, 'length': 3, 'body': [(6, 1), (6, 2), (6, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 98, 'length': 11, 'body': [(0, 9), (0, 8), (0, 7), (1, 7), (2, 7), (3, 7), (4, 7), (4, 8), (4, 9), (5, 9), (5, 10)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 90, 'length': 8, 'body': [(7, 4), (6, 4), (6, 5), (6, 6), (7, 6), (7, 7), (8, 7), (9, 7)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 90, 'length': 11, 'body': [(0, 5), (1, 5), (2, 5), (3, 5), (4, 5), (4, 4), (4, 3), (4, 2), (3, 2), (3, 1), (2, 1)]}], 'food': [(0, 6), (6, 9)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(7, 1), (5, 1), (6, 0)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 11, 'territory_mean': 25.5, 'territory_max': 39, 'classification': 'survives all modeled replies'}, 'left': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 7, 'territory_mean': 22.333333333333332, 'territory_max': 32, 'classification': 'survives all modeled replies'}, 'down': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 10, 'territory_mean': 22.666666666666668, 'territory_max': 34, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (7, 1), 'next_move': 'right', 'time': '0.040s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 58, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 42, 'length': 3, 'body': [(7, 1), (6, 1), (6, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 97, 'length': 11, 'body': [(1, 9), (0, 9), (0, 8), (0, 7), (1, 7), (2, 7), (3, 7), (4, 7), (4, 8), (4, 9), (5, 9)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 89, 'length': 8, 'body': [(7, 3), (7, 4), (6, 4), (6, 5), (6, 6), (7, 6), (7, 7), (8, 7)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 12, 'body': [(0, 6), (0, 5), (1, 5), (2, 5), (3, 5), (4, 5), (4, 4), (4, 3), (4, 2), (3, 2), (3, 1), (3, 1)]}], 'food': [(6, 9), (2, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(8, 1), (7, 2), (7, 0)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 9, 'survives': 9, 'dies': 0, 'death_reasons': {}, 'territory_min': 7, 'territory_mean': 21.333333333333332, 'territory_max': 32, 'classification': 'survives all modeled replies'}, 'up': {'replies': 9, 'survives': 6, 'dies': 3, 'death_reasons': {'head-to-head collision': 3}, 'territory_min': 27, 'territory_mean': 28.5, 'territory_max': 32, 'classification': 'mixed'}, 'down': {'replies': 9, 'survives': 9, 'dies': 0, 'death_reasons': {}, 'territory_min': 24, 'territory_mean': 25.666666666666668, 'territory_max': 27, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (7, 0), 'next_move': 'down', 'time': '0.026s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 59, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 41, 'length': 3, 'body': [(7, 0), (7, 1), (6, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 96, 'length': 11, 'body': [(2, 9), (1, 9), (0, 9), (0, 8), (0, 7), (1, 7), (2, 7), (3, 7), (4, 7), (4, 8), (4, 9)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 88, 'length': 8, 'body': [(7, 2), (7, 3), (7, 4), (6, 4), (6, 5), (6, 6), (7, 6), (7, 7)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 12, 'body': [(1, 6), (0, 6), (0, 5), (1, 5), (2, 5), (3, 5), (4, 5), (4, 4), (4, 3), (4, 2), (3, 2), (3, 1)]}], 'food': [(6, 9), (2, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(8, 0), (6, 0)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 6, 'survives': 6, 'dies': 0, 'death_reasons': {}, 'territory_min': 2, 'territory_mean': 11.5, 'territory_max': 21, 'classification': 'survives all modeled replies'}, 'left': {'replies': 6, 'survives': 6, 'dies': 0, 'death_reasons': {}, 'territory_min': 6, 'territory_mean': 17.0, 'territory_max': 28, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 0), 'next_move': 'left', 'time': '0.014s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 60, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 40, 'length': 3, 'body': [(6, 0), (7, 0), (7, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 95, 'length': 11, 'body': [(3, 9), (2, 9), (1, 9), (0, 9), (0, 8), (0, 7), (1, 7), (2, 7), (3, 7), (4, 7), (4, 8)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 87, 'length': 8, 'body': [(6, 2), (7, 2), (7, 3), (7, 4), (6, 4), (6, 5), (6, 6), (7, 6)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 98, 'length': 12, 'body': [(2, 6), (1, 6), (0, 6), (0, 5), (1, 5), (2, 5), (3, 5), (4, 5), (4, 4), (4, 3), (4, 2), (3, 2)]}], 'food': [(6, 9), (2, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(5, 0), (6, 1)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 9, 'survives': 9, 'dies': 0, 'death_reasons': {}, 'territory_min': 5, 'territory_mean': 16.666666666666668, 'territory_max': 40, 'classification': 'survives all modeled replies'}, 'up': {'replies': 9, 'survives': 6, 'dies': 3, 'death_reasons': {'head-to-head collision': 3}, 'territory_min': 19, 'territory_mean': 31.0, 'territory_max': 43, 'classification': 'mixed'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 0), 'next_move': 'left', 'time': '0.014s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 61, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 39, 'length': 3, 'body': [(5, 0), (6, 0), (7, 0)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 94, 'length': 11, 'body': [(4, 9), (3, 9), (2, 9), (1, 9), (0, 9), (0, 8), (0, 7), (1, 7), (2, 7), (3, 7), (4, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 86, 'length': 8, 'body': [(6, 1), (6, 2), (7, 2), (7, 3), (7, 4), (6, 4), (6, 5), (6, 6)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 97, 'length': 12, 'body': [(3, 6), (2, 6), (1, 6), (0, 6), (0, 5), (1, 5), (2, 5), (3, 5), (4, 5), (4, 4), (4, 3), (4, 2)]}], 'food': [(6, 9), (2, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(4, 0), (5, 1)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 6, 'survives': 6, 'dies': 0, 'death_reasons': {}, 'territory_min': 4, 'territory_mean': 14.0, 'territory_max': 24, 'classification': 'survives all modeled replies'}, 'up': {'replies': 6, 'survives': 3, 'dies': 3, 'death_reasons': {'head-to-head collision': 3}, 'territory_min': 26, 'territory_mean': 26.0, 'territory_max': 26, 'classification': 'mixed'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (4, 0), 'next_move': 'left', 'time': '0.012s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 62, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 38, 'length': 3, 'body': [(4, 0), (5, 0), (6, 0)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 93, 'length': 11, 'body': [(5, 9), (4, 9), (3, 9), (2, 9), (1, 9), (0, 9), (0, 8), (0, 7), (1, 7), (2, 7), (3, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 85, 'length': 8, 'body': [(5, 1), (6, 1), (6, 2), (7, 2), (7, 3), (7, 4), (6, 4), (6, 5)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 96, 'length': 12, 'body': [(4, 6), (3, 6), (2, 6), (1, 6), (0, 6), (0, 5), (1, 5), (2, 5), (3, 5), (4, 5), (4, 4), (4, 3)]}], 'food': [(6, 9), (2, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(3, 0), (4, 1)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 3, 'territory_mean': 5.0, 'territory_max': 7, 'classification': 'survives all modeled replies'}, 'up': {'replies': 12, 'survives': 6, 'dies': 6, 'death_reasons': {'head-to-head collision': 6}, 'territory_min': 8, 'territory_mean': 8.0, 'territory_max': 8, 'classification': 'mixed'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (3, 0), 'next_move': 'left', 'time': '0.018s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 63, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 37, 'length': 3, 'body': [(3, 0), (4, 0), (5, 0)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 100, 'length': 12, 'body': [(6, 9), (5, 9), (4, 9), (3, 9), (2, 9), (1, 9), (0, 9), (0, 8), (0, 7), (1, 7), (2, 7), (2, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 84, 'length': 8, 'body': [(4, 1), (5, 1), (6, 1), (6, 2), (7, 2), (7, 3), (7, 4), (6, 4)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 95, 'length': 12, 'body': [(5, 6), (4, 6), (3, 6), (2, 6), (1, 6), (0, 6), (0, 5), (1, 5), (2, 5), (3, 5), (4, 5), (4, 4)]}], 'food': [(2, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(2, 0), (3, 1)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 2, 'territory_mean': 3.5, 'territory_max': 5, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 9, 'dies': 9, 'death_reasons': {'head-to-head collision': 9}, 'territory_min': 6, 'territory_mean': 6.0, 'territory_max': 6, 'classification': 'mixed'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (2, 0), 'next_move': 'left', 'time': '0.039s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 64, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 36, 'length': 3, 'body': [(2, 0), (3, 0), (4, 0)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 99, 'length': 12, 'body': [(6, 8), (6, 9), (5, 9), (4, 9), (3, 9), (2, 9), (1, 9), (0, 9), (0, 8), (0, 7), (1, 7), (2, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 83, 'length': 8, 'body': [(3, 1), (4, 1), (5, 1), (6, 1), (6, 2), (7, 2), (7, 3), (7, 4)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 94, 'length': 12, 'body': [(5, 7), (5, 6), (4, 6), (3, 6), (2, 6), (1, 6), (0, 6), (0, 5), (1, 5), (2, 5), (3, 5), (4, 5)]}], 'food': [(2, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(1, 0), (2, 1)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 1, 'territory_mean': 2.0, 'territory_max': 3, 'classification': 'survives all modeled replies'}, 'up': {'replies': 18, 'survives': 9, 'dies': 9, 'death_reasons': {'head-to-head collision': 9}, 'territory_min': 4, 'territory_mean': 4.0, 'territory_max': 4, 'classification': 'mixed'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (1, 0), 'next_move': 'left', 'time': '0.035s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 65, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 35, 'length': 3, 'body': [(1, 0), (2, 0), (3, 0)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 98, 'length': 12, 'body': [(7, 8), (6, 8), (6, 9), (5, 9), (4, 9), (3, 9), (2, 9), (1, 9), (0, 9), (0, 8), (0, 7), (1, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 100, 'length': 9, 'body': [(2, 1), (3, 1), (4, 1), (5, 1), (6, 1), (6, 2), (7, 2), (7, 3), (7, 3)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 93, 'length': 12, 'body': [(4, 7), (5, 7), (5, 6), (4, 6), (3, 6), (2, 6), (1, 6), (0, 6), (0, 5), (1, 5), (2, 5), (3, 5)]}], 'food': [(8, 9)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(0, 0), (1, 1)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 0, 'territory_mean': 0.5, 'territory_max': 1, 'classification': 'survives all modeled replies'}, 'up': {'replies': 12, 'survives': 6, 'dies': 6, 'death_reasons': {'head-to-head collision': 6}, 'territory_min': 2, 'territory_mean': 2.0, 'territory_max': 2, 'classification': 'mixed'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (0, 0), 'next_move': 'left', 'time': '0.015s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 66, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 34, 'length': 3, 'body': [(0, 0), (1, 0), (2, 0)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 97, 'length': 12, 'body': [(7, 9), (7, 8), (6, 8), (6, 9), (5, 9), (4, 9), (3, 9), (2, 9), (1, 9), (0, 9), (0, 8), (0, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 99, 'length': 9, 'body': [(1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (6, 1), (6, 2), (7, 2), (7, 3)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 92, 'length': 12, 'body': [(4, 8), (4, 7), (5, 7), (5, 6), (4, 6), (3, 6), (2, 6), (1, 6), (0, 6), (0, 5), (1, 5), (2, 5)]}], 'food': [(8, 9)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(0, 1)]', "one-turn evaluation (counts, not probabilities): {'up': {'replies': 8, 'survives': 4, 'dies': 4, 'death_reasons': {'head-to-head collision': 4}, 'territory_min': 0, 'territory_mean': 0.0, 'territory_max': 0, 'classification': 'mixed'}}", 'one-turn choose up: no all-reply survivor; unweighted surviving-reply fraction, mean territory, minimum, direction order; evaluation complete'], 'next_coord': (0, 1), 'next_move': 'up', 'time': '0.004s'}
-    ]
-    rows, confusion, by_direction = [], {}, {}
-    print("FULL HISTORY ALL-ACTIONS HINT VALIDATION; approximate reduced model")
-    print("Positions", len(records), "cheap cap", cheap_nodes, cheap_time,
-          "truth cap", truth_nodes, truth_time)
-    for record in records:
-        g = init_game(init_from_log(record))
-        focus = select_focused_opponent(g)
-        actions = legal_moves(g, g.me) or candidate_moves(g, g.me)
-        if focus is None:
-            continue
-        for direction, _ in actions:
-            cheap = cheap_split_counter_for_action(
-                g, direction, focus.id, depth, cheap_time, cheap_nodes)
-            hint = cheap["hint"]
-            if hint.startswith("COMMON_STORED_COUNTER"):
-                hint_bucket = "COMMON"
-            elif hint.startswith("SPLIT_STORED_COUNTERS"):
-                hint_bucket = "SPLIT"
-            elif hint == "NO_QUICK_REFUTATION":
-                hint_bucket = "NO_QUICK_REFUTATION"
-            else:
-                hint_bucket = "UNKNOWN_OR_OTHER"
-            truth = classify_focused_action(
-                g, direction, depth, truth_time, truth_nodes, {focus.id})
-            truth_bucket = truth["classification"]
-            key = (hint_bucket, truth_bucket)
-            confusion[key] = confusion.get(key, 0) + 1
-            dkey = (direction, hint_bucket, truth_bucket)
-            by_direction[dkey] = by_direction.get(dkey, 0) + 1
-            row = {"turn": g.turn, "direction": direction,
-                   "focus": focus.id, "hint": hint,
-                   "hint_bucket": hint_bucket,
-                   "cheap_work": cheap.get("work"),
-                   "cheap_seconds": cheap.get("elapsed_seconds"),
-                   "truth_bucket": truth_bucket,
-                   "truth_robust_work": truth["robust"].get("work"),
-                   "truth_uniform_work": (None if truth["uniform"] is None else
-                                          truth["uniform"].get("work")),
-                   "truth_seconds": truth["elapsed_seconds"]}
-            rows.append(row)
-            print("ALL ACTION HINT", row)
-    table = [{"hint_bucket": h, "truth_bucket": t, "count": n}
-             for (h, t), n in sorted(confusion.items())]
-    directions = [{"direction": d, "hint_bucket": h,
-                   "truth_bucket": t, "count": n}
-                  for (d, h, t), n in sorted(by_direction.items())]
-    summary = {"positions": len(records), "actions": len(rows),
-               "confusion": table, "by_direction": directions,
-               "common_total": sum(n for (h, _), n in confusion.items()
-                                   if h == "COMMON"),
-               "common_correct": confusion.get(
-                   ("COMMON", "APPROX_UNIFORM_FORCED_LOSS"), 0),
-               "split_total": sum(n for (h, _), n in confusion.items()
-                                  if h == "SPLIT"),
-               "split_correct": confusion.get(
-                   ("SPLIT", "APPROX_MATCHING_RESPONSE_GAMBLE"), 0),
-               "truth_unknown": sum(n for (_, t), n in confusion.items()
-                                    if t == "UNKNOWN")}
-    print("ALL ACTION HINT CONFUSION", table)
-    print("ALL ACTION HINT BY DIRECTION", directions)
-    print("ALL ACTION HINT SUMMARY", summary)
-    return {"rows": rows, "summary": summary}
 
 
 def focused_uniform_forced_loss(g, direction, depth=9, time_limit=0.35,
@@ -2701,6 +2656,31 @@ def ordered_validation_summary(rows, label):
 
 
 # Independent bottom-border BLUE suppress found in the 2026-11-08 batch.
+# Interior forced-path death: walls and killer may be different snakes.
+# Early-game double suppress: GREEN and YELLOW control different exits.
+# Pre-trap position immediately before the turn-32 border suppress dilemma.
+TURN31_PRETRAP = {'id': '404ec9ec-b78f-40e5-8c83-5960964b0a7a', 'turn': 31, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 99, 'length': 4, 'body': [(9, 2), (9, 3), (8, 3), (8, 4)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 88, 'length': 6, 'body': [(9, 4), (9, 5), (8, 5), (7, 5), (7, 6), (7, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 98, 'length': 8, 'body': [(6, 1), (5, 1), (4, 1), (4, 2), (5, 2), (5, 3), (4, 3), (3, 3)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 95, 'length': 6, 'body': [(3, 8), (2, 8), (1, 8), (1, 9), (1, 10), (0, 10)]}], 'food': [(0, 2)]}
+# Sole-safe-move dilemma: DOWN is immediately safe; UP is a collision gamble.
+TURN32_SOLE_SAFE_SUPPRESS = {'id': '404ec9ec-b78f-40e5-8c83-5960964b0a7a', 'turn': 32, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 98, 'length': 4, 'body': [(10, 2), (9, 2), (9, 3), (8, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 87, 'length': 6, 'body': [(10, 4), (9, 4), (9, 5), (8, 5), (7, 5), (7, 6)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 97, 'length': 8, 'body': [(7, 1), (6, 1), (5, 1), (4, 1), (4, 2), (5, 2), (5, 3), (4, 3)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 94, 'length': 6, 'body': [(4, 8), (3, 8), (2, 8), (1, 8), (1, 9), (1, 10)]}], 'food': [(0, 2)]}
+# General full-board confinement proof; not classified as border/double suppress.
+TURN135_GENERAL_CONFINEMENT = {'id': '61c4213f-0b73-4a8c-a06d-f80ee2db6898', 'turn': 135, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 100, 'length': 9, 'body': [(0, 5), (1, 5), (1, 4), (1, 3), (1, 2), (2, 2), (3, 2), (4, 2), (4, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 72, 'length': 11, 'body': [(1, 6), (1, 7), (0, 7), (0, 8), (1, 8), (1, 9), (0, 9), (0, 10), (1, 10), (2, 10), (2, 9)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 99, 'length': 19, 'body': [(6, 3), (5, 3), (5, 4), (5, 5), (5, 6), (5, 7), (6, 7), (7, 7), (8, 7), (9, 7), (10, 7), (10, 8), (10, 9), (10, 10), (9, 10), (8, 10), (7, 10), (6, 10), (5, 10)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 89, 'length': 13, 'body': [(6, 1), (5, 1), (4, 1), (3, 1), (2, 1), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0), (7, 0), (8, 0), (8, 1)]}], 'food': [(0, 0), (10, 5), (7, 4)]}
+# Pre-loss positions for evaluating escape before the turn-60 forced dilemma.
+TURN58_PRELOSS = {'id': '6051f452-2597-47ac-ab3d-89662a8833d1', 'turn': 58, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 42, 'length': 3, 'body': [(9, 5), (8, 5), (8, 4)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 98, 'length': 11, 'body': [(7, 3), (7, 2), (7, 1), (6, 1), (6, 2), (5, 2), (5, 3), (4, 3), (4, 4), (4, 5), (5, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 87, 'length': 12, 'body': [(4, 10), (5, 10), (5, 9), (4, 9), (3, 9), (3, 8), (3, 7), (3, 6), (3, 5), (2, 5), (1, 5), (0, 5)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 87, 'length': 9, 'body': [(6, 6), (6, 7), (5, 7), (5, 8), (6, 8), (6, 9), (7, 9), (8, 9), (9, 9)]}], 'food': [(10, 3), (0, 9)]}
+TURN59_PRELOSS = {'id': '6051f452-2597-47ac-ab3d-89662a8833d1', 'turn': 59, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 41, 'length': 3, 'body': [(9, 4), (9, 5), (8, 5)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 97, 'length': 11, 'body': [(8, 3), (7, 3), (7, 2), (7, 1), (6, 1), (6, 2), (5, 2), (5, 3), (4, 3), (4, 4), (4, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 86, 'length': 12, 'body': [(3, 10), (4, 10), (5, 10), (5, 9), (4, 9), (3, 9), (3, 8), (3, 7), (3, 6), (3, 5), (2, 5), (1, 5)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 86, 'length': 9, 'body': [(6, 5), (6, 6), (6, 7), (5, 7), (5, 8), (6, 8), (6, 9), (7, 9), (8, 9)]}], 'food': [(10, 3), (0, 9)]}
+
+# Double suppress is lower danger than the available single-collision gambles.
+TURN73_DOUBLE_VS_COLLISION = {'id': 'a26aa170-8ed7-4041-b21e-245a117da714', 'turn': 73, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 27, 'length': 3, 'body': [(6, 7), (6, 6), (6, 5)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 95, 'length': 9, 'body': [(7, 6), (8, 6), (8, 7), (9, 7), (9, 8), (9, 9), (8, 9), (7, 9), (6, 9)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 96, 'length': 7, 'body': [(4, 7), (3, 7), (2, 7), (1, 7), (1, 6), (1, 5), (1, 4)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 68, 'length': 8, 'body': [(6, 3), (5, 3), (5, 2), (4, 2), (3, 2), (3, 1), (4, 1), (4, 0)]}], 'food': [(4, 10), (0, 5)]}
+# Dynamic-territory regression: RED own-tail release should favor LEFT.
+TURN203_DYNAMIC_TERRITORY = {'id': '7f8c8f88-99e4-4cc1-b7c5-256fa114371c', 'turn': 203, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 96, 'length': 8, 'body': [(10, 9), (10, 10), (9, 10), (8, 10), (7, 10), (7, 9), (8, 9), (9, 9)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 99, 'length': 18, 'body': [(0, 9), (0, 10), (1, 10), (2, 10), (3, 10), (4, 10), (4, 9), (4, 8), (4, 7), (4, 6), (5, 6), (5, 7), (6, 7), (6, 6), (6, 5), (5, 5), (4, 5), (3, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 69, 'length': 14, 'body': [(1, 0), (0, 0), (0, 1), (0, 2), (0, 3), (0, 4), (1, 4), (2, 4), (3, 4), (4, 4), (4, 3), (4, 2), (4, 1), (3, 1)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 89, 'length': 22, 'body': [(8, 7), (8, 8), (7, 8), (7, 7), (7, 6), (7, 5), (7, 4), (6, 4), (5, 4), (5, 3), (5, 2), (6, 2), (6, 1), (6, 0), (7, 0), (8, 0), (9, 0), (10, 0), (10, 1), (10, 2), (10, 3), (10, 4)]}], 'food': [(3, 0), (2, 1)]}
+
+
+
+
+
+TURN26_DOUBLE_SUPPRESS = {'id': '1ad5cfc3-50b0-4e94-8016-ff81d0fd42f1', 'turn': 26, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 74, 'length': 3, 'body': [(4, 6), (4, 7), (4, 8)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 76, 'length': 4, 'body': [(10, 4), (9, 4), (8, 4), (7, 4)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 95, 'length': 6, 'body': [(7, 5), (8, 5), (8, 6), (9, 6), (10, 6), (10, 7)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 98, 'length': 8, 'body': [(1, 5), (0, 5), (0, 4), (1, 4), (2, 4), (3, 4), (3, 3), (3, 2)]}], 'food': [(6, 5), (10, 5)]}
+
+TURN115_INTERIOR_FORCED_PATHS = {'id': 'd157b286-cccb-4757-9012-8d5e6714f192', 'turn': 115, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 76, 'length': 6, 'body': [(6, 7), (6, 6), (5, 6), (5, 5), (4, 5), (3, 5)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 64, 'length': 8, 'body': [(3, 8), (3, 7), (3, 6), (2, 6), (2, 7), (2, 8), (2, 9), (3, 9)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 86, 'length': 13, 'body': [(6, 3), (6, 4), (5, 4), (4, 4), (3, 4), (2, 4), (1, 4), (1, 3), (1, 2), (2, 2), (2, 3), (3, 3), (4, 3)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 98, 'length': 17, 'body': [(10, 9), (9, 9), (9, 10), (8, 10), (7, 10), (6, 10), (5, 10), (5, 9), (5, 8), (6, 8), (7, 8), (8, 8), (8, 7), (8, 6), (8, 5), (7, 5), (7, 4)]}], 'food': [(10, 4), (1, 9)]}
+
 TURN126_BLUE_SUPPRESS = {'id': '808361a7-e6b7-4c1a-b927-df1b29ddccac', 'turn': 126, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 49, 'length': 5, 'body': [(4, 0), (3, 0), (3, 1), (3, 2), (4, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 100, 'length': 16, 'body': [(5, 3), (5, 4), (5, 5), (6, 5), (7, 5), (7, 6), (8, 6), (9, 6), (9, 5), (9, 4), (9, 3), (9, 2), (8, 2), (7, 2), (7, 3), (7, 3)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 58, 'length': 10, 'body': [(5, 9), (6, 9), (7, 9), (8, 9), (9, 9), (10, 9), (10, 8), (9, 8), (8, 8), (7, 8)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 97, 'length': 10, 'body': [(1, 3), (1, 2), (1, 1), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7)]}], 'food': [(10, 1)]}
 
 TURN66_YELLOW_SUPPRESS = {'id': '2b3c4e04-ba25-4ec6-a71c-d34998c95d6d', 'turn': 66, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 34, 'length': 3, 'body': [(1, 9), (1, 8), (2, 8)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 97, 'length': 12, 'body': [(3, 5), (3, 4), (2, 4), (1, 4), (1, 3), (1, 2), (1, 1), (1, 0), (2, 0), (3, 0), (4, 0), (4, 1)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 36, 'length': 4, 'body': [(4, 2), (4, 3), (4, 4), (5, 4)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 15, 'body': [(3, 9), (4, 9), (4, 8), (4, 7), (4, 6), (5, 6), (6, 6), (6, 7), (5, 7), (5, 8), (6, 8), (6, 9), (7, 9), (8, 9), (8, 8)]}], 'food': [(10, 8)]}
@@ -2734,7 +2714,7 @@ def run_turn66_yellow_suppress_tests():
 def focused_bounded_setup_forced_loss(
         g, direction, depth=13, setup_turns=1, time_limit=0.35,
         node_limit=1000000, branch_ids=None, use_ordering=True,
-        capture_certificate=False):
+        capture_certificate=False, preserve_support_ordering=False):
     """Conservative forced-loss proof with a bounded choice setup window.
 
     setup_turns is a budget of RED choice states, not elapsed turns. A
@@ -2822,6 +2802,7 @@ def focused_bounded_setup_forced_loss(
             ordering_evaluations += 1
             reply_moves = {s.id: move[0] for s, move in zip(opponents, reply)}
             survivors = total_moves = max_moves = pressure_distance = 0
+            support_losses = support_stuck = 0
             for red, _ in actions:
                 moves = dict(reply_moves)
                 moves[board.me_id] = red
@@ -2830,6 +2811,12 @@ def focused_bounded_setup_forced_loss(
                 if ng.me is None:
                     continue
                 survivors += 1
+                if preserve_support_ordering:
+                    alive = {s.id: s for s in ng.others}
+                    support_losses += sum(s.id not in alive for s in opponents)
+                    support_stuck += sum(
+                        s.id in alive and not legal_moves(ng, alive[s.id])
+                        for s in opponents)
                 count = len(legal_moves(ng, ng.me) or candidate_moves(ng, ng.me))
                 total_moves += count
                 max_moves = max(max_moves, count)
@@ -2838,7 +2825,10 @@ def focused_bounded_setup_forced_loss(
                     min(abs(s.head[0] - ng.me.head[0]) +
                         abs(s.head[1] - ng.me.head[1]) for s in threats)
                     if threats else ng.width + ng.height)
-            scored.append(((survivors, total_moves, max_moves, pressure_distance),
+            support = ((support_losses, support_stuck)
+                       if preserve_support_ordering else ())
+            scored.append(((survivors, *support, total_moves, max_moves,
+                            pressure_distance),
                            reply, reply_moves))
         scored.sort(key=lambda row: row[0])
         return [(reply, reply_moves) for _, reply, reply_moves in scored]
@@ -3011,149 +3001,16 @@ def run_turn66_bounded_setup_tests():
     print("Turn 66 bounded setup assertions passed")
 
 
-def run_turn66_multi_threat_comparison(forced_steps=4, depth=13,
-                                       choice_budget=2, time_limit=10.0,
-                                       node_limit=5000000):
-    """OFFLINE separate proof per reachable threat candidate."""
-    full, _, _ = turn66_selected_yellow_boards()
-    candidates = future_threat_candidates(full, forced_steps)
-    rows = []
-    print("TURN 66 MULTI-THREAT CANDIDATES", {
-        "forced_steps": forced_steps,
-        "candidates": [{"id": s.id, "length": s.length, "head": s.head}
-                       for s in candidates]})
-    for threat in candidates:
-        record = dict(TURN66_YELLOW_SUPPRESS)
-        record["others"] = [s for s in record["others"]
-                            if s["id"] == threat.id]
-        g = init_game(init_from_log(record))
-        result = focused_bounded_setup_forced_loss(
-            g, "up", depth, choice_budget, time_limit, node_limit,
-            {threat.id}, False)
-        row = {"threat": threat.id, "length": threat.length,
-               "depth": depth, "choice_budget": choice_budget,
-               "status": result["status"], "work": result.get("work"),
-               "setup_rejections": result.get("setup_rejections"),
-               "viability_transitions": result.get("viability_transitions"),
-               "elapsed_seconds": result.get("elapsed_seconds")}
-        rows.append(row)
-        print("TURN 66 THREAT PROOF", row)
-    return rows
-
-
-def run_turn66_bounded_setup_comparison(depths=(12, 13),
-                                        setup_limits=(1, 2),
-                                        time_limit=10.0,
-                                        node_limit=5000000):
-    """OFFLINE conservative RED/YELLOW forced-route comparison."""
-    full, selected, g = turn66_selected_yellow_boards()
-    print("TURN 66 BOUNDED SETUP COMPARISON", {
-        "selected_from_full": selected.id,
-        "isolated_snakes": [s.id for s in g.snakes],
-        "depths": depths, "setup_limits": setup_limits})
-    rows = []
-    for setup in setup_limits:
-        for depth in depths:
-            for ordered in (False, True):
-                result = focused_bounded_setup_forced_loss(
-                    g, "up", depth, setup, time_limit, node_limit,
-                    {selected.id}, ordered)
-                row = {"choice_budget": setup, "depth": depth,
-                       "ordered": ordered, "status": result["status"],
-                       "work": result.get("work"),
-                       "setup_rejections": result.get("setup_rejections"),
-                       "viability_transitions": result.get("viability_transitions"),
-                       "ordering_transitions": result.get("ordering_transitions"),
-                       "elapsed_seconds": result.get("elapsed_seconds")}
-                rows.append(row)
-                print("TURN 66 BOUNDED SETUP", row)
-    proof_case = next((r for r in rows if r["status"] ==
-                       "APPROX_BOUNDED_SETUP_FORCED_LOSS"), None)
-    proof = None
-    if proof_case is not None:
-        proof = focused_bounded_setup_forced_loss(
-            g, "up", proof_case["depth"], proof_case["choice_budget"],
-            time_limit, node_limit, {selected.id}, proof_case["ordered"], True)
-        flat = summarize_uniform_certificate(proof["certificate"])
-        print("TURN 66 BOUNDED SETUP CERTIFICATE SUMMARY", {
-            "choice_budget": proof_case["choice_budget"],
-            "depth": proof_case["depth"], "ordered": proof_case["ordered"],
-            "status": proof["status"], "work": proof["work"],
-            "policy_states": proof["policy_states"],
-            "certificate_rows": len(flat),
-            "elapsed_seconds": proof["elapsed_seconds"]})
-        for row in flat:
-            print("TURN 66 BOUNDED SETUP POLICY NODE", row)
-    return {"rows": rows, "proof": proof}
-
-
-def run_turn66_yellow_suppress_comparison(depths=(11, 12, 13),
-                                           time_limit=10.0,
-                                           node_limit=5000000):
-    """OFFLINE two-stage YELLOW-only proof search after RED-up.
-
-    Stage 1 selects YELLOW while BLUE and GREEN remain on the full board.
-    Stage 2 removes all non-selected opponents and searches only RED/YELLOW.
-    No suppression route is encoded; generic ordering must discover one.
-    """
-    full, selected, g = turn66_selected_yellow_boards()
-    print("TURN 66 FULL-BOARD AUTO FOCUS", {
-        "focus": selected.id, "head": selected.head,
-        "length": selected.length,
-        "other_heads": {s.id: s.head for s in full.others}})
-    print("TURN 66 ISOLATED SEARCH", {
-        "snakes": [s.id for s in g.snakes], "direction": "up",
-        "depths": depths, "time_limit": time_limit,
-        "node_limit": node_limit, "no_new_food": True})
-    rows = []
-    for depth in depths:
-        baseline = focused_uniform_forced_loss(
-            g, "up", depth, time_limit, node_limit, {selected.id})
-        ordered = focused_uniform_forced_loss_ordered(
-            g, "up", depth, time_limit, node_limit, {selected.id})
-        row = {"depth": depth, "direction": "up", "focus": selected.id,
-               "baseline_status": baseline["status"],
-               "baseline_work": baseline.get("work"),
-               "baseline_seconds": baseline.get("elapsed_seconds"),
-               "ordered_status": ordered["status"],
-               "ordered_work": ordered.get("work"),
-               "ordered_seconds": ordered.get("elapsed_seconds"),
-               "ordering_evaluations": ordered.get("ordering_evaluations"),
-               "ordering_transitions": ordered.get("ordering_transitions")}
-        rows.append(row)
-        print("TURN 66 YELLOW-ONLY SEARCH", row)
-
-    proof_depth = next((row["depth"] for row in rows
-                        if row["ordered_status"] ==
-                        "APPROX_UNIFORM_FORCED_LOSS"), None)
-    proof = None
-    if proof_depth is None:
-        print("TURN 66 YELLOW-ONLY CERTIFICATE",
-              {"status": "NO_ORDERED_PROOF", "depths": depths})
-    else:
-        proof = focused_uniform_forced_loss_ordered(
-            g, "up", proof_depth, time_limit, node_limit, {selected.id}, True)
-        flat = summarize_uniform_certificate(proof["certificate"])
-        print("TURN 66 YELLOW-ONLY CERTIFICATE SUMMARY", {
-            "depth": proof_depth, "status": proof["status"],
-            "work": proof["work"], "policy_states": proof["policy_states"],
-            "certificate_rows": len(flat),
-            "elapsed_seconds": proof["elapsed_seconds"]})
-        for row in flat:
-            print("TURN 66 YELLOW-ONLY POLICY NODE", row)
-    return {"selected_focus": selected.id, "rows": rows, "proof": proof}
-
-
 def run_live_suppress_veto_tests():
     """Live wrapper regression: new positive/control plus old controls."""
     g = init_game(init_from_log(TURN126_BLUE_SUPPRESS))
-    veto, rows = live_suppress_forced_losses(
+    veto, penalty, rows = live_suppress_forced_losses(
         g, ["right", "up"], time.perf_counter() + MOVE_TIME_LIMIT)
     assert veto == {"right"}
     assert any(r["direction"] == "right" and r["status"] ==
                "APPROX_BOUNDED_SETUP_FORCED_LOSS" for r in rows)
     g = init_game(init_from_log(TURN58_ORDERING_CONTROL))
-    veto, _ = live_suppress_forced_losses(
+    veto, _, _ = live_suppress_forced_losses(
         g, ["right", "down"], time.perf_counter() + MOVE_TIME_LIMIT)
     assert not veto
     opening = init_game(init_from_log({
@@ -3162,15 +3019,94 @@ def run_live_suppress_veto_tests():
                "body": [(5, 5), (5, 4), (5, 3)]},
         "others": [{"id": "BLUE", "name": "BLUE", "health": 100,
                     "body": [(9, 5), (9, 4), (9, 3)]}], "food": []}))
-    veto, rows = live_suppress_forced_losses(
+    veto, penalty, rows = live_suppress_forced_losses(
         opening, ["right", "left", "up"],
         time.perf_counter() + MOVE_TIME_LIMIT)
     assert not veto and not rows  # turn 0 must skip suppress
     opening.turn = 1
-    _, rows = live_suppress_forced_losses(
+    _, _, rows = live_suppress_forced_losses(
         opening, ["right", "left", "up"],
         time.perf_counter() + MOVE_TIME_LIMIT)
     assert rows  # interior non-opening positions must remain eligible
+    doomed = init_game(init_from_log(TURN115_INTERIOR_FORCED_PATHS))
+    veto, penalty, rows = live_suppress_forced_losses(
+        doomed, ["left", "right"], time.perf_counter() + MOVE_TIME_LIMIT)
+    assert not veto  # Turn 115 has no alternative to veto.
+    full = [r for r in rows if r["stage"] == "full_branch"]
+    assert {r["direction"] for r in full
+            if r["status"] == "APPROX_BOUNDED_SETUP_FORCED_LOSS"} == {
+                "left", "right"}
+    assert all("budget_before" in r and "budget_after" in r
+               and "deadline_exhausted" in r for r in rows)
+    trigger = forced_next_move_trigger(
+        doomed, "right", time.perf_counter() + MOVE_TIME_LIMIT)
+    assert trigger["triggered"]  # forced-next trigger must fire
+    opening.turn = 1
+    trigger = forced_next_move_trigger(
+        opening, "right", time.perf_counter() + MOVE_TIME_LIMIT)
+    assert not trigger["triggered"]  # ordinary interior move must skip
+    double = init_game(init_from_log(TURN26_DOUBLE_SUPPRESS))
+    trigger = double_suppress_trigger(
+        double, "down", time.perf_counter() + MOVE_TIME_LIMIT)
+    assert trigger["triggered"]
+    assert set(trigger["pair"]) == {"mark_snake_test GREEN",
+                                    "mark_snake_test YELLOW"}
+    assert set(trigger["controlled_exits"]) == {"right", "left"}
+    # One-turn pair control must launch search; search decides persistence/loss.
+    veto, penalty, rows = live_suppress_forced_losses(
+        double, ["right", "left", "down"],
+        time.perf_counter() + MOVE_TIME_LIMIT)
+    pair_rows = [r for r in rows
+                 if r["stage"] == "double_suppress_pair"
+                 and r["direction"] == "down"]
+    assert pair_rows  # one-turn trigger must reach bounded pair search
+    assert set(pair_rows[0]["threat"]) == {"mark_snake_test GREEN",
+                                           "mark_snake_test YELLOW"}
+    print("TURN 26 DOUBLE SUPPRESS RESULT", {
+        "trigger_pair": tuple(sorted(pair_rows[0]["threat"])),
+        "search_status": pair_rows[0]["status"],
+        "work": pair_rows[0].get("work"),
+        "seconds": pair_rows[0].get("seconds"),
+        "veto": sorted(veto)})
+    assert pair_rows[0]["status"] == "APPROX_BOUNDED_SETUP_FORCED_LOSS"
+    assert veto == {"down"}  # proven double suppress must remove DOWN
+    assert not penalty
+    assert not any(r["stage"] == "double_suppress_persistence"
+                   for r in rows)  # no two-turn trigger remains
+    dilemma = init_game(init_from_log(TURN32_SOLE_SAFE_SUPPRESS))
+    safety = summarize_moves(dilemma)
+    assert safety["down"]["dies"] == 0
+    assert 0 < safety["up"]["survives"] < safety["up"]["replies"]
+    veto, penalty, rows = live_suppress_forced_losses(
+        dilemma, ["down"], time.perf_counter() + MOVE_TIME_LIMIT,
+        allow_all_veto=True)
+    assert veto == {"down"}
+    assert any(r["direction"] == "down" and r["status"] ==
+               "APPROX_BOUNDED_SETUP_FORCED_LOSS" for r in rows)
+    move = choose_move(dilemma, time.perf_counter() + MOVE_TIME_LIMIT)
+    assert move[0] == "up"  # proven suppress loss yields collision gamble
+    print("TURN 32 SOLE SAFE RESULT", {
+        "down_vetoed": True, "chosen": move[0],
+        "up_survival": (safety["up"]["survives"],
+                        safety["up"]["replies"])})
+    collision_case = init_game(init_from_log(TURN73_DOUBLE_VS_COLLISION))
+    collision_safety = summarize_moves(collision_case)
+    assert collision_safety["up"]["dies"] == 0
+    assert collision_safety["right"]["dies"] > 0
+    assert collision_safety["left"]["dies"] > 0
+    veto, penalty, rows = live_suppress_forced_losses(
+        collision_case, ["up"], time.perf_counter() + MOVE_TIME_LIMIT,
+        allow_all_veto=True)
+    assert not veto and penalty == {"up"}
+    assert any(r["stage"] == "double_suppress_pair" and
+               r["direction"] == "up" and r["status"] ==
+               "APPROX_BOUNDED_SETUP_FORCED_LOSS" for r in rows)
+    move = choose_move(
+        collision_case, time.perf_counter() + MOVE_TIME_LIMIT)
+    assert move[0] == "up"  # double suppress loses to no single collision
+    print("TURN 73 DANGER ORDER RESULT", {
+        "double_suppress": "penalty", "veto": sorted(veto),
+        "penalty": sorted(penalty), "chosen": move[0]})
     print("Live suppress veto assertions passed")
 
 
@@ -3233,59 +3169,6 @@ def bounded_setup_validation_summary(rows, label, choice_budget):
                               if r["status"] == "UNKNOWN"]}
 
 
-def run_bounded_setup_historical_validation(depth=13, choice_budgets=(1, 2),
-                                            reference_time=2.0, live_time=0.35,
-                                            node_limit=5000000):
-    """OFFLINE bounded-choice validation on fixed positives and controls."""
-    cases = bounded_setup_validation_cases()
-    output = {}
-    print("BOUNDED SETUP HISTORICAL VALIDATION; no new food")
-    for choice_budget in choice_budgets:
-        for label, budget in (("reference", reference_time),
-                              ("live_budget", live_time)):
-            rows = []
-            for case in cases:
-                full = init_game(init_from_log(case["record"]))
-                candidates = future_threat_candidates(full, 4)
-                threat_rows = []
-                for threat in candidates:
-                    record = dict(case["record"])
-                    record["others"] = [s for s in record["others"]
-                                        if s["id"] == threat.id]
-                    g = init_game(init_from_log(record))
-                    result = focused_bounded_setup_forced_loss(
-                        g, case["direction"], depth, choice_budget, budget,
-                        node_limit, {threat.id}, True)
-                    threat_rows.append({"threat": threat.id,
-                                        "status": result["status"],
-                                        "work": result.get("work"),
-                                        "seconds": result.get("elapsed_seconds")})
-                completed_loss = next((r for r in threat_rows if r["status"] ==
-                                       "APPROX_BOUNDED_SETUP_FORCED_LOSS"), None)
-                unknown = any(r["status"] == "UNKNOWN" for r in threat_rows)
-                status = ("APPROX_BOUNDED_SETUP_FORCED_LOSS" if completed_loss
-                          else "UNKNOWN" if unknown
-                          else "APPROX_NO_BOUNDED_SETUP_PROOF")
-                row = {"budget": label, "choice_budget": choice_budget,
-                       "name": case["name"], "turn": full.turn,
-                       "direction": case["direction"],
-                       "expected_forced_loss": case["expected_forced_loss"],
-                       "status": status,
-                       "predicted_forced_loss": completed_loss is not None,
-                       "winning_threat": (None if completed_loss is None else
-                                          completed_loss["threat"]),
-                       "threat_results": threat_rows,
-                       "work": sum(r["work"] or 0 for r in threat_rows),
-                       "elapsed_seconds": sum(r["seconds"] or 0
-                                              for r in threat_rows)}
-                rows.append(row)
-                print("BOUNDED VALIDATION CASE", row)
-            summary = bounded_setup_validation_summary(rows, label, choice_budget)
-            print("BOUNDED VALIDATION SUMMARY", summary)
-            output[(choice_budget, label)] = {"rows": rows, "summary": summary}
-    return output
-
-
 def run_bounded_setup_historical_validation_tests():
     cases = bounded_setup_validation_cases()
     positives = {c["name"] for c in cases if c["expected_forced_loss"]}
@@ -3293,42 +3176,6 @@ def run_bounded_setup_historical_validation_tests():
                          "turn126-right-candidate"}
     assert len(cases) == 10
     print("Bounded setup historical validation assertions passed")
-
-
-def run_ordered_historical_validation(depth=8, reference_time=2.0,
-                                      live_time=0.35, node_limit=1000000):
-    """OFFLINE automatic-focus validation; never called by live chooser."""
-    cases = ordered_validation_cases()
-    all_rows = {}
-    print("ORDERED HISTORICAL VALIDATION; approximate reduced model")
-    print("Depth", depth, "automatic focus; no new food")
-    for label, budget in (("reference", reference_time),
-                          ("live_budget", live_time)):
-        rows = []
-        for case in cases:
-            g = init_game(init_from_log(case["record"]))
-            focus = select_focused_opponent(g)
-            result = focused_uniform_forced_loss_ordered(
-                g, case["direction"], depth, budget, node_limit,
-                set() if focus is None else {focus.id})
-            row = {"budget": label, "name": case["name"],
-                   "turn": g.turn, "direction": case["direction"],
-                   "source": case["source"],
-                   "focus": None if focus is None else focus.id,
-                   "expected_forced_loss": case["expected_forced_loss"],
-                   "status": result["status"],
-                   "predicted_forced_loss": (
-                       result["status"] == "APPROX_UNIFORM_FORCED_LOSS"),
-                   "work": result.get("work"),
-                   "ordering_evaluations": result.get("ordering_evaluations"),
-                   "ordering_transitions": result.get("ordering_transitions"),
-                   "elapsed_seconds": result.get("elapsed_seconds")}
-            rows.append(row)
-            print("ORDERED VALIDATION CASE", row)
-        summary = ordered_validation_summary(rows, label)
-        print("ORDERED VALIDATION SUMMARY", summary)
-        all_rows[label] = {"rows": rows, "summary": summary}
-    return all_rows
 
 
 def run_ordered_historical_validation_tests():
@@ -3352,56 +3199,6 @@ def run_ordered_historical_validation_tests():
     print("Ordered historical validation assertions passed")
 
 
-def run_ordered_policy_certificate_and_controls(depth=8, time_limit=2.0,
-                                                node_limit=1000000):
-    """OFFLINE certificate plus turn-58 and good-action controls."""
-    record = next(r for r in BORDER_ESCAPE_HISTORY if r["turn"] == 91)
-    g = init_game(init_from_log(record))
-    blue = next(s for s in g.others if s.name.endswith("BLUE"))
-    proof = focused_uniform_forced_loss_ordered(
-        g, "right", depth, time_limit, node_limit, {blue.id}, True)
-    if proof["status"] != "APPROX_UNIFORM_FORCED_LOSS":
-        raise AssertionError("Turn 91 right must reproduce the ordered proof")
-    certificate_rows = summarize_uniform_certificate(proof["certificate"])
-    print("ORDERED POLICY SUMMARY", {
-        "turn": 91, "direction": "right", "depth": depth,
-        "status": proof["status"], "work": proof["work"],
-        "policy_states": proof["policy_states"],
-        "certificate_rows": len(certificate_rows),
-        "elapsed_seconds": proof["elapsed_seconds"]})
-    for row in certificate_rows:
-        print("ORDERED POLICY NODE", row)
-
-    controls = []
-    for turn, direction in ((89, "left"), (89, "down"), (90, "left"),
-                            (91, "up")):
-        board = init_game(init_from_log(
-            next(r for r in BORDER_ESCAPE_HISTORY if r["turn"] == turn)))
-        focus = next(s for s in board.others if s.name.endswith("BLUE"))
-        result = focused_uniform_forced_loss_ordered(
-            board, direction, depth, time_limit, node_limit, {focus.id})
-        row = {"case": "good_or_gamble_control", "turn": turn,
-               "direction": direction, "focus": focus.id,
-               "status": result["status"], "work": result.get("work"),
-               "elapsed_seconds": result.get("elapsed_seconds")}
-        controls.append(row)
-        print("ORDERED CONTROL", row)
-
-    board = init_game(init_from_log(TURN58_ORDERING_CONTROL))
-    focus = next(s for s in board.others if s.id == "GREEN")
-    for direction in ("right", "down"):
-        result = focused_uniform_forced_loss_ordered(
-            board, direction, 9, time_limit, node_limit, {focus.id})
-        row = {"case": "turn58_control", "turn": 58,
-               "direction": direction, "focus": focus.id,
-               "status": result["status"], "work": result.get("work"),
-               "elapsed_seconds": result.get("elapsed_seconds")}
-        controls.append(row)
-        print("ORDERED CONTROL", row)
-    return {"proof": proof, "certificate_rows": certificate_rows,
-            "controls": controls}
-
-
 def run_ordered_policy_certificate_tests():
     """Small structural tests without the full validation run."""
     record = next(r for r in BORDER_ESCAPE_HISTORY if r["turn"] == 91)
@@ -3415,36 +3212,6 @@ def run_ordered_policy_certificate_tests():
     assert rows and rows[0]["heads"][g.me_id] == (3, 0)
     assert any(row.get("terminal") == "RED eliminated" for row in rows)
     print("Ordered policy certificate assertions passed")
-
-
-def run_turn91_uniform_ordering_comparison(depths=(7, 8, 9), trials=3,
-                                           time_limit=2.0,
-                                           node_limit=1000000):
-    """OFFLINE ordered-versus-baseline uniform proof at turn 91."""
-    record = next(r for r in BORDER_ESCAPE_HISTORY if r["turn"] == 91)
-    g = init_game(init_from_log(record))
-    blue = next(s for s in g.others if s.name.endswith("BLUE"))
-    rows = []
-    print("TURN 91 UNIFORM ORDERING COMPARISON; BLUE-focused reduced model")
-    for depth in depths:
-        for direction in ("right", "up"):
-            for trial in range(1, trials + 1):
-                baseline = focused_uniform_forced_loss(
-                    g, direction, depth, time_limit, node_limit, {blue.id})
-                ordered = focused_uniform_forced_loss_ordered(
-                    g, direction, depth, time_limit, node_limit, {blue.id})
-                row = {"depth": depth, "direction": direction, "trial": trial,
-                       "baseline_status": baseline["status"],
-                       "baseline_work": baseline.get("work"),
-                       "baseline_seconds": baseline.get("elapsed_seconds"),
-                       "ordered_status": ordered["status"],
-                       "ordered_work": ordered.get("work"),
-                       "ordered_seconds": ordered.get("elapsed_seconds"),
-                       "ordering_evaluations": ordered.get("ordering_evaluations"),
-                       "ordering_transitions": ordered.get("ordering_transitions")}
-                rows.append(row)
-                print("UNIFORM ORDERING", row)
-    return rows
 
 
 def run_turn91_uniform_ordering_tests():
@@ -3506,30 +3273,6 @@ def run_gamble_classification_tests():
     print("Gamble classification assertions passed")
 
 
-def run_turn58_gamble_classification(depth=9, time_limit=1.0,
-                                     node_limit=1000000):
-    """OFFLINE classification of all turn-58 root actions."""
-    record = {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 58, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 42, 'length': 3, 'body': [(7, 1), (6, 1), (6, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 97, 'length': 11, 'body': [(1, 9), (0, 9), (0, 8), (0, 7), (1, 7), (2, 7), (3, 7), (4, 7), (4, 8), (4, 9), (5, 9)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 89, 'length': 8, 'body': [(7, 3), (7, 4), (6, 4), (6, 5), (6, 6), (7, 6), (7, 7), (8, 7)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 12, 'body': [(0, 6), (0, 5), (1, 5), (2, 5), (3, 5), (4, 5), (4, 4), (4, 3), (4, 2), (3, 2), (3, 1), (3, 1)]}], 'food': [(6, 9), (2, 1)]}
-    g = init_game(init_from_log(record))
-    focus = select_focused_opponent(g)
-    rows = {}
-    print("TURN 58 GAMBLE CLASSIFICATION; approximate reduced model")
-    for direction, _ in legal_moves(g, g.me) or candidate_moves(g, g.me):
-        result = classify_focused_action(
-            g, direction, depth, time_limit, node_limit, {focus.id})
-        row = {"classification": result["classification"],
-               "robust_status": result["robust"]["status"],
-               "robust_work": result["robust"].get("work"),
-               "uniform_status": (None if result["uniform"] is None else
-                                  result["uniform"]["status"]),
-               "uniform_work": (None if result["uniform"] is None else
-                                result["uniform"].get("work")),
-               "elapsed_seconds": result["elapsed_seconds"]}
-        rows[direction] = row
-        print("GAMBLE CLASSIFICATION", direction, row)
-    return rows
-
-
 def direct_focused_move_results(g, directions, depth=9, time_limit=0.35,
                                 node_limit=1000000, branch_ids=None):
     """Direct Boolean evaluation under one shared deadline.
@@ -3577,41 +3320,6 @@ def run_direct_tied_depth_tests():
     assert not limited["complete"]
     assert limited["results"]["right"]["status"] == "UNKNOWN"
     print("Direct tied-depth assertions passed")
-
-
-def run_direct_tied_depth_feasibility(trials=5, depth=9,
-                                       time_limit=0.35,
-                                       node_limit=1000000):
-    """OFFLINE turn-58 timing trials; right/down only, direct target depth."""
-    record = {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 58, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 42, 'length': 3, 'body': [(7, 1), (6, 1), (6, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 97, 'length': 11, 'body': [(1, 9), (0, 9), (0, 8), (0, 7), (1, 7), (2, 7), (3, 7), (4, 7), (4, 8), (4, 9), (5, 9)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 89, 'length': 8, 'body': [(7, 3), (7, 4), (6, 4), (6, 5), (6, 6), (7, 6), (7, 7), (8, 7)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 12, 'body': [(0, 6), (0, 5), (1, 5), (2, 5), (3, 5), (4, 5), (4, 4), (4, 3), (4, 2), (3, 2), (3, 1), (3, 1)]}], 'food': [(6, 9), (2, 1)]}
-    g = init_game(init_from_log(record))
-    focus = select_focused_opponent(g)
-    directions = [d for d in ("right", "down")
-                  if d in dict(legal_moves(g, g.me) or candidate_moves(g, g.me))]
-    rows = []
-    print("DIRECT TIED DEPTH FEASIBILITY; approximate reduced model")
-    print("Turn", g.turn, "focus", focus.id, "depth", depth,
-          "shared budget", time_limit, "directions", directions)
-    for trial in range(1, trials + 1):
-        result = direct_focused_move_results(
-            g, directions, depth, time_limit, node_limit, {focus.id})
-        row = {"trial": trial, "complete": result["complete"],
-               "distinguishes": result["distinguishes"],
-               "statuses": {d: r["status"]
-                            for d, r in result["results"].items()},
-               "per_move_seconds": {d: r.get("elapsed_seconds")
-                                    for d, r in result["results"].items()},
-               "elapsed_seconds": result["elapsed_seconds"]}
-        rows.append(row)
-        print("DIRECT FEASIBILITY", row)
-    completed = [r for r in rows if r["complete"]]
-    summary = {"trials": trials, "completed": len(completed),
-               "all_completed": len(completed) == trials,
-               "all_completed_distinguish": bool(completed) and
-                    all(r["distinguishes"] for r in completed),
-               "max_elapsed_seconds": max(r["elapsed_seconds"] for r in rows)}
-    print("DIRECT FEASIBILITY SUMMARY", summary)
-    return {"rows": rows, "summary": summary}
 
 
 def focused_safety_tie_directions(evaluation):
@@ -3685,115 +3393,6 @@ def run_historical_focused_end_to_end_tests():
         "up": {"replies": 2, "survives": 2, "dies": 0}}
     assert focused_safety_tie_directions(evaluation) == ["right", "up"]
     print("Historical focused end-to-end assertions passed")
-
-
-def run_historical_focused_end_to_end(time_limit=0.35, depth=9,
-                                      node_limit=1000000):
-    """OFFLINE spaced historical sample; one shared budget per position."""
-    records = [
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 0, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 100, 'length': 3, 'body': [(5, 1), (5, 1), (5, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 100, 'length': 3, 'body': [(9, 5), (9, 5), (9, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 100, 'length': 3, 'body': [(5, 9), (5, 9), (5, 9)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 3, 'body': [(1, 5), (1, 5), (1, 5)]}], 'food': [(4, 0), (10, 4), (6, 10), (0, 6), (5, 5)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(6, 1), (4, 1), (5, 2), (5, 0)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 64, 'survives': 64, 'dies': 0, 'death_reasons': {}, 'territory_min': 15, 'territory_mean': 21.796875, 'territory_max': 29, 'classification': 'survives all modeled replies'}, 'left': {'replies': 64, 'survives': 64, 'dies': 0, 'death_reasons': {}, 'territory_min': 15, 'territory_mean': 21.796875, 'territory_max': 29, 'classification': 'survives all modeled replies'}, 'up': {'replies': 64, 'survives': 64, 'dies': 0, 'death_reasons': {}, 'territory_min': 17, 'territory_mean': 24.171875, 'territory_max': 34, 'classification': 'survives all modeled replies'}, 'down': {'replies': 64, 'survives': 64, 'dies': 0, 'death_reasons': {}, 'territory_min': 13, 'territory_mean': 19.1875, 'territory_max': 26, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 2), 'next_move': 'up', 'time': '0.307s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 6, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 94, 'length': 3, 'body': [(4, 2), (3, 2), (3, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 96, 'length': 4, 'body': [(9, 3), (9, 2), (10, 2), (10, 3)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 96, 'length': 4, 'body': [(5, 7), (5, 8), (5, 9), (6, 9)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 96, 'length': 4, 'body': [(1, 3), (1, 4), (1, 5), (1, 6)]}], 'food': [(4, 0), (5, 5), (9, 6)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(5, 2), (4, 3), (4, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 8, 'territory_mean': 16.11111111111111, 'territory_max': 27, 'classification': 'survives all modeled replies'}, 'up': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 5, 'territory_mean': 13.11111111111111, 'territory_max': 23, 'classification': 'survives all modeled replies'}, 'down': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 8, 'territory_mean': 13.444444444444445, 'territory_max': 22, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 2), 'next_move': 'right', 'time': '0.094s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 12, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 88, 'length': 3, 'body': [(4, 2), (5, 2), (6, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 97, 'length': 5, 'body': [(8, 6), (8, 7), (9, 7), (9, 6), (9, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 96, 'length': 5, 'body': [(3, 5), (3, 6), (4, 6), (4, 5), (5, 5)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 90, 'length': 4, 'body': [(2, 8), (2, 7), (2, 6), (2, 5)]}], 'food': [(4, 0), (10, 6)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(3, 2), (4, 3), (4, 1)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 17, 'territory_mean': 18.5, 'territory_max': 20, 'classification': 'survives all modeled replies'}, 'up': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 5, 'territory_mean': 10.0, 'territory_max': 15, 'classification': 'survives all modeled replies'}, 'down': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 16, 'territory_mean': 19.5, 'territory_max': 23, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (4, 1), 'next_move': 'down', 'time': '0.067s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 18, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 82, 'length': 3, 'body': [(7, 3), (7, 2), (6, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 98, 'length': 6, 'body': [(9, 7), (10, 7), (10, 6), (9, 6), (9, 5), (8, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 100, 'length': 6, 'body': [(4, 0), (4, 1), (4, 2), (4, 3), (4, 4), (4, 4)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 98, 'length': 5, 'body': [(4, 8), (5, 8), (5, 7), (4, 7), (3, 7)]}], 'food': [(4, 9), (10, 0)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(8, 3), (6, 3), (7, 4)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 14, 'territory_mean': 22.625, 'territory_max': 32, 'classification': 'survives all modeled replies'}, 'left': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 7, 'territory_mean': 19.5, 'territory_max': 34, 'classification': 'survives all modeled replies'}, 'up': {'replies': 8, 'survives': 8, 'dies': 0, 'death_reasons': {}, 'territory_min': 16, 'territory_mean': 25.75, 'territory_max': 36, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (7, 4), 'next_move': 'up', 'time': '0.026s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 24, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 76, 'length': 3, 'body': [(3, 3), (4, 3), (5, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 92, 'length': 6, 'body': [(7, 5), (6, 5), (6, 6), (7, 6), (7, 7), (8, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 100, 'length': 7, 'body': [(10, 0), (9, 0), (8, 0), (7, 0), (6, 0), (5, 0), (5, 0)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 98, 'length': 7, 'body': [(2, 8), (1, 8), (1, 9), (2, 9), (3, 9), (4, 9), (4, 8)]}], 'food': [(9, 5)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(2, 3), (3, 4), (3, 2)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 4, 'survives': 4, 'dies': 0, 'death_reasons': {}, 'territory_min': 21, 'territory_mean': 23.5, 'territory_max': 26, 'classification': 'survives all modeled replies'}, 'up': {'replies': 4, 'survives': 4, 'dies': 0, 'death_reasons': {}, 'territory_min': 21, 'territory_mean': 25.0, 'territory_max': 29, 'classification': 'survives all modeled replies'}, 'down': {'replies': 4, 'survives': 4, 'dies': 0, 'death_reasons': {}, 'territory_min': 19, 'territory_mean': 21.5, 'territory_max': 24, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (3, 4), 'next_move': 'up', 'time': '0.011s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 30, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 70, 'length': 3, 'body': [(3, 3), (4, 3), (5, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 96, 'length': 7, 'body': [(8, 8), (8, 7), (8, 6), (9, 6), (9, 5), (8, 5), (7, 5)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 94, 'length': 7, 'body': [(7, 3), (7, 2), (8, 2), (9, 2), (10, 2), (10, 1), (10, 0)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 92, 'length': 7, 'body': [(3, 9), (3, 8), (3, 7), (3, 6), (2, 6), (2, 7), (2, 8)]}], 'food': [(8, 9), (1, 10), (6, 10)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(2, 3), (3, 4), (3, 2)]', "one-turn evaluation (counts, not probabilities): {'left': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 22, 'territory_mean': 27.62962962962963, 'territory_max': 33, 'classification': 'survives all modeled replies'}, 'up': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 22, 'territory_mean': 29.074074074074073, 'territory_max': 37, 'classification': 'survives all modeled replies'}, 'down': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 21, 'territory_mean': 29.22222222222222, 'territory_max': 40, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (3, 2), 'next_move': 'down', 'time': '0.168s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 36, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 64, 'length': 3, 'body': [(4, 2), (4, 3), (3, 3)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 98, 'length': 9, 'body': [(5, 9), (6, 9), (6, 10), (7, 10), (8, 10), (8, 9), (8, 8), (8, 7), (8, 6)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 88, 'length': 7, 'body': [(6, 6), (6, 7), (7, 7), (7, 6), (7, 5), (7, 4), (7, 3)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 97, 'length': 8, 'body': [(1, 7), (1, 8), (1, 9), (1, 10), (2, 10), (3, 10), (3, 9), (3, 8)]}], 'food': [(0, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(5, 2), (3, 2), (4, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 25, 'territory_mean': 38.333333333333336, 'territory_max': 51, 'classification': 'survives all modeled replies'}, 'left': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 18, 'territory_mean': 24.333333333333332, 'territory_max': 30, 'classification': 'survives all modeled replies'}, 'down': {'replies': 18, 'survives': 18, 'dies': 0, 'death_reasons': {}, 'territory_min': 25, 'territory_mean': 28.833333333333332, 'territory_max': 32, 'classification': 'survives all modeled replies'}}", 'one-turn choose right: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (5, 2), 'next_move': 'right', 'time': '0.053s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 42, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 58, 'length': 3, 'body': [(6, 2), (6, 1), (7, 1)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 92, 'length': 9, 'body': [(5, 7), (5, 6), (4, 6), (4, 7), (4, 8), (4, 9), (5, 9), (6, 9), (6, 10)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 82, 'length': 7, 'body': [(7, 7), (7, 6), (7, 5), (7, 4), (6, 4), (6, 5), (6, 6)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 91, 'length': 8, 'body': [(0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (1, 6), (1, 7), (1, 8)]}], 'food': [(0, 1), (1, 2), (5, 8)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(7, 2), (5, 2), (6, 3)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 21, 'territory_mean': 25.166666666666668, 'territory_max': 31, 'classification': 'survives all modeled replies'}, 'left': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 20, 'territory_mean': 29.166666666666668, 'territory_max': 39, 'classification': 'survives all modeled replies'}, 'up': {'replies': 12, 'survives': 12, 'dies': 0, 'death_reasons': {}, 'territory_min': 26, 'territory_mean': 31.5, 'territory_max': 39, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 3), 'next_move': 'up', 'time': '0.036s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 48, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 52, 'length': 3, 'body': [(6, 2), (5, 2), (4, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 95, 'length': 10, 'body': [(5, 9), (5, 10), (6, 10), (6, 9), (6, 8), (5, 8), (5, 7), (5, 6), (4, 6), (4, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 99, 'length': 8, 'body': [(10, 8), (10, 9), (9, 9), (8, 9), (7, 9), (7, 8), (7, 7), (7, 6)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 99, 'length': 11, 'body': [(3, 1), (2, 1), (2, 2), (1, 2), (1, 1), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6)]}], 'food': [(0, 7)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(7, 2), (6, 3), (6, 1)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 6, 'survives': 6, 'dies': 0, 'death_reasons': {}, 'territory_min': 20, 'territory_mean': 22.5, 'territory_max': 25, 'classification': 'survives all modeled replies'}, 'up': {'replies': 6, 'survives': 6, 'dies': 0, 'death_reasons': {}, 'territory_min': 16, 'territory_mean': 23.5, 'territory_max': 31, 'classification': 'survives all modeled replies'}, 'down': {'replies': 6, 'survives': 6, 'dies': 0, 'death_reasons': {}, 'territory_min': 15, 'territory_mean': 17.166666666666668, 'territory_max': 19, 'classification': 'survives all modeled replies'}}", 'one-turn choose up: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 3), 'next_move': 'up', 'time': '0.021s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 54, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 46, 'length': 3, 'body': [(7, 3), (7, 2), (8, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 89, 'length': 10, 'body': [(1, 7), (2, 7), (3, 7), (4, 7), (4, 8), (4, 9), (5, 9), (5, 10), (6, 10), (6, 9)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 93, 'length': 8, 'body': [(6, 6), (7, 6), (7, 7), (8, 7), (9, 7), (9, 8), (10, 8), (10, 9)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 93, 'length': 11, 'body': [(3, 5), (4, 5), (4, 4), (4, 3), (4, 2), (3, 2), (3, 1), (2, 1), (2, 2), (1, 2), (1, 1)]}], 'food': [(0, 7), (0, 6)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(8, 3), (6, 3), (7, 4)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 16, 'territory_mean': 25.703703703703702, 'territory_max': 36, 'classification': 'survives all modeled replies'}, 'left': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 19, 'territory_mean': 29.77777777777778, 'territory_max': 41, 'classification': 'survives all modeled replies'}, 'up': {'replies': 27, 'survives': 27, 'dies': 0, 'death_reasons': {}, 'territory_min': 15, 'territory_mean': 28.037037037037038, 'territory_max': 40, 'classification': 'survives all modeled replies'}}", 'one-turn choose left: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (6, 3), 'next_move': 'left', 'time': '0.081s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 58, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 42, 'length': 3, 'body': [(7, 1), (6, 1), (6, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 97, 'length': 11, 'body': [(1, 9), (0, 9), (0, 8), (0, 7), (1, 7), (2, 7), (3, 7), (4, 7), (4, 8), (4, 9), (5, 9)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 89, 'length': 8, 'body': [(7, 3), (7, 4), (6, 4), (6, 5), (6, 6), (7, 6), (7, 7), (8, 7)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 12, 'body': [(0, 6), (0, 5), (1, 5), (2, 5), (3, 5), (4, 5), (4, 4), (4, 3), (4, 2), (3, 2), (3, 1), (3, 1)]}], 'food': [(6, 9), (2, 1)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(8, 1), (7, 2), (7, 0)]', "one-turn evaluation (counts, not probabilities): {'right': {'replies': 9, 'survives': 9, 'dies': 0, 'death_reasons': {}, 'territory_min': 7, 'territory_mean': 21.333333333333332, 'territory_max': 32, 'classification': 'survives all modeled replies'}, 'up': {'replies': 9, 'survives': 6, 'dies': 3, 'death_reasons': {'head-to-head collision': 3}, 'territory_min': 27, 'territory_mean': 28.5, 'territory_max': 32, 'classification': 'mixed'}, 'down': {'replies': 9, 'survives': 9, 'dies': 0, 'death_reasons': {}, 'territory_min': 24, 'territory_mean': 25.666666666666668, 'territory_max': 27, 'classification': 'survives all modeled replies'}}", 'one-turn choose down: survives all modeled replies; mean territory, minimum, direction order; evaluation complete'], 'next_coord': (7, 0), 'next_move': 'down', 'time': '0.026s'},
-        {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 66, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 34, 'length': 3, 'body': [(0, 0), (1, 0), (2, 0)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 97, 'length': 12, 'body': [(7, 9), (7, 8), (6, 8), (6, 9), (5, 9), (4, 9), (3, 9), (2, 9), (1, 9), (0, 9), (0, 8), (0, 7)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 99, 'length': 9, 'body': [(1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (6, 1), (6, 2), (7, 2), (7, 3)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 92, 'length': 12, 'body': [(4, 8), (4, 7), (5, 7), (5, 6), (4, 6), (3, 6), (2, 6), (1, 6), (0, 6), (0, 5), (1, 5), (2, 5)]}], 'food': [(8, 9)], 'module': 'BS v3 one-turn static deadline', 'decision_path': ['basic legal moves: [(0, 1)]', "one-turn evaluation (counts, not probabilities): {'up': {'replies': 8, 'survives': 4, 'dies': 4, 'death_reasons': {'head-to-head collision': 4}, 'territory_min': 0, 'territory_mean': 0.0, 'territory_max': 0, 'classification': 'mixed'}}", 'one-turn choose up: no all-reply survivor; unweighted surviving-reply fraction, mean territory, minimum, direction order; evaluation complete'], 'next_coord': (0, 1), 'next_move': 'up', 'time': '0.004s'}
-    ]
-    rows = []
-    print("HISTORICAL FOCUSED END-TO-END; approximate reduced model")
-    print("Shared budget", time_limit, "depth", depth,
-          "sample turns", [r["turn"] for r in records])
-    for record in records:
-        g = init_game(init_from_log(record))
-        result = choose_move_focused_experiment(g, time_limit, depth, node_limit)
-        row = {"turn": g.turn, **result}
-        rows.append(row)
-        print("HISTORICAL E2E", row)
-    completed = [r for r in rows if r["elapsed_seconds"] <= time_limit]
-    summary = {"positions": len(rows),
-               "within_budget": len(completed),
-               "one_turn_incomplete": sum(r["status"] == "ONE_TURN_INCOMPLETE"
-                                          for r in rows),
-               "focused_attempted": sum(r.get("focused") is not None for r in rows),
-               "focused_completed": sum(r.get("focused") is not None and
-                                         r["focused"]["complete"] for r in rows),
-               "focused_distinguished": sum(r["status"] ==
-                                             "FOCUSED_DISTINGUISHED" for r in rows),
-               "choices_changed": sum(r.get("baseline") is not None and
-                                      r["choice"] != r["baseline"] for r in rows),
-               "max_elapsed_seconds": max(r["elapsed_seconds"] for r in rows)}
-    print("HISTORICAL E2E SUMMARY", summary)
-    return {"rows": rows, "summary": summary}
-
-
-def run_focused_search_benchmark(max_depth=10, time_limit=10.0,
-                                 node_limit=1000000):
-    """Saved turn 58: GREEN fully branched, BLUE/YELLOW first-basic policy.
-
-    This ID is from the saved benchmark fixture, not a name inference.
-    Not a live policy and not proof against full opponent branching.
-    """
-    return run_search_benchmark(
-        max_depth=max_depth, time_limit=time_limit, node_limit=node_limit,
-        use_ordering=True, use_depth_bounds=False,
-        branch_opponent_ids={"mark_snake_test GREEN"})
-
-
-def run_turn91_focused_comparison(depths=(3, 5, 7, 9), time_limit=2.0,
-                                  node_limit=1000000, explanation_time=10.0):
-    """OFFLINE BLUE-focused comparison for turns 89-91.
-
-    Reuses the established reduced-model classifier. Other opponents follow
-    deterministic first-basic moves. No new food spawns. Results are modeled
-    classifications, not probabilities or full-game optimal-play proofs.
-    """
-    records = [r for r in BORDER_ESCAPE_HISTORY if r["turn"] in (89, 90, 91)]
-    rows = []
-    print("TURN 89-91 BLUE-FOCUSED COMPARISON; approximate reduced model")
-    print("Depths", depths, "independent budget", time_limit,
-          "seconds per action; no new food")
-    for record in records:
-        g = init_game(init_from_log(record))
-        blue = next(s for s in g.others if s.name.endswith("BLUE"))
-        directions = [name for name, _ in
-                      (legal_moves(g, g.me) or candidate_moves(g, g.me))]
-        for depth in depths:
-            for direction in directions:
-                result = classify_focused_action(
-                    g, direction, depth, time_limit, node_limit, {blue.id})
-                robust = result["robust"] or {}
-                uniform = result["uniform"] or {}
-                row = {"turn": g.turn, "live": record.get("next_move"),
-                       "focus": blue.id, "direction": direction,
-                       "depth": depth,
-                       "classification": result["classification"],
-                       "robust_status": robust.get("status"),
-                       "robust_work": robust.get("work"),
-                       "uniform_status": uniform.get("status"),
-                       "uniform_work": uniform.get("work"),
-                       "elapsed_seconds": result["elapsed_seconds"]}
-                rows.append(row)
-                print("FOCUSED CLASSIFICATION", row)
-    turn91 = init_game(init_from_log(records[-1]))
-    blue = next(s for s in turn91.others if s.name.endswith("BLUE"))
-    explanations = {}
-    for direction in ("right", "up"):
-        result = explain_focused_move(
-            turn91, direction, max(depths), explanation_time, node_limit, {blue.id})
-        explanations[direction] = result
-        summary = {"direction": direction, "status": result["status"],
-                   "work": result.get("work"),
-                   "elapsed_seconds": result.get("elapsed_seconds"),
-                   "certificate_nodes": len(result.get("certificate", {}))}
-        print("TURN 91 EXPLANATION SUMMARY", summary)
-        path = result.get("representative_path", [])
-        print("TURN 91 REPRESENTATIVE PATH", direction, path)
-    return {"rows": rows, "explanations": explanations}
 
 
 def run_turn91_focused_comparison_tests():
@@ -3938,37 +3537,6 @@ def explain_focused_move(g, direction, depth=9, time_limit=10.0,
             "approximate": True, "root": root, "certificate": reachable,
             "representative_path": path, "work": work,
             "elapsed_seconds": time.perf_counter() - start}
-
-
-def run_search_explanation(depth=9, time_limit=10.0, node_limit=1000000,
-                           print_nodes=60):
-    """Saved turn 58. Independent per-direction budgets; bounded console output.
-
-    Full reachable certificate is returned even when console output is capped.
-    Printed representative paths do not replace the branching certificate.
-    """
-    record = {'id': 'acf1c24a-af0e-42ad-b383-812329758c38', 'turn': 58, 'width': 11, 'height': 11, 'me': {'id': 'mark_snake_test RED', 'name': 'mark_snake_test RED', 'health': 42, 'length': 3, 'body': [(7, 1), (6, 1), (6, 2)]}, 'others': [{'id': 'mark_snake_test BLUE', 'name': 'mark_snake_test BLUE', 'health': 97, 'length': 11, 'body': [(1, 9), (0, 9), (0, 8), (0, 7), (1, 7), (2, 7), (3, 7), (4, 7), (4, 8), (4, 9), (5, 9)]}, {'id': 'mark_snake_test GREEN', 'name': 'mark_snake_test GREEN', 'health': 89, 'length': 8, 'body': [(7, 3), (7, 4), (6, 4), (6, 5), (6, 6), (7, 6), (7, 7), (8, 7)]}, {'id': 'mark_snake_test YELLOW', 'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 12, 'body': [(0, 6), (0, 5), (1, 5), (2, 5), (3, 5), (4, 5), (4, 4), (4, 3), (4, 2), (3, 2), (3, 1), (3, 1)]}], 'food': [(6, 9), (2, 1)]}
-    g = init_game(init_from_log(record))
-    results = {}
-    print("APPROXIMATE explanation: GREEN branches; BLUE/YELLOW first basic move")
-    print("No new food. False action means refutable, not certain actual death.")
-    for direction in ("down", "right"):
-        result = explain_focused_move(g, direction, depth, time_limit, node_limit,
-                                      {"mark_snake_test GREEN"})
-        results[direction] = result
-        print("ROOT", direction, {k: v for k, v in result.items()
-                                   if k not in ("certificate", "representative_path")})
-        for row in result.get("representative_path", []):
-            print("REPRESENTATIVE PATH", direction, row)
-        certificate = result.get("certificate", {})
-        print("CERTIFICATE: losing nodes list ALL RED alternatives with one refutation each;")
-        print("winning nodes list one RED choice with ALL modeled replies.")
-        for identity, node in list(certificate.items())[:print_nodes]:
-            print("CERTIFICATE", direction, identity, node)
-        if len(certificate) > print_nodes:
-            print("CONSOLE TRUNCATED", len(certificate) - print_nodes,
-                  "nodes omitted; full certificate is in the returned result")
-    return results
 
 
 def validate_search_certificate(g, result, branch_ids, forced_direction):
@@ -4125,52 +3693,6 @@ def run_search_differential_validation(max_depth=9, time_limit=10.0,
     return {"ok": True, "checks": checks, "first_mismatch": None}
 
 
-def run_search_profile(max_depth=5, time_limit=30.0, node_limit=1000000,
-                       top=35):
-    """OFFLINE profile of the saved turn-58 benchmark, bounds disabled.
-
-    Fixed completed depth makes work comparable. Profiling adds overhead;
-    these seconds are NOT ordinary benchmark speed or live latency.
-    Time/node limits still apply. If incomplete, lower max_depth before
-    comparing profiles. Only console output, no files or live changes.
-    """
-    import cProfile
-    import io
-    import pstats
-    from contextlib import redirect_stdout
-
-    if not isinstance(top, int) or top < 1:
-        raise ValueError("top must be a positive integer")
-    profiler = cProfile.Profile()
-    captured = io.StringIO()
-    # Buffer benchmark prints; formatting/printing does not distort the search table.
-    with redirect_stdout(captured):
-        result = profiler.runcall(
-            run_search_benchmark, max_depth=max_depth, time_limit=time_limit,
-            node_limit=node_limit, use_cache=True, short_circuit=True,
-            use_ordering=True, use_depth_bounds=False)
-    print("OFFLINE PROFILE: ordering on, exact cache on, depth bounds OFF")
-    print("Profiler overhead included; do not compare these times to live timings")
-    print(captured.getvalue())
-    if result["last_complete_depth"] < max_depth:
-        print("PROFILE INCOMPLETE: lower max_depth for fixed-work comparisons")
-    # Self time isolates local work; cumulative time includes callees.
-    # Cumulative rows overlap: never add them together as category totals.
-    print("SELF TIME: work inside each function, excluding its callees")
-    pstats.Stats(profiler).strip_dirs().sort_stats("tottime").print_stats(top)
-    print("CUMULATIVE TIME: includes callees; rows overlap, do not sum")
-    pstats.Stats(profiler).strip_dirs().sort_stats("cumulative").print_stats(top)
-    print("TRANSITION CALLERS: attribute work reaching the transition")
-    pstats.Stats(profiler).strip_dirs().sort_stats("cumulative").print_callers(
-        "next_game_turn")
-    print("TRANSITION CALLEES: movement, collisions, and object creation")
-    pstats.Stats(profiler).strip_dirs().sort_stats("cumulative").print_callees(
-        "next_game_turn")
-    print("Inspect legal_moves/candidate_moves, threat/sorted, key, Snake.__init__,")
-    print("get_coord/from_snakes, and next_game_turn; no bottleneck assumed yet.")
-    return result
-
-
 def main(game_state, log=True):
     start = time.perf_counter()
     g = init_game(game_state)
@@ -4221,56 +3743,15 @@ def init_from_game_engine_log(record, name, width=None, height=None):
 
 
 if __name__ == "__main__":
-    # Optional checks (uncomment to run before the replay):
+    # Recommended regression checks before live-engine testing:
     # run_move_generation_tests()
     # run_transition_tests()
     # run_enumeration_tests()
-    # run_summary_tests()
-    # run_territory_tests()
-    # run_evaluation_tests()
-    # run_chooser_tests()
-    # run_continuation_tests()
-    # run_border_escape_tests()  # turn-91 offline regression
-    # run_turn91_focused_comparison_tests()  # scope only; no deep search
-    # run_turn91_uniform_ordering_tests()  # generic ordering checks
-    # run_ordered_policy_certificate_tests()  # capture verified policy
-    # run_ordered_historical_validation_tests()  # fixed-case harness
-    # run_turn66_yellow_suppress_tests()  # automatic focus and board modes
-    # run_turn66_bounded_setup_tests()  # conservative forced-route semantics
-    # run_future_threat_candidate_tests()  # forced-prefix threat reach
-    # run_bounded_setup_historical_validation_tests()  # fixed labels
-    # run_live_suppress_veto_tests()  # live wrapper regression
+    # run_dynamic_territory_tests()
+    # run_live_suppress_veto_tests()
     # run_deadline_tests()
-    # run_search_tests()
-    # run_focused_search_tests()
-    # run_focused_live_budget_tests()
-    # run_direct_tied_depth_tests()
-    # run_historical_focused_end_to_end_tests()
-    # run_gamble_classification_tests()
-    # run_split_counter_hint_tests()
-    # run_historical_split_hint_tests()
-    # run_search_explanation()  # OFFLINE explanations, not the live chooser
-    # run_search_differential_validation()  # Run before trusting certificates
-    # run_focused_search_benchmark()  # APPROXIMATE OFFLINE experiment only
-    # run_focused_live_budget_feasibility()  # 350 ms approximate feasibility
-    # run_direct_tied_depth_feasibility()  # direct depth-9 right/down timing
-    # run_historical_focused_end_to_end()  # 12-turn shared-budget replay
-    # run_turn58_gamble_classification()  # uniform loss vs gamble
-    # run_turn58_split_counter_diagnostic()  # cheap witness hint
-    # run_historical_split_hint_validation()  # hint confusion table
-    # run_full_history_split_hint_validation()  # all 67 saved turns
-    # run_full_history_all_actions_hint_validation()  # every RED action
-    # run_search_benchmark()  # OFFLINE ONLY; not the 350 ms live chooser
-    # run_search_profile()  # Run INSTEAD of benchmark when collecting a profile
-    # run_border_escape_history()  # offline turns 82-91 diagnostic
-    # run_turn91_focused_comparison()  # offline BLUE-focused depths 3/5/7/9
-    # run_turn91_uniform_ordering_comparison()  # ordered vs baseline proof
-    # run_ordered_policy_certificate_and_controls()  # certificate + controls
-    # run_ordered_historical_validation()  # automatic-focus reference/live budgets
-    # run_turn66_yellow_suppress_comparison()  # full/no-BLUE/YELLOW-only
-    # run_turn66_bounded_setup_comparison()  # setup limits 1/2
-    # run_turn66_multi_threat_comparison()  # each reachable opponent separately
-    # run_bounded_setup_historical_validation()  # turn66/91/126 + controls
+    # run_search_differential_validation()
+    # Additional focused/unit tests remain available by function name.
     # Replace this dictionary with one turn from our me/others log.
     turn_log = {'id': '1f7b6e6f-1ad1-4fd7-9a7f-29d7425408a7', 'turn': 0, 'me': {'name': 'mark_snake_test RED', 'health': 100, 'length': 3, 'body': [(5, 1), (5, 1), (5, 1)]}, 'others': [{'name': 'mark_snake_test BLUE', 'health': 100, 'length': 3, 'body': [(9, 5), (9, 5), (9, 5)]}, {'name': 'mark_snake_test GREEN', 'health': 100, 'length': 3, 'body': [(5, 9), (5, 9), (5, 9)]}, {'name': 'mark_snake_test YELLOW', 'health': 100, 'length': 3, 'body': [(1, 5), (1, 5), (1, 5)]}], 'food': [(4, 0), (10, 4), (6, 10), (0, 6), (5, 5)], 'module': 'territory new', 'decision_path': ['1vn', 'allowed moves: [(6, 1), (4, 1), (5, 2), (5, 0)]', "opponent probability mark_snake_test BLUE: [((10, 5), 22, '-', '-', 0.88, 0.23), ((8, 5), 24, '-', '-', 0.96, 0.253), ((9, 6), 25, '-', '-', 1.0, 0.265), ((9, 4), 24, '-', '-', 0.96, 0.253)]; cutoff 1.5; LIVE SHARED TOP1", "opponent probability mark_snake_test GREEN: [((6, 9), 21, '-', '-', 1.0, 0.264), ((4, 9), 21, '-', '-', 1.0, 0.264), ((5, 10), 19, '-', '-', 0.9, 0.236), ((5, 8), 19, '-', '-', 0.9, 0.236)]; cutoff 1.5; LIVE SHARED TOP1", "opponent probability mark_snake_test YELLOW: [((2, 5), 24, '-', '-', 0.96, 0.253), ((0, 5), 22, '-', '-', 0.88, 0.23), ((1, 6), 25, '-', '-', 1.0, 0.265), ((1, 4), 24, '-', '-', 0.96, 0.253)]; cutoff 1.5; LIVE SHARED TOP1"], 'next_coord': (5, 0), 'next_move': 'down', 'time': '0.019s'}
     game_state = init_from_log(turn_log)
