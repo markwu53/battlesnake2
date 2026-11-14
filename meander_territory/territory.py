@@ -1,5 +1,5 @@
-# BS v4 - experimental draft 0.1.10; Python 3.10+, standard library only.
-# Trial 0.1.10: copy this entire column into your bot module. No Excel header row.
+# BS v4 - experimental draft 0.1.9; Python 3.10+, standard library only.
+# Trial 0.1.9: copy this entire column into your bot module. No Excel header row.
 # Engine API: main(game_state, log=True) sets next_move and returns True.
 # Standalone: python bs_v4.py --test   or   python bs_v4.py --replay record.txt
 # Replay accepts one Python-dict log record or one native JSON game state.
@@ -12,14 +12,13 @@ import time
 from dataclasses import dataclass
 from itertools import product, combinations
 from functools import lru_cache
-MODULE = "BS v4 selective simultaneous search 0.1.10 pair4 dynamic-shortage1"
+MODULE = "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival"
 MOVE_TIME_LIMIT = 0.150
 RETURN_MARGIN = 0.085  # 65 ms search allowance; 150 ms whole-move target.
 MAX_DEPTH = 4
 ACTION_BEAM = 4
 REPLY_BEAM = 4
 NODE_LIMIT = 800
-DYNAMIC_SHORTAGE_WEIGHT = 1  # Experimental points per missing territory cell.
 DIRECTIONS = (("right", (1, 0)), ("left", (-1, 0)),
               ("up", (0, 1)), ("down", (0, -1)))
 DELTA = dict(DIRECTIONS)
@@ -250,7 +249,6 @@ def evaluate(g, budget, cache, ply):
     hunger = 8 * max(0, 25 - slack)
     score = 6 * space + 12 * len(legal_moves(g, s)) + 2 * s.length
     score += .15 * s.health - hunger
-    score -= DYNAMIC_SHORTAGE_WEIGHT * max(0, s.length - space)
     budget.check()
     cache[g] = score
     return score
@@ -1266,120 +1264,14 @@ def run_pairwise_integration_tests():
         'note':'Historical exact-count pruning check uses original selector.'})
 
 
-
-def shortage_t45_fixture():
-    data = fixture([
-        [(1,8),(1,7),(1,6),(2,6),(3,6)],
-        [(1,4),(1,3),(2,3),(3,3),(4,3),(5,3),(5,2)],
-        [(6,3),(6,4),(7,4),(7,5),(8,5)],
-        [(3,8),(4,8),(5,8),(6,8),(6,7),(6,6),(6,5),(5,5),(5,6),(5,7),(4,7),(3,7)]],
-        [67,99,79,93],[(0,4),(0,8)])
-    data['turn'] = 45
-    return init_game(data)
-
-def shortage_t500_fixture():
-    data = fixture([[(8, 2), (8, 3), (7, 3), (7, 4), (6, 4), (5, 4), (5, 5), (5, 6), (5, 7), (5, 8), (5, 9), (5, 10), (6, 10), (7, 10), (8, 10), (8, 9), (8, 8), (8, 7), (7, 7), (7, 6), (8, 6), (9, 6), (10, 6), (10, 5), (9, 5), (9, 4), (10, 4), (10, 3)],[(2, 6), (2, 5), (3, 5), (3, 4), (4, 4), (4, 5), (4, 6), (4, 7), (4, 8), (4, 9), (4, 10), (3, 10), (2, 10), (2, 9), (1, 9), (1, 10), (0, 10), (0, 9), (0, 8), (0, 7), (0, 6), (0, 5), (0, 4), (0, 3), (1, 3), (1, 2), (0, 2), (0, 1), (0, 0), (1, 0), (1, 1), (2, 1), (2, 0), (3, 0), (4, 0), (4, 1), (4, 2), (4, 3), (3, 3), (3, 2), (2, 2), (2, 3), (2, 4), (1, 4), (1, 5), (1, 6), (1, 7)]], [86,97], [(1, 8), (6, 8), (6, 9), (7, 5), (8, 4), (9, 2), (9, 8), (9, 9), (10, 1), (10, 8), (10, 9)])
-    data['turn'] = 500
-    return init_game(data)
-
-def run_shortage_tests():
-    from unittest.mock import patch
-    b = sys.modules[__name__]
-    assert DYNAMIC_SHORTAGE_WEIGHT == 1
-    assert (ACTION_BEAM,REPLY_BEAM,NODE_LIMIT,MAX_DEPTH)==(4,4,800,4)
-    states = [shortage_t45_fixture(),shortage_t500_fixture(),
-              init_game(turn61_fixture()),loss_tie_fixture(),
-              init_game(fixture([[(5,1)]*3,[(9,5)]*3,[(5,9)]*3,[(1,5)]*3],food=[(5,5)]))]
-    checks = 0
-    for g in states:
-        before = repr(g)
-        features = dynamic_features(g,Budget(float('inf'),2000000))
-        score = evaluate(g,Budget(float('inf'),2000000),{},0)
-        with patch.dict(globals(),{'DYNAMIC_SHORTAGE_WEIGHT':0}):
-            old = evaluate(g,Budget(float('inf'),2000000),{},0)
-        assert abs(score-(old-max(0,g.me.length-features[0])))<1e-8
-        for depth in (1,2,3):
-            def run(prune):
-                budget = Budget(float('inf'),2000000)
-                root = expand(g,budget,1)
-                fraction = max(r['survives']/r['replies'] for r in root.values())
-                pool = [d for d,r in root.items() if r['survives']/r['replies']==fraction]
-                return LossTieChooser(b,prune=prune).iteration(root,pool,depth,budget,{})
-            exact, actual = run(False),run(True)
-            assert actual[:2] == exact[:2]
-            for d,value in actual[2].items():
-                assert value == exact[2][d]
-            for d,bound in actual[3].items():
-                assert exact[2][d][0] <= bound[0]
-                if exact[2][d][0] == bound[0]:
-                    assert exact[2][d][1] <= bound[1]
-            checks += 1
-        assert repr(g)==before
-    g = states[0]
-    budget = Budget(float('inf'),2000000)
-    root = expand(g,budget,1)
-    candidate = LossTieChooser(b,prune=False).iteration(root,['left','up'],2,budget,{})
-    assert candidate[0]=='up'
-    assert abs(candidate[2]['left'][0]-51.85)<1e-8
-    assert abs(candidate[2]['up'][0]-52.75)<1e-8
-    with patch.dict(globals(),{'DYNAMIC_SHORTAGE_WEIGHT':0}):
-        budget = Budget(float('inf'),2000000)
-        root = expand(g,budget,1)
-        old = LossTieChooser(b,prune=False).iteration(root,['left','up'],2,budget,{})
-    assert old[0]=='left' and abs(old[2]['left'][0]-56.85)<1e-8
-    assert abs(old[2]['up'][0]-55.75)<1e-8
-    # Terminal values must bypass all leaf penalties.
-    dead = State(g.id,g.turn,g.width,g.height,g.me_id,
-                 tuple(s for s in g.snakes if s.id!=g.me_id),g.food)
-    assert evaluate(dead,Budget(float('inf'),2000000),{},2)==LOSS+2
-    solo = State(g.id,g.turn,g.width,g.height,g.me_id,(g.me,),g.food)
-    assert evaluate(solo,Budget(float('inf'),2000000),{},2)==WIN-2
-    fallback = choose_move(g,-float('inf'))[2]
-    assert fallback['completed_depth']==0 and fallback['scores']=={}
-    original_iteration = LossTieChooser.iteration
-    def stop_later(self,root,pool,depth,*args,**kwargs):
-        if depth>1: raise SearchStopped('shortage test interruption')
-        return original_iteration(self,root,pool,depth,*args,**kwargs)
-    with patch.dict(globals(),{'MAX_DEPTH':1}):
-        previous = choose_move(g,float('inf'))
-    with patch.object(LossTieChooser,'iteration',stop_later):
-        stopped = choose_move(g,float('inf'))
-    assert stopped[:2]==previous[:2]
-    for key in ('scores','score_upper_bounds','survival_scores','survival_upper_bounds','completed_depth'):
-        assert stopped[2][key]==previous[2][key]
-    print('BS V4 SHORTAGE TESTS PASSED',{'parity_pairs':checks,
-          't45_old':'left','t45_new':'up','terminal_bypass':True,'atomic_fallback':True})
-    # Paired exact optimized-source timing; no new food spawning or game outcomes.
-    for label,g in [('T45',states[0]),('long_body_T500',states[1])]:
-        for repeat in range(7):
-            for weight in ((0,1) if repeat%2==0 else (1,0)):
-                with patch.dict(globals(),{'DYNAMIC_SHORTAGE_WEIGHT':weight}):
-                    start = time.perf_counter()
-                    direction,point,info = choose_move(g)
-                    elapsed = time.perf_counter()-start
-                print('SHORTAGE PAIRED TIMING',{'case':label,'repeat':repeat,
-                      'weight':weight,'seconds':elapsed,'over_150ms':elapsed>.150,
-                      'depth':info['completed_depth'],'chosen':direction,
-                      'transitions':info['transitions']})
-
-
 if __name__ == "__main__":
     if len(sys.argv) == 1 or sys.argv[1:] == ["--test"]:
-        from unittest.mock import patch
-        print("LEGACY SUITE: shortage weight 0; original expected scores retained")
-        with patch.dict(globals(), {"DYNAMIC_SHORTAGE_WEIGHT":0}):
-            run_indexed_territory_tests()
-            run_reply_diversity_tests()
-            run_loss_tie_tests()
-            run_tests()
-            run_optimization_tests()
-            run_pairwise_integration_tests()
-        print("CANDIDATE SUITE: shortage weight 1")
         run_indexed_territory_tests()
         run_reply_diversity_tests()
+        run_loss_tie_tests()
         run_tests()
         run_optimization_tests()
-        run_shortage_tests()
+        run_pairwise_integration_tests()
     elif len(sys.argv) == 3 and sys.argv[1] == "--replay":
         with open(sys.argv[2], encoding="utf-8") as handle:
             text = handle.read().strip()
