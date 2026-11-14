@@ -1,0 +1,52 @@
+{
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31
+  ],
+  "arms": [
+    "019",
+    "010"
+  ],
+  "cap": 1000,
+  "source_sha256": {
+    "019": "d2531a76248abab7846e6208ad45517069d5b9a964a7693ba8393401e818c4c4",
+    "010": "487a339c901546deb821083dedce4ab9fdf8615d20d331f6e1ded06dd6cfdf59"
+  },
+  "labels": {
+    "019": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "010": "BS v4 selective simultaneous search 0.1.10 pair4 dynamic-shortage1"
+  },
+  "policy": "Unchanged bot budgets; no forced moves; native engine opening.",
+  "rng": "Per-turn food and per-turn/per-snake standard-library random streams.",
+  "limitations": "Not original RNG recovery. Divergent boards can yield different food cells. Wall-clock budgets and model-owned RNGs may vary. Same opening across seeds; fixed RED seat; not a broad opponent/board benchmark. Dependency hashes cover entry files, not every transitive dependency."
+}

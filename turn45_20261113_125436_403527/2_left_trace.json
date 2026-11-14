@@ -1,0 +1,7345 @@
+[
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 45,
+    "snake": "mark_snake_test RED",
+    "move": "left",
+    "forced_this_turn": true,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 45,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 45,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 45,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 46,
+    "snake": "mark_snake_test RED",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.040109399997163564,
+    "decision_path": [
+      {
+        "completed_depth": 3,
+        "scores": {
+          "up": 56.55
+        },
+        "score_upper_bounds": {
+          "down": -999998.0
+        },
+        "survival_scores": {
+          "up": 1.0
+        },
+        "survival_upper_bounds": {
+          "down": 0.796875
+        },
+        "root_safety": {
+          "up": {
+            "survives": 18,
+            "replies": 18
+          },
+          "down": {
+            "survives": 18,
+            "replies": 18
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 154,
+        "search_seconds": 0.040051400021184236,
+        "chosen": "up",
+        "pruned_replies": 110,
+        "expansion_cache_hits": 8,
+        "fresh_expansions": 33,
+        "reused_transitions": 192,
+        "move_records": 307,
+        "compatibility_checks": 1024
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 46,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 46,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 46,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 47,
+    "snake": "mark_snake_test RED",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.06525630000396632,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "right": 200.55
+        },
+        "score_upper_bounds": {
+          "up": 176.55
+        },
+        "survival_scores": {
+          "right": 1.0
+        },
+        "survival_upper_bounds": {
+          "up": 1.0
+        },
+        "root_safety": {
+          "right": {
+            "survives": 9,
+            "replies": 9
+          },
+          "up": {
+            "survives": 9,
+            "replies": 9
+          }
+        },
+        "stop": "time budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 730,
+        "territory_floods": 128,
+        "search_seconds": 0.06519500000285916,
+        "chosen": "right",
+        "pruned_replies": 118,
+        "expansion_cache_hits": 4,
+        "fresh_expansions": 23,
+        "reused_transitions": 120,
+        "move_records": 221,
+        "compatibility_checks": 790
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 47,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 47,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 47,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 48,
+    "snake": "mark_snake_test RED",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.03743719999329187,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "right": 182.4
+        },
+        "score_upper_bounds": {
+          "up": 182.4
+        },
+        "survival_scores": {
+          "right": 1.0
+        },
+        "survival_upper_bounds": {
+          "up": 1.0
+        },
+        "root_safety": {
+          "right": {
+            "survives": 18,
+            "replies": 18
+          },
+          "up": {
+            "survives": 18,
+            "replies": 18
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 130,
+        "search_seconds": 0.0373865999863483,
+        "chosen": "right",
+        "pruned_replies": 99,
+        "expansion_cache_hits": 4,
+        "fresh_expansions": 25,
+        "reused_transitions": 198,
+        "move_records": 236,
+        "compatibility_checks": 833
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 48,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 48,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 48,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 49,
+    "snake": "mark_snake_test RED",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.04658560000825673,
+    "decision_path": [
+      {
+        "completed_depth": 3,
+        "scores": {
+          "right": 170.1
+        },
+        "score_upper_bounds": {
+          "up": 146.1,
+          "down": 134.1
+        },
+        "survival_scores": {
+          "right": 1.0
+        },
+        "survival_upper_bounds": {
+          "up": 1.0,
+          "down": 1.0
+        },
+        "root_safety": {
+          "right": {
+            "survives": 12,
+            "replies": 12
+          },
+          "up": {
+            "survives": 12,
+            "replies": 12
+          },
+          "down": {
+            "survives": 12,
+            "replies": 12
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 205,
+        "search_seconds": 0.046535100002074614,
+        "chosen": "right",
+        "pruned_replies": 124,
+        "expansion_cache_hits": 8,
+        "fresh_expansions": 38,
+        "reused_transitions": 234,
+        "move_records": 337,
+        "compatibility_checks": 1077
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 49,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 49,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 49,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 50,
+    "snake": "mark_snake_test RED",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.03908719998435117,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "right": 170.1
+        },
+        "score_upper_bounds": {
+          "up": 128.1
+        },
+        "survival_scores": {
+          "right": 1.0
+        },
+        "survival_upper_bounds": {
+          "up": 1.0
+        },
+        "root_safety": {
+          "right": {
+            "survives": 18,
+            "replies": 18
+          },
+          "up": {
+            "survives": 18,
+            "replies": 18
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 157,
+        "search_seconds": 0.039039700001012534,
+        "chosen": "right",
+        "pruned_replies": 82,
+        "expansion_cache_hits": 5,
+        "fresh_expansions": 29,
+        "reused_transitions": 148,
+        "move_records": 271,
+        "compatibility_checks": 924
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 50,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 50,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 50,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 51,
+    "snake": "mark_snake_test RED",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.037826099985977635,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "right": 163.95
+        },
+        "score_upper_bounds": {
+          "up": 115.95
+        },
+        "survival_scores": {
+          "right": 1.0
+        },
+        "survival_upper_bounds": {
+          "up": 1.0
+        },
+        "root_safety": {
+          "right": {
+            "survives": 18,
+            "replies": 18
+          },
+          "up": {
+            "survives": 18,
+            "replies": 18
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 141,
+        "search_seconds": 0.037777199991978705,
+        "chosen": "right",
+        "pruned_replies": 81,
+        "expansion_cache_hits": 5,
+        "fresh_expansions": 27,
+        "reused_transitions": 204,
+        "move_records": 259,
+        "compatibility_checks": 903
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 51,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 51,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 51,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 52,
+    "snake": "mark_snake_test RED",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.04447439999785274,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "right": 151.8
+        },
+        "score_upper_bounds": {
+          "up": 103.8
+        },
+        "survival_scores": {
+          "right": 1.0
+        },
+        "survival_upper_bounds": {
+          "up": 1.0
+        },
+        "root_safety": {
+          "right": {
+            "survives": 27,
+            "replies": 27
+          },
+          "up": {
+            "survives": 27,
+            "replies": 27
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 168,
+        "search_seconds": 0.044417900004191324,
+        "chosen": "right",
+        "pruned_replies": 105,
+        "expansion_cache_hits": 5,
+        "fresh_expansions": 26,
+        "reused_transitions": 126,
+        "move_records": 251,
+        "compatibility_checks": 856
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 52,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 52,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 52,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 53,
+    "snake": "mark_snake_test RED",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.04976010002428666,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "right": 205.65
+        },
+        "score_upper_bounds": {
+          "up": 175.65
+        },
+        "survival_scores": {
+          "right": 1.0
+        },
+        "survival_upper_bounds": {
+          "up": 1.0
+        },
+        "root_safety": {
+          "right": {
+            "survives": 18,
+            "replies": 18
+          },
+          "up": {
+            "survives": 18,
+            "replies": 18
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 199,
+        "search_seconds": 0.049686500016832724,
+        "chosen": "right",
+        "pruned_replies": 114,
+        "expansion_cache_hits": 4,
+        "fresh_expansions": 28,
+        "reused_transitions": 144,
+        "move_records": 266,
+        "compatibility_checks": 896
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 53,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 53,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 53,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 54,
+    "snake": "mark_snake_test RED",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.05267090001143515,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "right": 121.5,
+          "down": 139.5
+        },
+        "score_upper_bounds": {
+          "up": 121.5
+        },
+        "survival_scores": {
+          "right": 1.0,
+          "down": 1.0
+        },
+        "survival_upper_bounds": {
+          "up": 1.0
+        },
+        "root_safety": {
+          "right": {
+            "survives": 18,
+            "replies": 18
+          },
+          "up": {
+            "survives": 18,
+            "replies": 18
+          },
+          "down": {
+            "survives": 18,
+            "replies": 18
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 251,
+        "search_seconds": 0.05262370000127703,
+        "chosen": "down",
+        "pruned_replies": 118,
+        "expansion_cache_hits": 3,
+        "fresh_expansions": 32,
+        "reused_transitions": 90,
+        "move_records": 311,
+        "compatibility_checks": 1066
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 54,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 54,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 54,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 55,
+    "snake": "mark_snake_test RED",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.0429874999972526,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "right": 127.35,
+          "left": 163.35
+        },
+        "score_upper_bounds": {},
+        "survival_scores": {
+          "right": 1.0,
+          "left": 1.0
+        },
+        "survival_upper_bounds": {},
+        "root_safety": {
+          "right": {
+            "survives": 18,
+            "replies": 18
+          },
+          "left": {
+            "survives": 18,
+            "replies": 18
+          },
+          "down": {
+            "survives": 12,
+            "replies": 18
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 130,
+        "search_seconds": 0.04293850000249222,
+        "chosen": "left",
+        "pruned_replies": 67,
+        "expansion_cache_hits": 2,
+        "fresh_expansions": 20,
+        "reused_transitions": 93,
+        "move_records": 210,
+        "compatibility_checks": 786
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 55,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 55,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 55,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 56,
+    "snake": "mark_snake_test RED",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.05732029999489896,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "left": 175.2
+        },
+        "score_upper_bounds": {},
+        "survival_scores": {
+          "left": 1.0
+        },
+        "survival_upper_bounds": {},
+        "root_safety": {
+          "left": {
+            "survives": 4,
+            "replies": 4
+          },
+          "down": {
+            "survives": 2,
+            "replies": 4
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 193,
+        "search_seconds": 0.057275099999969825,
+        "chosen": "left",
+        "pruned_replies": 98,
+        "expansion_cache_hits": 3,
+        "fresh_expansions": 26,
+        "reused_transitions": 144,
+        "move_records": 247,
+        "compatibility_checks": 875
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 56,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 56,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 56,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 57,
+    "snake": "mark_snake_test RED",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.045160000008763745,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "left": 211.05,
+          "down": 217.05
+        },
+        "score_upper_bounds": {
+          "up": 193.05
+        },
+        "survival_scores": {
+          "left": 1.0,
+          "down": 1.0
+        },
+        "survival_upper_bounds": {
+          "up": 1.0
+        },
+        "root_safety": {
+          "left": {
+            "survives": 18,
+            "replies": 18
+          },
+          "up": {
+            "survives": 18,
+            "replies": 18
+          },
+          "down": {
+            "survives": 18,
+            "replies": 18
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 183,
+        "search_seconds": 0.045115799992345273,
+        "chosen": "down",
+        "pruned_replies": 71,
+        "expansion_cache_hits": 1,
+        "fresh_expansions": 21,
+        "reused_transitions": 36,
+        "move_records": 220,
+        "compatibility_checks": 820
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 57,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 57,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 57,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 58,
+    "snake": "mark_snake_test RED",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.055808200006140396,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "right": 78.9,
+          "left": 168.9
+        },
+        "score_upper_bounds": {
+          "down": 150.9
+        },
+        "survival_scores": {
+          "right": 1.0,
+          "left": 1.0
+        },
+        "survival_upper_bounds": {
+          "down": 1.0
+        },
+        "root_safety": {
+          "right": {
+            "survives": 18,
+            "replies": 18
+          },
+          "left": {
+            "survives": 18,
+            "replies": 18
+          },
+          "down": {
+            "survives": 18,
+            "replies": 18
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 139,
+        "search_seconds": 0.05576349998591468,
+        "chosen": "left",
+        "pruned_replies": 60,
+        "expansion_cache_hits": 4,
+        "fresh_expansions": 25,
+        "reused_transitions": 65,
+        "move_records": 247,
+        "compatibility_checks": 877
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 58,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 58,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 58,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 59,
+    "snake": "mark_snake_test RED",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.05849190001026727,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "up": 168.75
+        },
+        "score_upper_bounds": {
+          "down": 90.75
+        },
+        "survival_scores": {
+          "up": 1.0
+        },
+        "survival_upper_bounds": {
+          "down": 1.0
+        },
+        "root_safety": {
+          "up": {
+            "survives": 18,
+            "replies": 18
+          },
+          "down": {
+            "survives": 18,
+            "replies": 18
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 146,
+        "search_seconds": 0.058447200019145384,
+        "chosen": "up",
+        "pruned_replies": 98,
+        "expansion_cache_hits": 3,
+        "fresh_expansions": 22,
+        "reused_transitions": 108,
+        "move_records": 227,
+        "compatibility_checks": 834
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 59,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 59,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 59,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 60,
+    "snake": "mark_snake_test RED",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.05830360000254586,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "left": 156.6
+        },
+        "score_upper_bounds": {
+          "up": 144.6
+        },
+        "survival_scores": {
+          "left": 1.0
+        },
+        "survival_upper_bounds": {
+          "up": 1.0
+        },
+        "root_safety": {
+          "left": {
+            "survives": 27,
+            "replies": 27
+          },
+          "up": {
+            "survives": 27,
+            "replies": 27
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 195,
+        "search_seconds": 0.05824230000143871,
+        "chosen": "left",
+        "pruned_replies": 79,
+        "expansion_cache_hits": 3,
+        "fresh_expansions": 24,
+        "reused_transitions": 153,
+        "move_records": 240,
+        "compatibility_checks": 864
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 60,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 60,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 60,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 61,
+    "snake": "mark_snake_test RED",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.048398700018879026,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "left": 131.0,
+          "down": 138.45
+        },
+        "score_upper_bounds": {
+          "up": 126.45
+        },
+        "survival_scores": {
+          "left": 1.0,
+          "down": 1.0
+        },
+        "survival_upper_bounds": {
+          "up": 1.0
+        },
+        "root_safety": {
+          "left": {
+            "survives": 18,
+            "replies": 18
+          },
+          "up": {
+            "survives": 18,
+            "replies": 18
+          },
+          "down": {
+            "survives": 18,
+            "replies": 18
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 221,
+        "search_seconds": 0.04835189998266287,
+        "chosen": "down",
+        "pruned_replies": 103,
+        "expansion_cache_hits": 2,
+        "fresh_expansions": 28,
+        "reused_transitions": 90,
+        "move_records": 273,
+        "compatibility_checks": 953
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 61,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 61,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 61,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 62,
+    "snake": "mark_snake_test RED",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.04045919998316094,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "left": 114.3
+        },
+        "score_upper_bounds": {
+          "down": 108.3
+        },
+        "survival_scores": {
+          "left": 1.0
+        },
+        "survival_upper_bounds": {
+          "down": 1.0
+        },
+        "root_safety": {
+          "left": {
+            "survives": 27,
+            "replies": 27
+          },
+          "down": {
+            "survives": 27,
+            "replies": 27
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 159,
+        "search_seconds": 0.04041089999373071,
+        "chosen": "left",
+        "pruned_replies": 99,
+        "expansion_cache_hits": 3,
+        "fresh_expansions": 23,
+        "reused_transitions": 126,
+        "move_records": 235,
+        "compatibility_checks": 866
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 62,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 62,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 62,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 63,
+    "snake": "mark_snake_test RED",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.04493460000958294,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "left": 107.0
+        },
+        "score_upper_bounds": {
+          "up": 101.0
+        },
+        "survival_scores": {
+          "left": 1.0
+        },
+        "survival_upper_bounds": {
+          "up": 1.0
+        },
+        "root_safety": {
+          "left": {
+            "survives": 18,
+            "replies": 18
+          },
+          "up": {
+            "survives": 18,
+            "replies": 18
+          },
+          "down": {
+            "survives": 12,
+            "replies": 18
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 177,
+        "search_seconds": 0.04489079999621026,
+        "chosen": "left",
+        "pruned_replies": 121,
+        "expansion_cache_hits": 4,
+        "fresh_expansions": 27,
+        "reused_transitions": 180,
+        "move_records": 259,
+        "compatibility_checks": 899
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 63,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 63,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 63,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 64,
+    "snake": "mark_snake_test RED",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.05387370000244118,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "left": 78.0,
+          "up": 94.85
+        },
+        "score_upper_bounds": {},
+        "survival_scores": {
+          "left": 1.0,
+          "up": 1.0
+        },
+        "survival_upper_bounds": {},
+        "root_safety": {
+          "left": {
+            "survives": 8,
+            "replies": 8
+          },
+          "up": {
+            "survives": 8,
+            "replies": 8
+          },
+          "down": {
+            "survives": 4,
+            "replies": 8
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 254,
+        "search_seconds": 0.05382699999609031,
+        "chosen": "up",
+        "pruned_replies": 108,
+        "expansion_cache_hits": 5,
+        "fresh_expansions": 41,
+        "reused_transitions": 60,
+        "move_records": 367,
+        "compatibility_checks": 1176
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 64,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 64,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 64,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 65,
+    "snake": "mark_snake_test RED",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.052599700022256,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "right": 124.7
+        },
+        "score_upper_bounds": {
+          "left": 82.7,
+          "up": 112.7
+        },
+        "survival_scores": {
+          "right": 1.0
+        },
+        "survival_upper_bounds": {
+          "left": 1.0,
+          "up": 1.0
+        },
+        "root_safety": {
+          "right": {
+            "survives": 4,
+            "replies": 4
+          },
+          "left": {
+            "survives": 4,
+            "replies": 4
+          },
+          "up": {
+            "survives": 4,
+            "replies": 4
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 254,
+        "search_seconds": 0.052554599998984486,
+        "chosen": "right",
+        "pruned_replies": 141,
+        "expansion_cache_hits": 6,
+        "fresh_expansions": 48,
+        "reused_transitions": 75,
+        "move_records": 427,
+        "compatibility_checks": 1341
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 65,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 65,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 65,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 66,
+    "snake": "mark_snake_test RED",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.0658283999946434,
+    "decision_path": [
+      {
+        "completed_depth": 3,
+        "scores": {
+          "up": 106.4
+        },
+        "score_upper_bounds": {},
+        "survival_scores": {
+          "up": 1.0
+        },
+        "survival_upper_bounds": {},
+        "root_safety": {
+          "up": {
+            "survives": 6,
+            "replies": 6
+          }
+        },
+        "stop": "time budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 778,
+        "territory_floods": 362,
+        "search_seconds": 0.06577539999852888,
+        "chosen": "up",
+        "pruned_replies": 161,
+        "expansion_cache_hits": 8,
+        "fresh_expansions": 51,
+        "reused_transitions": 174,
+        "move_records": 426,
+        "compatibility_checks": 1286
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 66,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 66,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 66,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 67,
+    "snake": "mark_snake_test RED",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.06541209999704733,
+    "decision_path": [
+      {
+        "completed_depth": 3,
+        "scores": {
+          "right": 136.25
+        },
+        "score_upper_bounds": {
+          "left": 88.25,
+          "up": 82.25
+        },
+        "survival_scores": {
+          "right": 1.0
+        },
+        "survival_upper_bounds": {
+          "left": 1.0,
+          "up": 1.0
+        },
+        "root_safety": {
+          "right": {
+            "survives": 6,
+            "replies": 6
+          },
+          "left": {
+            "survives": 6,
+            "replies": 6
+          },
+          "up": {
+            "survives": 6,
+            "replies": 6
+          }
+        },
+        "stop": "time budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 664,
+        "territory_floods": 379,
+        "search_seconds": 0.0653636000060942,
+        "chosen": "right",
+        "pruned_replies": 184,
+        "expansion_cache_hits": 9,
+        "fresh_expansions": 66,
+        "reused_transitions": 115,
+        "move_records": 494,
+        "compatibility_checks": 1320
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 67,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 67,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 67,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 68,
+    "snake": "mark_snake_test RED",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.06527540000388399,
+    "decision_path": [
+      {
+        "completed_depth": 3,
+        "scores": {
+          "right": 70.1,
+          "up": 76.1,
+          "down": 112.1
+        },
+        "score_upper_bounds": {},
+        "survival_scores": {
+          "right": 1.0,
+          "up": 1.0,
+          "down": 1.0
+        },
+        "survival_upper_bounds": {},
+        "root_safety": {
+          "right": {
+            "survives": 6,
+            "replies": 6
+          },
+          "up": {
+            "survives": 6,
+            "replies": 6
+          },
+          "down": {
+            "survives": 6,
+            "replies": 6
+          }
+        },
+        "stop": "time budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 723,
+        "territory_floods": 348,
+        "search_seconds": 0.0652336000057403,
+        "chosen": "down",
+        "pruned_replies": 190,
+        "expansion_cache_hits": 14,
+        "fresh_expansions": 84,
+        "reused_transitions": 119,
+        "move_records": 599,
+        "compatibility_checks": 1528
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 68,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 68,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 68,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 69,
+    "snake": "mark_snake_test RED",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.05732039999566041,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "right": 124.1,
+          "down": 112.1
+        },
+        "score_upper_bounds": {},
+        "survival_scores": {
+          "right": 1.0,
+          "down": 1.0
+        },
+        "survival_upper_bounds": {},
+        "root_safety": {
+          "right": {
+            "survives": 6,
+            "replies": 6
+          },
+          "down": {
+            "survives": 6,
+            "replies": 6
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 300,
+        "search_seconds": 0.057275099999969825,
+        "chosen": "right",
+        "pruned_replies": 118,
+        "expansion_cache_hits": 5,
+        "fresh_expansions": 39,
+        "reused_transitions": 81,
+        "move_records": 367,
+        "compatibility_checks": 1221
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 69,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 69,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 69,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 70,
+    "snake": "mark_snake_test RED",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.04347319999942556,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "right": 99.95,
+          "up": 111.95,
+          "down": 135.95
+        },
+        "score_upper_bounds": {},
+        "survival_scores": {
+          "right": 1.0,
+          "up": 1.0,
+          "down": 1.0
+        },
+        "survival_upper_bounds": {},
+        "root_safety": {
+          "right": {
+            "survives": 2,
+            "replies": 2
+          },
+          "up": {
+            "survives": 2,
+            "replies": 2
+          },
+          "down": {
+            "survives": 2,
+            "replies": 2
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 184,
+        "search_seconds": 0.04342979998909868,
+        "chosen": "down",
+        "pruned_replies": 78,
+        "expansion_cache_hits": 3,
+        "fresh_expansions": 27,
+        "reused_transitions": 72,
+        "move_records": 257,
+        "compatibility_checks": 908
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 70,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 70,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 70,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 71,
+    "snake": "mark_snake_test RED",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.036297300015576184,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "right": 99.8,
+          "left": 141.8
+        },
+        "score_upper_bounds": {
+          "down": 117.8
+        },
+        "survival_scores": {
+          "right": 1.0,
+          "left": 1.0
+        },
+        "survival_upper_bounds": {
+          "down": 1.0
+        },
+        "root_safety": {
+          "right": {
+            "survives": 9,
+            "replies": 9
+          },
+          "left": {
+            "survives": 9,
+            "replies": 9
+          },
+          "down": {
+            "survives": 9,
+            "replies": 9
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 128,
+        "search_seconds": 0.03625350000220351,
+        "chosen": "left",
+        "pruned_replies": 63,
+        "expansion_cache_hits": 2,
+        "fresh_expansions": 18,
+        "reused_transitions": 78,
+        "move_records": 195,
+        "compatibility_checks": 749
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 71,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 71,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 71,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 72,
+    "snake": "mark_snake_test RED",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.044961599982343614,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "left": 141.65
+        },
+        "score_upper_bounds": {
+          "down": 105.65
+        },
+        "survival_scores": {
+          "left": 1.0
+        },
+        "survival_upper_bounds": {
+          "down": 1.0
+        },
+        "root_safety": {
+          "left": {
+            "survives": 18,
+            "replies": 18
+          },
+          "down": {
+            "survives": 18,
+            "replies": 18
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 183,
+        "search_seconds": 0.04491019999841228,
+        "chosen": "left",
+        "pruned_replies": 91,
+        "expansion_cache_hits": 3,
+        "fresh_expansions": 24,
+        "reused_transitions": 189,
+        "move_records": 237,
+        "compatibility_checks": 835
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 72,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 72,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 72,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 73,
+    "snake": "mark_snake_test RED",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.04246729999431409,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "left": 135.5,
+          "down": 147.5
+        },
+        "score_upper_bounds": {
+          "up": 135.5
+        },
+        "survival_scores": {
+          "left": 1.0,
+          "down": 1.0
+        },
+        "survival_upper_bounds": {
+          "up": 1.0
+        },
+        "root_safety": {
+          "left": {
+            "survives": 27,
+            "replies": 27
+          },
+          "up": {
+            "survives": 27,
+            "replies": 27
+          },
+          "down": {
+            "survives": 27,
+            "replies": 27
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 196,
+        "search_seconds": 0.04241709999041632,
+        "chosen": "down",
+        "pruned_replies": 137,
+        "expansion_cache_hits": 3,
+        "fresh_expansions": 30,
+        "reused_transitions": 87,
+        "move_records": 282,
+        "compatibility_checks": 942
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 73,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 73,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 73,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 74,
+    "snake": "mark_snake_test RED",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.049158900015754625,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "right": 123.35,
+          "down": 165.35
+        },
+        "score_upper_bounds": {
+          "left": 117.35
+        },
+        "survival_scores": {
+          "right": 1.0,
+          "down": 1.0
+        },
+        "survival_upper_bounds": {
+          "left": 1.0
+        },
+        "root_safety": {
+          "right": {
+            "survives": 12,
+            "replies": 12
+          },
+          "left": {
+            "survives": 12,
+            "replies": 12
+          },
+          "down": {
+            "survives": 12,
+            "replies": 12
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 237,
+        "search_seconds": 0.049112800013972446,
+        "chosen": "down",
+        "pruned_replies": 145,
+        "expansion_cache_hits": 5,
+        "fresh_expansions": 39,
+        "reused_transitions": 58,
+        "move_records": 338,
+        "compatibility_checks": 1064
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 74,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 74,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 74,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 75,
+    "snake": "mark_snake_test RED",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.03940209999564104,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "right": 111.2
+        },
+        "score_upper_bounds": {
+          "down": 69.2
+        },
+        "survival_scores": {
+          "right": 1.0
+        },
+        "survival_upper_bounds": {
+          "down": 1.0
+        },
+        "root_safety": {
+          "right": {
+            "survives": 8,
+            "replies": 8
+          },
+          "left": {
+            "survives": 4,
+            "replies": 8
+          },
+          "down": {
+            "survives": 8,
+            "replies": 8
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 151,
+        "search_seconds": 0.03935559999081306,
+        "chosen": "right",
+        "pruned_replies": 82,
+        "expansion_cache_hits": 3,
+        "fresh_expansions": 22,
+        "reused_transitions": 66,
+        "move_records": 228,
+        "compatibility_checks": 845
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 75,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 75,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 75,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 76,
+    "snake": "mark_snake_test RED",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.03402819999610074,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "right": 93.05
+        },
+        "score_upper_bounds": {
+          "up": 87.05,
+          "down": 63.05
+        },
+        "survival_scores": {
+          "right": 1.0
+        },
+        "survival_upper_bounds": {
+          "up": 1.0,
+          "down": 1.0
+        },
+        "root_safety": {
+          "right": {
+            "survives": 8,
+            "replies": 8
+          },
+          "up": {
+            "survives": 8,
+            "replies": 8
+          },
+          "down": {
+            "survives": 8,
+            "replies": 8
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 118,
+        "search_seconds": 0.0339803000097163,
+        "chosen": "right",
+        "pruned_replies": 84,
+        "expansion_cache_hits": 2,
+        "fresh_expansions": 18,
+        "reused_transitions": 108,
+        "move_records": 194,
+        "compatibility_checks": 738
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 76,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 76,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 76,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 77,
+    "snake": "mark_snake_test RED",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.036599299986846745,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "right": -999998.0,
+          "up": 92.9
+        },
+        "score_upper_bounds": {
+          "down": 56.9
+        },
+        "survival_scores": {
+          "right": 0.9375,
+          "up": 1.0
+        },
+        "survival_upper_bounds": {
+          "down": 1.0
+        },
+        "root_safety": {
+          "right": {
+            "survives": 18,
+            "replies": 18
+          },
+          "up": {
+            "survives": 18,
+            "replies": 18
+          },
+          "down": {
+            "survives": 18,
+            "replies": 18
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 1,
+        "transitions": 800,
+        "territory_floods": 121,
+        "search_seconds": 0.03654810000443831,
+        "chosen": "up",
+        "pruned_replies": 84,
+        "expansion_cache_hits": 2,
+        "fresh_expansions": 19,
+        "reused_transitions": 72,
+        "move_records": 201,
+        "compatibility_checks": 761
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 77,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 77,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 77,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 78,
+    "snake": "mark_snake_test RED",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.03426650000619702,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "left": 62.75,
+          "up": 74.75
+        },
+        "score_upper_bounds": {},
+        "survival_scores": {
+          "left": 1.0,
+          "up": 1.0
+        },
+        "survival_upper_bounds": {},
+        "root_safety": {
+          "right": {
+            "survives": 12,
+            "replies": 18
+          },
+          "left": {
+            "survives": 18,
+            "replies": 18
+          },
+          "up": {
+            "survives": 18,
+            "replies": 18
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 116,
+        "search_seconds": 0.03422349999891594,
+        "chosen": "up",
+        "pruned_replies": 72,
+        "expansion_cache_hits": 3,
+        "fresh_expansions": 20,
+        "reused_transitions": 54,
+        "move_records": 213,
+        "compatibility_checks": 804
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 78,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 78,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 78,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 79,
+    "snake": "mark_snake_test RED",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.03941960001247935,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "left": 38.6,
+          "up": 68.6
+        },
+        "score_upper_bounds": {},
+        "survival_scores": {
+          "left": 1.0,
+          "up": 1.0
+        },
+        "survival_upper_bounds": {},
+        "root_safety": {
+          "right": {
+            "survives": 9,
+            "replies": 18
+          },
+          "left": {
+            "survives": 18,
+            "replies": 18
+          },
+          "up": {
+            "survives": 18,
+            "replies": 18
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 153,
+        "search_seconds": 0.03937050001695752,
+        "chosen": "up",
+        "pruned_replies": 111,
+        "expansion_cache_hits": 4,
+        "fresh_expansions": 28,
+        "reused_transitions": 162,
+        "move_records": 269,
+        "compatibility_checks": 930
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 79,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 79,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 79,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 80,
+    "snake": "mark_snake_test RED",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.03920329999527894,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "up": 54.85
+        },
+        "score_upper_bounds": {},
+        "survival_scores": {
+          "up": 1.0
+        },
+        "survival_upper_bounds": {},
+        "root_safety": {
+          "right": {
+            "survives": 9,
+            "replies": 18
+          },
+          "left": {
+            "survives": 12,
+            "replies": 18
+          },
+          "up": {
+            "survives": 18,
+            "replies": 18
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 149,
+        "search_seconds": 0.03915699999197386,
+        "chosen": "up",
+        "pruned_replies": 113,
+        "expansion_cache_hits": 4,
+        "fresh_expansions": 27,
+        "reused_transitions": 150,
+        "move_records": 261,
+        "compatibility_checks": 909
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 80,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 80,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 80,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 81,
+    "snake": "mark_snake_test RED",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.04720189998624846,
+    "decision_path": [
+      {
+        "completed_depth": 3,
+        "scores": {
+          "up": -999998.0
+        },
+        "score_upper_bounds": {},
+        "survival_scores": {
+          "up": 0.75
+        },
+        "survival_upper_bounds": {},
+        "root_safety": {
+          "right": {
+            "survives": 6,
+            "replies": 12
+          },
+          "left": {
+            "survives": 6,
+            "replies": 12
+          },
+          "up": {
+            "survives": 12,
+            "replies": 12
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 175,
+        "search_seconds": 0.047157099994365126,
+        "chosen": "up",
+        "pruned_replies": 90,
+        "expansion_cache_hits": 11,
+        "fresh_expansions": 42,
+        "reused_transitions": 248,
+        "move_records": 360,
+        "compatibility_checks": 1130
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 81,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 81,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 81,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 82,
+    "snake": "mark_snake_test RED",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.011199000000488013,
+    "decision_path": [
+      {
+        "completed_depth": 4,
+        "scores": {
+          "right": -999999.0,
+          "left": -999999.0
+        },
+        "score_upper_bounds": {},
+        "survival_scores": {
+          "right": 0.0859375,
+          "left": 0.0
+        },
+        "survival_upper_bounds": {},
+        "root_safety": {
+          "right": {
+            "survives": 4,
+            "replies": 8
+          },
+          "left": {
+            "survives": 4,
+            "replies": 8
+          }
+        },
+        "stop": "max depth",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 191,
+        "territory_floods": 44,
+        "search_seconds": 0.011155099986353889,
+        "chosen": "right",
+        "pruned_replies": 6,
+        "expansion_cache_hits": 8,
+        "fresh_expansions": 17,
+        "reused_transitions": 74,
+        "move_records": 130,
+        "compatibility_checks": 362
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 82,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 82,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 82,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 83,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 83,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 83,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 84,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 84,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 84,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 85,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 85,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 85,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 86,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 86,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 86,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 87,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 87,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 87,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 88,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 88,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 88,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 89,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 89,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 89,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 90,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 90,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 90,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 91,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 91,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 91,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 92,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 92,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 92,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 93,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 93,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 93,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 94,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 94,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 94,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 95,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 95,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 95,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 96,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 96,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 96,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 97,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 97,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 97,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 98,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 98,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 98,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 99,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 99,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 99,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 100,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 100,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 100,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 101,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 101,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 101,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 102,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 102,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 102,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 103,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 103,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 103,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 104,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 104,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 104,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 105,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 105,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 105,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 106,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 106,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 106,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 107,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 107,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 107,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 108,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 108,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 108,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 109,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 109,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 109,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 110,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 110,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 110,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 111,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 111,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 111,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 112,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 112,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 112,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 113,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 113,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 113,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 114,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 114,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 114,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 115,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 115,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 115,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 116,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 116,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 116,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 117,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 117,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 117,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 118,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 118,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 118,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 119,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 119,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 119,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 120,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 120,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 120,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 121,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 121,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 121,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 122,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 122,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 122,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 123,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 123,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 123,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 124,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 124,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 124,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 125,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 125,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 125,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 126,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 126,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 126,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 127,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 127,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 127,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 128,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 128,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 128,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 129,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 129,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 129,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 130,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 130,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 130,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 131,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 131,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 131,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 132,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 132,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 132,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 133,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 133,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 133,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 134,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 134,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 134,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 135,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 135,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 135,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 136,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 136,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 136,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 137,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 137,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 137,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 138,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 138,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 138,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 139,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 139,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 139,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 140,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 140,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 140,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 141,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 141,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 141,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 142,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 142,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 142,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 143,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 143,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 143,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 144,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 144,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 144,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 145,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 145,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 145,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 146,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 146,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 146,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 147,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 147,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 147,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 148,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 148,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 148,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 149,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 149,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 149,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 150,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 150,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 150,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 151,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 151,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 151,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 152,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 152,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 153,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 153,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 154,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 154,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 155,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 155,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 156,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 156,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 157,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 157,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 158,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 158,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 159,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 159,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 160,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 160,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 161,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 161,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 162,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 162,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 163,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 163,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 164,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 164,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 165,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 165,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 166,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 166,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 167,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 167,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 168,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 168,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 169,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 169,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 170,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 170,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 171,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 171,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 172,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 172,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 173,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 173,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 174,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 174,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 175,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 175,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 176,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 176,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 177,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 177,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 178,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 178,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 179,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 179,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 180,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 180,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 181,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 181,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 182,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 182,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 183,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 183,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 184,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 184,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 185,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 185,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 186,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 186,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 187,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 187,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 188,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 188,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 189,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 189,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 190,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 190,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 191,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 191,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 192,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 192,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 193,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 193,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 194,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 194,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 195,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 195,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 196,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 196,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 197,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 197,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 198,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 198,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 199,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 199,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 200,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 200,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 201,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 201,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 202,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 202,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 203,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 203,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 204,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 204,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 205,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 205,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 206,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 206,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 207,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 207,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 208,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 208,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 209,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 209,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 210,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 210,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 211,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 211,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 212,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 212,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 213,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 213,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 214,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 214,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 215,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 215,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 216,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 216,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 217,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 217,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 218,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 218,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 219,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 219,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 220,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 220,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 221,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 221,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 222,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 222,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 223,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 223,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 224,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 224,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 225,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 225,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 226,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 226,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 227,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 227,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 228,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 228,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 229,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 229,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 230,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 230,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 231,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "left",
+    "turn": 231,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  }
+]

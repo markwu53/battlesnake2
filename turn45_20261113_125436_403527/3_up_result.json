@@ -1,0 +1,19 @@
+{
+  "seed": 3,
+  "forced": "up",
+  "outcome": "LOSS",
+  "game_complete": true,
+  "red_alive": false,
+  "red_death_input_turn": 150,
+  "red_moves_resolved": 106,
+  "steps_run": 129,
+  "end_board_turn": 174,
+  "red_length": 9,
+  "red_health": 99,
+  "winner": "mark_snake_test YELLOW",
+  "red_measured_calls": 105,
+  "red_over_150ms": 0,
+  "red_max_seconds": 0.06587930000387132,
+  "forced_calls": 1,
+  "responsive_opponent_calls": 384
+}

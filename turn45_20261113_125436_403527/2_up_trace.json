@@ -1,0 +1,5828 @@
+[
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 45,
+    "snake": "mark_snake_test RED",
+    "move": "up",
+    "forced_this_turn": true,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 45,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 45,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 45,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 46,
+    "snake": "mark_snake_test RED",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.03740349999861792,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "right": 145.6
+        },
+        "score_upper_bounds": {
+          "left": 91.6,
+          "up": 127.6
+        },
+        "survival_scores": {
+          "right": 1.0
+        },
+        "survival_upper_bounds": {
+          "left": 1.0,
+          "up": 1.0
+        },
+        "root_safety": {
+          "right": {
+            "survives": 18,
+            "replies": 18
+          },
+          "left": {
+            "survives": 18,
+            "replies": 18
+          },
+          "up": {
+            "survives": 18,
+            "replies": 18
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 135,
+        "search_seconds": 0.03734819998499006,
+        "chosen": "right",
+        "pruned_replies": 107,
+        "expansion_cache_hits": 4,
+        "fresh_expansions": 26,
+        "reused_transitions": 135,
+        "move_records": 257,
+        "compatibility_checks": 908
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 46,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 46,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 46,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 47,
+    "snake": "mark_snake_test RED",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.14588090000324883,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "right": 133.45
+        },
+        "score_upper_bounds": {
+          "up": 115.45,
+          "down": 127.45
+        },
+        "survival_scores": {
+          "right": 1.0
+        },
+        "survival_upper_bounds": {
+          "up": 1.0,
+          "down": 1.0
+        },
+        "root_safety": {
+          "right": {
+            "survives": 9,
+            "replies": 9
+          },
+          "up": {
+            "survives": 9,
+            "replies": 9
+          },
+          "down": {
+            "survives": 9,
+            "replies": 9
+          }
+        },
+        "stop": "time budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 597,
+        "territory_floods": 101,
+        "search_seconds": 0.14574559999164194,
+        "chosen": "right",
+        "pruned_replies": 64,
+        "expansion_cache_hits": 3,
+        "fresh_expansions": 20,
+        "reused_transitions": 96,
+        "move_records": 191,
+        "compatibility_checks": 675
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 47,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 47,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 47,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 48,
+    "snake": "mark_snake_test RED",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.039956499997060746,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "right": 121.3
+        },
+        "score_upper_bounds": {
+          "up": 103.3
+        },
+        "survival_scores": {
+          "right": 1.0
+        },
+        "survival_upper_bounds": {
+          "up": 1.0
+        },
+        "root_safety": {
+          "right": {
+            "survives": 12,
+            "replies": 12
+          },
+          "up": {
+            "survives": 12,
+            "replies": 12
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 128,
+        "search_seconds": 0.039906299993162975,
+        "chosen": "right",
+        "pruned_replies": 65,
+        "expansion_cache_hits": 4,
+        "fresh_expansions": 23,
+        "reused_transitions": 132,
+        "move_records": 234,
+        "compatibility_checks": 849
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 48,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 48,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 48,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 49,
+    "snake": "mark_snake_test RED",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.054060199996456504,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "right": 121.15
+        },
+        "score_upper_bounds": {
+          "up": 109.15
+        },
+        "survival_scores": {
+          "right": 1.0
+        },
+        "survival_upper_bounds": {
+          "up": 1.0
+        },
+        "root_safety": {
+          "right": {
+            "survives": 18,
+            "replies": 18
+          },
+          "up": {
+            "survives": 18,
+            "replies": 18
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 147,
+        "search_seconds": 0.05399709998164326,
+        "chosen": "right",
+        "pruned_replies": 90,
+        "expansion_cache_hits": 5,
+        "fresh_expansions": 28,
+        "reused_transitions": 198,
+        "move_records": 272,
+        "compatibility_checks": 945
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 49,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 49,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 49,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 50,
+    "snake": "mark_snake_test RED",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.03734479998820461,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "right": 115.0
+        },
+        "score_upper_bounds": {
+          "up": 79.0
+        },
+        "survival_scores": {
+          "right": 1.0
+        },
+        "survival_upper_bounds": {
+          "up": 1.0
+        },
+        "root_safety": {
+          "right": {
+            "survives": 18,
+            "replies": 18
+          },
+          "up": {
+            "survives": 18,
+            "replies": 18
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 140,
+        "search_seconds": 0.037297400005627424,
+        "chosen": "right",
+        "pruned_replies": 86,
+        "expansion_cache_hits": 4,
+        "fresh_expansions": 21,
+        "reused_transitions": 108,
+        "move_records": 222,
+        "compatibility_checks": 831
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 50,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 50,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 50,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 51,
+    "snake": "mark_snake_test RED",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.032197699998505414,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "right": 96.85
+        },
+        "score_upper_bounds": {
+          "up": 66.85
+        },
+        "survival_scores": {
+          "right": 1.0
+        },
+        "survival_upper_bounds": {
+          "up": 1.0
+        },
+        "root_safety": {
+          "right": {
+            "survives": 18,
+            "replies": 18
+          },
+          "up": {
+            "survives": 18,
+            "replies": 18
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 109,
+        "search_seconds": 0.03214609998394735,
+        "chosen": "right",
+        "pruned_replies": 96,
+        "expansion_cache_hits": 2,
+        "fresh_expansions": 18,
+        "reused_transitions": 90,
+        "move_records": 198,
+        "compatibility_checks": 769
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 51,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 51,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 51,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 52,
+    "snake": "mark_snake_test RED",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.034778299974277616,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "right": 84.7
+        },
+        "score_upper_bounds": {
+          "up": 54.7
+        },
+        "survival_scores": {
+          "right": 1.0
+        },
+        "survival_upper_bounds": {
+          "up": 1.0
+        },
+        "root_safety": {
+          "right": {
+            "survives": 12,
+            "replies": 12
+          },
+          "up": {
+            "survives": 12,
+            "replies": 12
+          },
+          "down": {
+            "survives": 6,
+            "replies": 12
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 120,
+        "search_seconds": 0.03472619998501614,
+        "chosen": "right",
+        "pruned_replies": 106,
+        "expansion_cache_hits": 3,
+        "fresh_expansions": 20,
+        "reused_transitions": 153,
+        "move_records": 212,
+        "compatibility_checks": 798
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 52,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 52,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 52,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 53,
+    "snake": "mark_snake_test RED",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.03448729999945499,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "right": 66.55
+        },
+        "score_upper_bounds": {
+          "up": 48.55
+        },
+        "survival_scores": {
+          "right": 1.0
+        },
+        "survival_upper_bounds": {
+          "up": 1.0
+        },
+        "root_safety": {
+          "right": {
+            "survives": 18,
+            "replies": 18
+          },
+          "up": {
+            "survives": 18,
+            "replies": 18
+          },
+          "down": {
+            "survives": 12,
+            "replies": 18
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 139,
+        "search_seconds": 0.03444259997922927,
+        "chosen": "right",
+        "pruned_replies": 80,
+        "expansion_cache_hits": 3,
+        "fresh_expansions": 23,
+        "reused_transitions": 153,
+        "move_records": 231,
+        "compatibility_checks": 838
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 53,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 53,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 53,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 54,
+    "snake": "mark_snake_test RED",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.04895930000930093,
+    "decision_path": [
+      {
+        "completed_depth": 3,
+        "scores": {
+          "right": 36.25,
+          "up": 48.25
+        },
+        "score_upper_bounds": {},
+        "survival_scores": {
+          "right": 1.0,
+          "up": 1.0
+        },
+        "survival_upper_bounds": {},
+        "root_safety": {
+          "right": {
+            "survives": 27,
+            "replies": 27
+          },
+          "up": {
+            "survives": 27,
+            "replies": 27
+          },
+          "down": {
+            "survives": 18,
+            "replies": 27
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 222,
+        "search_seconds": 0.048917600011918694,
+        "chosen": "up",
+        "pruned_replies": 53,
+        "expansion_cache_hits": 10,
+        "fresh_expansions": 61,
+        "reused_transitions": 228,
+        "move_records": 481,
+        "compatibility_checks": 1366
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 54,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 54,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 54,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 55,
+    "snake": "mark_snake_test RED",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.05073770001763478,
+    "decision_path": [
+      {
+        "completed_depth": 3,
+        "scores": {
+          "right": -999998.0,
+          "left": 54.1
+        },
+        "score_upper_bounds": {},
+        "survival_scores": {
+          "right": 0.5,
+          "left": 1.0
+        },
+        "survival_upper_bounds": {},
+        "root_safety": {
+          "right": {
+            "survives": 18,
+            "replies": 18
+          },
+          "left": {
+            "survives": 18,
+            "replies": 18
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 248,
+        "search_seconds": 0.050692199991317466,
+        "chosen": "left",
+        "pruned_replies": 40,
+        "expansion_cache_hits": 23,
+        "fresh_expansions": 62,
+        "reused_transitions": 246,
+        "move_records": 507,
+        "compatibility_checks": 1481
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 55,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 55,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 55,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 56,
+    "snake": "mark_snake_test RED",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.029252400010591373,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "left": 54.1
+        },
+        "score_upper_bounds": {},
+        "survival_scores": {
+          "left": 1.0
+        },
+        "survival_upper_bounds": {},
+        "root_safety": {
+          "left": {
+            "survives": 8,
+            "replies": 8
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 106,
+        "search_seconds": 0.029212299996288493,
+        "chosen": "left",
+        "pruned_replies": 83,
+        "expansion_cache_hits": 4,
+        "fresh_expansions": 21,
+        "reused_transitions": 44,
+        "move_records": 218,
+        "compatibility_checks": 808
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 56,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 56,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 56,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 57,
+    "snake": "mark_snake_test RED",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.03614519999246113,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "left": -999998.0
+        },
+        "score_upper_bounds": {
+          "down": -999998.0
+        },
+        "survival_scores": {
+          "left": 0.875
+        },
+        "survival_upper_bounds": {
+          "down": 0.875
+        },
+        "root_safety": {
+          "left": {
+            "survives": 6,
+            "replies": 6
+          },
+          "down": {
+            "survives": 6,
+            "replies": 6
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 119,
+        "search_seconds": 0.03610180001123808,
+        "chosen": "left",
+        "pruned_replies": 52,
+        "expansion_cache_hits": 3,
+        "fresh_expansions": 21,
+        "reused_transitions": 108,
+        "move_records": 220,
+        "compatibility_checks": 821
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 57,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 57,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 57,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 58,
+    "snake": "mark_snake_test RED",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.03363290001288988,
+    "decision_path": [
+      {
+        "completed_depth": 2,
+        "scores": {
+          "left": 53.8
+        },
+        "score_upper_bounds": {
+          "down": -999998.0
+        },
+        "survival_scores": {
+          "left": 1.0
+        },
+        "survival_upper_bounds": {
+          "down": 0.875
+        },
+        "root_safety": {
+          "left": {
+            "survives": 18,
+            "replies": 18
+          },
+          "down": {
+            "survives": 18,
+            "replies": 18
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 107,
+        "search_seconds": 0.03358960000332445,
+        "chosen": "left",
+        "pruned_replies": 35,
+        "expansion_cache_hits": 3,
+        "fresh_expansions": 22,
+        "reused_transitions": 126,
+        "move_records": 228,
+        "compatibility_checks": 843
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 58,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 58,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 58,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 59,
+    "snake": "mark_snake_test RED",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.05137870000908151,
+    "decision_path": [
+      {
+        "completed_depth": 3,
+        "scores": {
+          "left": 41.5
+        },
+        "score_upper_bounds": {
+          "down": -999998.0
+        },
+        "survival_scores": {
+          "left": 1.0
+        },
+        "survival_upper_bounds": {
+          "down": 0.875
+        },
+        "root_safety": {
+          "left": {
+            "survives": 27,
+            "replies": 27
+          },
+          "down": {
+            "survives": 27,
+            "replies": 27
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 238,
+        "search_seconds": 0.051330800022697076,
+        "chosen": "left",
+        "pruned_replies": 13,
+        "expansion_cache_hits": 18,
+        "fresh_expansions": 61,
+        "reused_transitions": 327,
+        "move_records": 478,
+        "compatibility_checks": 1369
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 59,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 59,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 59,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 60,
+    "snake": "mark_snake_test RED",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.06539730000076815,
+    "decision_path": [
+      {
+        "completed_depth": 3,
+        "scores": {
+          "left": 35.35
+        },
+        "score_upper_bounds": {},
+        "survival_scores": {
+          "left": 1.0
+        },
+        "survival_upper_bounds": {},
+        "root_safety": {
+          "left": {
+            "survives": 27,
+            "replies": 27
+          }
+        },
+        "stop": "time budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 773,
+        "territory_floods": 270,
+        "search_seconds": 0.06534980001742952,
+        "chosen": "left",
+        "pruned_replies": 0,
+        "expansion_cache_hits": 19,
+        "fresh_expansions": 69,
+        "reused_transitions": 257,
+        "move_records": 536,
+        "compatibility_checks": 1508
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 60,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 60,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 60,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 61,
+    "snake": "mark_snake_test RED",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.031988299975637347,
+    "decision_path": [
+      {
+        "completed_depth": 3,
+        "scores": {
+          "left": 26.85
+        },
+        "score_upper_bounds": {},
+        "survival_scores": {
+          "left": 1.0
+        },
+        "survival_upper_bounds": {},
+        "root_safety": {
+          "left": {
+            "survives": 18,
+            "replies": 18
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 102,
+        "search_seconds": 0.03192959999432787,
+        "chosen": "left",
+        "pruned_replies": 0,
+        "expansion_cache_hits": 16,
+        "fresh_expansions": 48,
+        "reused_transitions": 120,
+        "move_records": 418,
+        "compatibility_checks": 1296
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 61,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 61,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 61,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 62,
+    "snake": "mark_snake_test RED",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.0628683999821078,
+    "decision_path": [
+      {
+        "completed_depth": 3,
+        "scores": {
+          "left": -999997.0
+        },
+        "score_upper_bounds": {},
+        "survival_scores": {
+          "left": 0.5
+        },
+        "survival_upper_bounds": {},
+        "root_safety": {
+          "left": {
+            "survives": 12,
+            "replies": 12
+          }
+        },
+        "stop": "transition budget",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 800,
+        "territory_floods": 252,
+        "search_seconds": 0.06282439999631606,
+        "chosen": "left",
+        "pruned_replies": 30,
+        "expansion_cache_hits": 24,
+        "fresh_expansions": 50,
+        "reused_transitions": 413,
+        "move_records": 401,
+        "compatibility_checks": 1087
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 62,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 62,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 62,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 63,
+    "snake": "mark_snake_test RED",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.006927799986442551,
+    "decision_path": [
+      {
+        "completed_depth": 4,
+        "scores": {
+          "left": -999998.0
+        },
+        "score_upper_bounds": {},
+        "survival_scores": {
+          "left": 0.0
+        },
+        "survival_upper_bounds": {},
+        "root_safety": {
+          "left": {
+            "survives": 6,
+            "replies": 6
+          }
+        },
+        "stop": "max depth",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 94,
+        "territory_floods": 4,
+        "search_seconds": 0.006880700006149709,
+        "chosen": "left",
+        "pruned_replies": 0,
+        "expansion_cache_hits": 8,
+        "fresh_expansions": 5,
+        "reused_transitions": 176,
+        "move_records": 46,
+        "compatibility_checks": 150
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 63,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 63,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 63,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 64,
+    "snake": "mark_snake_test RED",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+    "compute_seconds": 0.0013318000128492713,
+    "decision_path": [
+      {
+        "completed_depth": 4,
+        "scores": {
+          "right": -999999.0,
+          "left": -999999.0,
+          "up": -999999.0,
+          "down": -999999.0
+        },
+        "score_upper_bounds": {},
+        "survival_scores": {
+          "right": 0.0,
+          "left": 0.0,
+          "up": 0.0,
+          "down": 0.0
+        },
+        "survival_upper_bounds": {},
+        "root_safety": {
+          "right": {
+            "survives": 0,
+            "replies": 6
+          },
+          "left": {
+            "survives": 0,
+            "replies": 6
+          },
+          "up": {
+            "survives": 0,
+            "replies": 6
+          },
+          "down": {
+            "survives": 0,
+            "replies": 6
+          }
+        },
+        "stop": "max depth",
+        "approximate": true,
+        "model": "all snakes move; selective maximin; loss-only survival ties; no future food spawn",
+        "survival_score_model": "equal mean over selected deduplicated replies; not probability",
+        "root_loss_tie_used": false,
+        "loss_tie_replacements": 0,
+        "transitions": 24,
+        "territory_floods": 0,
+        "search_seconds": 0.001291799999307841,
+        "chosen": "right",
+        "pruned_replies": 0,
+        "expansion_cache_hits": 0,
+        "fresh_expansions": 1,
+        "reused_transitions": 0,
+        "move_records": 10,
+        "compatibility_checks": 35
+      }
+    ]
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 64,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 64,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 64,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 65,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 65,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 65,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 66,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 66,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 66,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 67,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 67,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 67,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 68,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 68,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 68,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 69,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 69,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 69,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 70,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 70,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 70,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 71,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 71,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 71,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 72,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 72,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 72,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 73,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 73,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 73,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 74,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 74,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 74,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 75,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 75,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 75,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 76,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 76,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 76,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 77,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 77,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 77,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 78,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 78,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 78,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 79,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 79,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 79,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 80,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 80,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 80,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 81,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 81,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 81,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 82,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 82,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 82,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 83,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 83,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 83,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 84,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 84,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 84,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 85,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 85,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 85,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 86,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 86,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 86,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 87,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 87,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 87,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 88,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 88,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 88,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 89,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 89,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 89,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 90,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 90,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 90,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 91,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 91,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 91,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 92,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 92,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 92,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 93,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 93,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 93,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 94,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 94,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 94,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 95,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 95,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 95,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 96,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 96,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 96,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 97,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 97,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 97,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 98,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 98,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 98,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 99,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 99,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 99,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 100,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 100,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 100,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 101,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 101,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 101,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 102,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 102,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 102,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 103,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 103,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 103,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 104,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 104,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 104,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 105,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 105,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 105,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 106,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 106,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 106,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 107,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 107,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 107,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 108,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 108,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 108,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 109,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 109,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 109,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 110,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 110,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 110,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 111,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 111,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 111,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 112,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 112,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 112,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 113,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 113,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 113,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 114,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 114,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 114,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 115,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 115,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 115,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 116,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 116,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 116,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 117,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 117,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 117,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 118,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 118,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 118,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 119,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 119,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 119,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 120,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 120,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 120,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 121,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 121,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 121,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 122,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 122,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 122,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 123,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 123,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 123,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 124,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 124,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 124,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 125,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 125,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 125,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 126,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 126,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 126,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 127,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 127,
+    "snake": "mark_snake_test GREEN",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 127,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 128,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 128,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 128,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 129,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 129,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 129,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 130,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 130,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 130,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 131,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 131,
+    "snake": "mark_snake_test GREEN",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 131,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 132,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 132,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 132,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 133,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 133,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 133,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 134,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 134,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 134,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 135,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 135,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 135,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 136,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 136,
+    "snake": "mark_snake_test GREEN",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 136,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 137,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 137,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 137,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 138,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 138,
+    "snake": "mark_snake_test GREEN",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 138,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 139,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 139,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 140,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 140,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 141,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 141,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 142,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 142,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 143,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 143,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 144,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 144,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 145,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 145,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 146,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 146,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 147,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 147,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 148,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 148,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 149,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 149,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 150,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 150,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 151,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 151,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 152,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 152,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 153,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 153,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 154,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 154,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 155,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 155,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 156,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 156,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 157,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 157,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 158,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 158,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 159,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 159,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 160,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 160,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 161,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 161,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 162,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 162,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 163,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 163,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 164,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 164,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 165,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 165,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 166,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 166,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 167,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 167,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 168,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 168,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 169,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 169,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 170,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 170,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 171,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 171,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 172,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 172,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 173,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 173,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 174,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 174,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 175,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 175,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 176,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 176,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 177,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 177,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 178,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 178,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 179,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 179,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 180,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 180,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 181,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 181,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 182,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 182,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 183,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 183,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 184,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 184,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 185,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 185,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 186,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 186,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 187,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 187,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 188,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 188,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 189,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 189,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 190,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 190,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 191,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 191,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 192,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 192,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 193,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 193,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 194,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 194,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 195,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 195,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 196,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 196,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 197,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 197,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 198,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 198,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 199,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 199,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 200,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 200,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 201,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 201,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 202,
+    "snake": "mark_snake_test BLUE",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 202,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 203,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 203,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 204,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 204,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 205,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 205,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 206,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 206,
+    "snake": "mark_snake_test YELLOW",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 207,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 207,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 208,
+    "snake": "mark_snake_test BLUE",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 208,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 209,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 209,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 210,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 210,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 211,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 211,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 212,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 212,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 213,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 213,
+    "snake": "mark_snake_test YELLOW",
+    "move": "right",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 214,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 214,
+    "snake": "mark_snake_test YELLOW",
+    "move": "down",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 215,
+    "snake": "mark_snake_test BLUE",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 215,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 216,
+    "snake": "mark_snake_test BLUE",
+    "move": "up",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  },
+  {
+    "seed": 2,
+    "forced": "up",
+    "turn": 216,
+    "snake": "mark_snake_test YELLOW",
+    "move": "left",
+    "forced_this_turn": false,
+    "module": null,
+    "compute_seconds": null,
+    "decision_path": null
+  }
+]

@@ -1,0 +1,17 @@
+{
+  "source": "Workbook logs A3911; Game 4 input turn 45",
+  "red_expected": "BS v4 selective simultaneous search 0.1.9 pair4 cap800 loss-tie survival",
+  "seeds": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "forced_arms": [
+    "left",
+    "up"
+  ],
+  "max_steps": 200,
+  "rng": "per-turn food and per-turn/per-snake model streams; paired across arms",
+  "limitations": "New seeded counterfactuals, not original RNG recovery. Live wall-clock budgets can vary. Same stream does not mean identical food cells on different boards. Fresh processes isolate module state; model-owned RNGs are not controlled."
+}

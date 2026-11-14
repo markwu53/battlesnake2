@@ -1,0 +1,19 @@
+{
+  "seed": 2,
+  "forced": "left",
+  "outcome": "LOSS_GAME_CAPPED",
+  "game_complete": false,
+  "red_alive": false,
+  "red_death_input_turn": 188,
+  "red_moves_resolved": 164,
+  "steps_run": 200,
+  "end_board_turn": 225,
+  "red_length": 8,
+  "red_health": 77,
+  "winner": "",
+  "red_measured_calls": 0,
+  "red_over_150ms": 0,
+  "red_max_seconds": null,
+  "forced_calls": 1,
+  "responsive_opponent_calls": 473
+}

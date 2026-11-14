@@ -1,0 +1,9 @@
+seed,forced,outcome,game_complete,red_alive,red_death_input_turn,red_moves_resolved,steps_run,end_board_turn,red_length,red_health,winner,red_measured_calls,red_over_150ms,red_max_seconds,forced_calls,responsive_opponent_calls
+0,left,LOSS_GAME_CAPPED,False,False,50,6,200,245,6,95,,5,0,0.0411747999896761,1,472
+0,up,CENSORED_ALIVE,False,True,,200,200,245,13,96,,199,0,0.06563649998861365,1,413
+1,up,LOSS_GAME_CAPPED,False,False,126,82,200,245,8,90,,81,0,0.06564309998066165,1,486
+1,left,LOSS_GAME_CAPPED,False,False,50,6,200,245,6,95,,5,0,0.04440049998811446,1,516
+2,left,LOSS,True,False,82,38,187,232,8,98,mark_snake_test BLUE,37,0,0.0658283999946434,1,481
+2,up,LOSS,True,False,64,20,172,217,6,98,mark_snake_test YELLOW,19,0,0.14588090000324883,1,438
+3,up,LOSS,True,False,150,106,129,174,9,99,mark_snake_test YELLOW,105,0,0.06587930000387132,1,384
+3,left,LOSS_GAME_CAPPED,False,False,50,6,200,245,6,95,,5,0,0.04124220000812784,1,526
